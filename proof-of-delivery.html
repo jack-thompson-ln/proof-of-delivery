@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Proof of Delivery</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand: #004b8e;
+    --brand-dark: #003a6e;
+    --accent: #0099ff;
+    --white: #ffffff;
+    --off-white: #f4f7fb;
+    --border: #dce8f5;
+    --text: #0d1b2a;
+    --text-muted: #5a7a9a;
+    --success: #00b86b;
+    --error: #e03c3c;
+    --shadow: 0 4px 24px rgba(0,75,142,0.13);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Barlow', sans-serif; background: var(--off-white); color: var(--text); min-height: 100dvh; }
+
+  /* HEADER */
+  header { background: var(--brand); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 16px rgba(0,0,0,0.18); }
+  .header-inner { display: flex; align-items: center; gap: 14px; padding: 14px 20px; }
+  .logo-mark { width: 40px; height: 40px; background: rgba(255,255,255,0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo-mark svg { width: 22px; height: 22px; }
+  .header-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.35rem; font-weight: 800; color: white; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.1; }
+  .header-sub { font-size: 0.7rem; font-weight: 400; color: rgba(255,255,255,0.65); letter-spacing: 0.06em; text-transform: uppercase; }
+  .datetime-pill { margin-left: auto; background: rgba(255,255,255,0.12); border-radius: 8px; padding: 6px 10px; text-align: right; flex-shrink: 0; }
+  .datetime-time { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 700; color: white; letter-spacing: 0.05em; }
+  .datetime-date { font-size: 0.65rem; color: rgba(255,255,255,0.65); }
+
+  /* LAYOUT */
+  main { padding: 20px 16px 40px; max-width: 560px; margin: 0 auto; }
+
+  /* STEPS */
+  .steps { display: flex; margin-bottom: 24px; background: white; border-radius: 12px; padding: 4px; box-shadow: var(--shadow); }
+  .step { flex: 1; text-align: center; padding: 8px 4px; border-radius: 9px; transition: all 0.25s ease; }
+  .step.active { background: var(--brand); }
+  .step.done { background: rgba(0,75,142,0.08); }
+  .step-num { font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 800; color: var(--text-muted); line-height: 1; }
+  .step.active .step-num { color: white; }
+  .step.done .step-num { color: var(--brand); }
+  .step-label { font-size: 0.6rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.05em; text-transform: uppercase; margin-top: 2px; }
+  .step.active .step-label { color: rgba(255,255,255,0.85); }
+  .step.done .step-label { color: var(--brand); }
+
+  /* CARDS */
+  .card { background: white; border-radius: var(--radius); padding: 22px 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); animation: slideUp 0.3s ease both; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .card-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .card-label svg { width: 14px; height: 14px; opacity: 0.8; }
+
+  /* INPUTS */
+  input[type="text"], textarea {
+    width: 100%; padding: 13px 16px; border: 2px solid var(--border); border-radius: 10px;
+    font-family: 'Barlow', sans-serif; font-size: 1rem; font-weight: 500; color: var(--text);
+    background: var(--off-white); transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none; -webkit-appearance: none; outline: none;
+  }
+  input[type="text"]:focus, textarea:focus { border-color: var(--brand); background: white; box-shadow: 0 0 0 3px rgba(0,75,142,0.1); }
+  input::placeholder { color: var(--text-muted); font-weight: 400; }
+
+  /* DRIVER GRID */
+  .driver-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+  .driver-btn { background: var(--off-white); border: 2px solid var(--border); border-radius: 10px; padding: 10px 4px; font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 700; color: var(--text); cursor: pointer; text-align: center; transition: all 0.15s ease; }
+  .driver-btn:active { transform: scale(0.95); }
+  .driver-btn.selected { background: var(--brand); border-color: var(--brand); color: white; box-shadow: 0 3px 12px rgba(0,75,142,0.3); }
+  .driver-other-toggle { grid-column: span 4; background: var(--off-white); border: 2px dashed var(--border); border-radius: 10px; padding: 10px; font-family: 'Barlow', sans-serif; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); cursor: pointer; text-align: center; transition: all 0.15s ease; }
+  .driver-other-toggle.active { border-color: var(--brand); color: var(--brand); background: rgba(0,75,142,0.04); }
+  .other-input-wrap { display: none; margin-top: 8px; }
+  .other-input-wrap.visible { display: block; }
+
+  /* PHOTO */
+  .photo-zone { border: 2.5px dashed var(--border); border-radius: 12px; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; overflow: hidden; position: relative; background: var(--off-white); }
+  .photo-zone.has-photo { border-style: solid; border-color: var(--brand); }
+  .photo-zone img { width: 100%; object-fit: cover; display: block; min-height: 180px; max-height: 280px; }
+  .photo-placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px; }
+  .photo-icon { width: 52px; height: 52px; background: rgba(0,75,142,0.08); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .photo-icon svg { width: 26px; height: 26px; color: var(--brand); }
+  .photo-placeholder p { font-weight: 600; font-size: 0.95rem; color: var(--brand); }
+  .photo-placeholder span { font-size: 0.78rem; color: var(--text-muted); }
+  .photo-retake { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.55); color: white; border: none; border-radius: 8px; padding: 6px 12px; font-family: 'Barlow', sans-serif; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+  #photoInput { display: none; }
+
+  /* TIMESTAMP */
+  .timestamp-display { background: var(--off-white); border: 2px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+  .ts-icon { width: 36px; height: 36px; background: rgba(0,75,142,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .ts-icon svg { width: 18px; height: 18px; color: var(--brand); }
+  .ts-time { font-family: 'Barlow Condensed', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--text); letter-spacing: 0.03em; line-height: 1; }
+  .ts-date { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
+  .ts-live { margin-left: auto; display: flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 700; color: var(--success); letter-spacing: 0.06em; text-transform: uppercase; }
+  .ts-live-dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+  /* SUBMIT */
+  .submit-btn { width: 100%; padding: 17px; background: var(--brand); color: white; border: none; border-radius: 14px; font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 6px 24px rgba(0,75,142,0.35); display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; }
+  .submit-btn:active { transform: scale(0.98); background: var(--brand-dark); }
+  .submit-btn:disabled { background: #a0b8cc; box-shadow: none; cursor: not-allowed; }
+
+  /* STATUS */
+  .status-bar { border-radius: 12px; padding: 14px 18px; margin-bottom: 14px; display: none; align-items: flex-start; gap: 12px; }
+  .status-bar.show { display: flex; }
+  .status-bar.loading { background: rgba(0,75,142,0.07); border: 1.5px solid var(--border); }
+  .status-bar.error { background: rgba(224,60,60,0.07); border: 1.5px solid rgba(224,60,60,0.25); }
+  .status-icon { flex-shrink: 0; width: 22px; height: 22px; margin-top: 1px; }
+  .status-text { font-size: 0.88rem; font-weight: 500; color: var(--text); }
+  .status-text strong { display: block; font-size: 0.92rem; font-weight: 700; margin-bottom: 6px; }
+  .spinner { width: 20px; height: 20px; border: 2.5px solid rgba(0,75,142,0.2); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; margin-top: 2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .upload-step { font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 7px; margin-top: 5px; transition: color 0.2s; }
+  .upload-step.active { color: var(--brand); font-weight: 600; }
+  .upload-step.done { color: var(--success); }
+  .step-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; opacity: 0.4; }
+  .upload-step.active .step-dot, .upload-step.done .step-dot { opacity: 1; }
+
+  /* SUCCESS */
+  #successScreen { display: none; flex-direction: column; align-items: center; text-align: center; padding: 40px 20px; }
+  #successScreen.show { display: flex; animation: slideUp 0.4s ease; }
+  .success-circle { width: 80px; height: 80px; background: linear-gradient(135deg, var(--brand), var(--accent)); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 8px 30px rgba(0,75,142,0.35); }
+  .success-circle svg { width: 38px; height: 38px; color: white; }
+  #successScreen h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--brand); margin-bottom: 8px; }
+  #successScreen p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 6px; line-height: 1.5; }
+  #successRef { font-family: 'Barlow Condensed', sans-serif; font-size: 0.85rem; font-weight: 600; color: var(--brand); background: rgba(0,75,142,0.07); border-radius: 8px; padding: 6px 14px; margin: 10px 0 24px; word-break: break-all; }
+  .new-delivery-btn { width: 100%; max-width: 320px; padding: 15px; background: var(--brand); color: white; border: none; border-radius: 14px; font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; box-shadow: 0 6px 24px rgba(0,75,142,0.3); }
+
+  /* CONFIG */
+  .config-notice { background: #fff8e6; border: 1.5px solid #f0c040; border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; font-size: 0.82rem; color: #7a5800; line-height: 1.5; }
+  .config-notice strong { display: block; margin-bottom: 4px; font-size: 0.88rem; }
+  .config-toggle { background: none; border: 2px solid var(--brand); border-radius: 10px; padding: 10px 16px; color: var(--brand); font-family: 'Barlow', sans-serif; font-size: 0.85rem; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  #configPanel { display: none; background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); animation: slideUp 0.25s ease; }
+  #configPanel.open { display: block; }
+  #configPanel label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--brand); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; margin-top: 14px; }
+  #configPanel label:first-child { margin-top: 0; }
+  .save-config-btn { width: 100%; margin-top: 16px; padding: 12px; background: var(--brand); color: white; border: none; border-radius: 10px; font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+  .field-note { font-size: 0.73rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
+  .input-wrap { position: relative; }
+  .valid-tick { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--success); display: none; pointer-events: none; }
+  .input-wrap.valid .valid-tick { display: block; }
+  .input-wrap.valid input { border-color: rgba(0,184,107,0.5); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+      </svg>
+    </div>
+    <div>
+      <div class="header-title">Proof of Delivery</div>
+      <div class="header-sub">Delivery Confirmation</div>
+    </div>
+    <div class="datetime-pill">
+      <div class="datetime-time" id="headerTime">--:--</div>
+      <div class="datetime-date" id="headerDate">---</div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div class="config-notice" id="configNotice">
+    <strong>⚙️ Setup Required</strong>
+    Enter your Supabase project URL and anon key below before recording deliveries.
+  </div>
+
+  <button class="config-toggle" onclick="toggleConfig()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+    Supabase Configuration
+  </button>
+
+  <div id="configPanel">
+    <label>Supabase Project URL</label>
+    <input type="text" id="cfgUrl" placeholder="https://xxxxxxxxxxxx.supabase.co">
+    <p class="field-note">Found in your Supabase project → Settings → API</p>
+
+    <label>Supabase Anon (Public) Key</label>
+    <input type="text" id="cfgKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+    <p class="field-note">The <strong>anon/public</strong> key from Settings → API. Safe to use in a browser.</p>
+
+    <label>Storage Bucket Name</label>
+    <input type="text" id="cfgBucket" placeholder="delivery-photos">
+    <p class="field-note">Name of the Supabase Storage bucket you created for photos</p>
+
+    <label>Database Table Name</label>
+    <input type="text" id="cfgTable" placeholder="deliveries">
+    <p class="field-note">Name of the table in your Supabase database (see setup guide below)</p>
+
+    <button class="save-config-btn" onclick="saveConfig()">Save Configuration</button>
+  </div>
+
+  <div id="formSection">
+
+    <div class="steps">
+      <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">Driver</div></div>
+      <div class="step" id="step2"><div class="step-num">2</div><div class="step-label">Customer</div></div>
+      <div class="step" id="step3"><div class="step-num">3</div><div class="step-label">Photo</div></div>
+      <div class="step" id="step4"><div class="step-num">4</div><div class="step-label">Submit</div></div>
+    </div>
+
+    <!-- DRIVER -->
+    <div class="card">
+      <div class="card-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        Delivery Driver
+      </div>
+      <div class="driver-grid">
+        <button class="driver-btn" onclick="selectDriver(this,'Paddy')">Paddy</button>
+        <button class="driver-btn" onclick="selectDriver(this,'Becky')">Becky</button>
+        <button class="driver-btn" onclick="selectDriver(this,'Ben')">Ben</button>
+        <button class="driver-btn" onclick="selectDriver(this,'Ian')">Ian</button>
+        <button class="driver-btn" onclick="selectDriver(this,'Ken')">Ken</button>
+        <button class="driver-btn" onclick="selectDriver(this,'Nick')">Nick</button>
+        <button class="driver-btn" onclick="selectDriver(this,'Sam')">Sam</button>
+        <button class="driver-btn" onclick="selectDriver(this,'James')">James</button>
+        <button class="driver-other-toggle" id="otherToggle" onclick="toggleOther()">+ Other / Not listed</button>
+      </div>
+      <div class="other-input-wrap" id="otherInputWrap">
+        <input type="text" id="otherDriverInput" placeholder="Enter driver name..." oninput="onOtherDriverInput()">
+      </div>
+    </div>
+
+    <!-- CUSTOMER -->
+    <div class="card">
+      <div class="card-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        Customer / Recipient
+      </div>
+      <div class="input-wrap" id="customerWrap">
+        <input type="text" id="customerName" placeholder="Enter customer or company name..." oninput="validateCustomer()">
+        <svg class="valid-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+    </div>
+
+    <!-- TIMESTAMP -->
+    <div class="card">
+      <div class="card-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Date & Time
+      </div>
+      <div class="timestamp-display">
+        <div class="ts-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div>
+          <div class="ts-time" id="tsTime">--:--:--</div>
+          <div class="ts-date" id="tsDate">Loading...</div>
+        </div>
+        <div class="ts-live"><div class="ts-live-dot"></div>Live</div>
+      </div>
+      <p class="field-note" style="margin-top:8px;">Timestamp is captured automatically at submission.</p>
+    </div>
+
+    <!-- PHOTO -->
+    <div class="card">
+      <div class="card-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Delivery Photo
+      </div>
+      <div class="photo-zone" id="photoZone" onclick="triggerPhoto()">
+        <div class="photo-placeholder" id="photoPlaceholder">
+          <div class="photo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </div>
+          <p>Tap to capture photo</p>
+          <span>Take a photo or choose from gallery</span>
+        </div>
+        <img id="photoPreview" style="display:none;" alt="Delivery photo">
+        <button class="photo-retake" id="retakeBtn" style="display:none;" onclick="retakePhoto(event)">Retake</button>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handlePhoto(event)">
+      <p class="field-note" style="margin-top:8px;">Saved as <em>YYYYMMDD_HHMMSS_CustomerName.jpg</em></p>
+    </div>
+
+    <!-- NOTES -->
+    <div class="card">
+      <div class="card-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Notes <span style="font-weight:400;opacity:0.6;margin-left:4px;">(optional)</span>
+      </div>
+      <textarea id="deliveryNotes" rows="3" placeholder="Any additional delivery notes..." style="resize:vertical;"></textarea>
+    </div>
+
+    <!-- STATUS -->
+    <div class="status-bar loading" id="statusLoading">
+      <div class="spinner"></div>
+      <div class="status-text">
+        <strong>Saving delivery record...</strong>
+        <div class="upload-step" id="uStep1"><span class="step-dot"></span>Uploading photo to storage</div>
+        <div class="upload-step" id="uStep2"><span class="step-dot"></span>Saving record to database</div>
+        <div class="upload-step" id="uStep3"><span class="step-dot"></span>Finalising</div>
+      </div>
+    </div>
+    <div class="status-bar error" id="statusError">
+      <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="#e03c3c" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div class="status-text" id="statusErrorText"><strong>Error saving record</strong>Please check your connection and try again.</div>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitDelivery()" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>
+      Record Delivery
+    </button>
+
+  </div>
+
+  <!-- SUCCESS -->
+  <div id="successScreen">
+    <div class="success-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h2>Delivery Recorded</h2>
+    <p>Saved to your Supabase database.<br>Photo uploaded to storage.</p>
+    <div id="successRef"></div>
+    <button class="new-delivery-btn" onclick="resetForm()">+ New Delivery</button>
+  </div>
+
+</main>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────
+let config = { url: '', key: '', bucket: 'delivery-photos', table: 'deliveries' };
+
+function loadConfig() {
+  try {
+    const saved = localStorage.getItem('pod_sb_config');
+    if (saved) {
+      config = { ...config, ...JSON.parse(saved) };
+      document.getElementById('cfgUrl').value    = config.url    || '';
+      document.getElementById('cfgKey').value    = config.key    || '';
+      document.getElementById('cfgBucket').value = config.bucket || 'delivery-photos';
+      document.getElementById('cfgTable').value  = config.table  || 'deliveries';
+      if (config.url && config.key) document.getElementById('configNotice').style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+function saveConfig() {
+  config.url    = document.getElementById('cfgUrl').value.trim().replace(/\/$/, '');
+  config.key    = document.getElementById('cfgKey').value.trim();
+  config.bucket = document.getElementById('cfgBucket').value.trim() || 'delivery-photos';
+  config.table  = document.getElementById('cfgTable').value.trim()  || 'deliveries';
+  localStorage.setItem('pod_sb_config', JSON.stringify(config));
+  document.getElementById('configPanel').classList.remove('open');
+  if (config.url && config.key) document.getElementById('configNotice').style.display = 'none';
+  alert('Configuration saved!');
+}
+
+function toggleConfig() {
+  document.getElementById('configPanel').classList.toggle('open');
+}
+
+// ── CLOCK ─────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('headerTime').textContent = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('headerDate').textContent = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  document.getElementById('tsTime').textContent     = now.toLocaleTimeString('en-GB');
+  document.getElementById('tsDate').textContent     = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── DRIVER ────────────────────────────────────────────────
+let selectedDriver = '';
+let usingOther = false;
+
+function selectDriver(btn, name) {
+  selectedDriver = name;
+  usingOther = false;
+  document.querySelectorAll('.driver-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('otherToggle').classList.remove('active');
+  document.getElementById('otherInputWrap').classList.remove('visible');
+  document.getElementById('otherDriverInput').value = '';
+  updateSteps();
+}
+
+function toggleOther() {
+  usingOther = !usingOther;
+  document.getElementById('otherToggle').classList.toggle('active', usingOther);
+  document.getElementById('otherInputWrap').classList.toggle('visible', usingOther);
+  if (usingOther) {
+    document.querySelectorAll('.driver-btn').forEach(b => b.classList.remove('selected'));
+    selectedDriver = document.getElementById('otherDriverInput').value.trim();
+    setTimeout(() => document.getElementById('otherDriverInput').focus(), 50);
+  } else {
+    selectedDriver = '';
+  }
+  updateSteps();
+}
+
+function onOtherDriverInput() {
+  selectedDriver = document.getElementById('otherDriverInput').value.trim();
+  updateSteps();
+}
+
+// ── CUSTOMER ──────────────────────────────────────────────
+function validateCustomer() {
+  const val = document.getElementById('customerName').value.trim();
+  document.getElementById('customerWrap').classList.toggle('valid', val.length > 1);
+  updateSteps();
+}
+
+// ── PHOTO ─────────────────────────────────────────────────
+let photoFile = null;
+
+function triggerPhoto() { document.getElementById('photoInput').click(); }
+
+function handlePhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  photoFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('photoPlaceholder').style.display = 'none';
+    const img = document.getElementById('photoPreview');
+    img.src = ev.target.result;
+    img.style.display = 'block';
+    document.getElementById('retakeBtn').style.display = 'block';
+    document.getElementById('photoZone').classList.add('has-photo');
+    updateSteps();
+  };
+  reader.readAsDataURL(file);
+}
+
+function retakePhoto(e) {
+  e.stopPropagation();
+  photoFile = null;
+  document.getElementById('photoInput').value = '';
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('retakeBtn').style.display = 'none';
+  document.getElementById('photoPlaceholder').style.display = 'flex';
+  document.getElementById('photoZone').classList.remove('has-photo');
+  updateSteps();
+}
+
+// ── STEPS ─────────────────────────────────────────────────
+function updateSteps() {
+  const d = selectedDriver.length > 0;
+  const c = document.getElementById('customerName').value.trim().length > 1;
+  const p = photoFile !== null;
+  const el = (id) => document.getElementById(id);
+  [1,2,3,4].forEach(n => { el('step'+n).classList.remove('active','done'); });
+  if (d) el('step1').classList.add('done'); else el('step1').classList.add('active');
+  if (d && c) el('step2').classList.add('done'); else if (d) el('step2').classList.add('active');
+  if (d && c && p) el('step3').classList.add('done'); else if (d && c) el('step3').classList.add('active');
+  if (d && c && p) el('step4').classList.add('active');
+  el('submitBtn').disabled = !(d && c && p);
+}
+
+// ── FILENAME ──────────────────────────────────────────────
+function buildFilename(customerName) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dt  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const safe = customerName.replace(/[^a-zA-Z0-9 _-]/g,'').replace(/\s+/g,'_').slice(0,60);
+  const ext  = (photoFile && photoFile.type === 'image/png') ? 'png' : 'jpg';
+  return `${dt}_${safe}.${ext}`;
+}
+
+// ── UPLOAD PROGRESS ───────────────────────────────────────
+function setUploadStep(n) {
+  [1,2,3].forEach(i => {
+    const el = document.getElementById('uStep' + i);
+    el.classList.remove('active','done');
+    if (i < n) el.classList.add('done');
+    if (i === n) el.classList.add('active');
+  });
+}
+
+// ── SUPABASE API ──────────────────────────────────────────
+async function sbRequest(path, options = {}) {
+  const res = await fetch(`${config.url}${path}`, {
+    ...options,
+    headers: {
+      'apikey': config.key,
+      'Authorization': `Bearer ${config.key}`,
+      ...(options.headers || {})
+    }
+  });
+  return res;
+}
+
+async function uploadPhoto(filename, file) {
+  const res = await sbRequest(`/storage/v1/object/${encodeURIComponent(config.bucket)}/${encodeURIComponent(filename)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': file.type || 'image/jpeg', 'x-upsert': 'true' },
+    body: file
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Photo upload failed (HTTP ${res.status})`);
+  }
+  return `${config.url}/storage/v1/object/public/${config.bucket}/${encodeURIComponent(filename)}`;
+}
+
+async function insertRecord(record) {
+  const res = await sbRequest(`/rest/v1/${config.table}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify(record)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Database insert failed (HTTP ${res.status})`);
+  }
+}
+
+// ── SUBMIT ────────────────────────────────────────────────
+async function submitDelivery() {
+  const customerName = document.getElementById('customerName').value.trim();
+  const notes        = document.getElementById('deliveryNotes').value.trim();
+  const now          = new Date();
+
+  if (!selectedDriver)      return alert('Please select a driver.');
+  if (!customerName)        return alert('Please enter a customer name.');
+  if (!photoFile)           return alert('Please take a delivery photo.');
+  if (!config.url || !config.key) return alert('Please configure your Supabase settings first (tap "Supabase Configuration" above).');
+
+  document.getElementById('statusError').classList.remove('show');
+  document.getElementById('statusLoading').classList.add('show');
+  document.getElementById('submitBtn').disabled = true;
+  setUploadStep(1);
+
+  try {
+    const filename = buildFilename(customerName);
+    const photoUrl = await uploadPhoto(filename, photoFile);
+
+    setUploadStep(2);
+    await insertRecord({
+      customer_name:     customerName,
+      driver_name:       selectedDriver,
+      delivery_datetime: now.toISOString(),
+      photo_url:         photoUrl,
+      photo_filename:    filename,
+      notes:             notes || null
+    });
+
+    setUploadStep(3);
+    await new Promise(r => setTimeout(r, 350));
+
+    document.getElementById('statusLoading').classList.remove('show');
+    document.getElementById('formSection').style.display = 'none';
+    const ss = document.getElementById('successScreen');
+    ss.classList.add('show');
+    document.getElementById('successRef').textContent = `📁 ${filename}`;
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('statusLoading').classList.remove('show');
+    document.getElementById('statusErrorText').innerHTML = `<strong>Error saving record</strong>${err.message}`;
+    document.getElementById('statusError').classList.add('show');
+    document.getElementById('submitBtn').disabled = false;
+  }
+}
+
+// ── RESET ─────────────────────────────────────────────────
+function resetForm() {
+  selectedDriver = ''; usingOther = false; photoFile = null;
+  document.querySelectorAll('.driver-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('otherToggle').classList.remove('active');
+  document.getElementById('otherInputWrap').classList.remove('visible');
+  document.getElementById('otherDriverInput').value = '';
+  document.getElementById('customerName').value = '';
+  document.getElementById('customerWrap').classList.remove('valid');
+  document.getElementById('deliveryNotes').value = '';
+  document.getElementById('photoInput').value = '';
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('retakeBtn').style.display = 'none';
+  document.getElementById('photoPlaceholder').style.display = 'flex';
+  document.getElementById('photoZone').classList.remove('has-photo');
+  document.getElementById('statusError').classList.remove('show');
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('formSection').style.display = 'block';
+  document.getElementById('successScreen').classList.remove('show');
+  updateSteps();
+  window.scrollTo(0, 0);
+}
+
+loadConfig();
+updateSteps();
+</script>
+</body>
+</html>
