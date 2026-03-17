@@ -32,8 +32,8 @@
   .header-sub { font-size: 0.65rem; color: rgba(255,255,255,0.65); letter-spacing: 0.06em; text-transform: uppercase; }
   .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
-  /* History pill */
-  .history-pill {
+  /* Header pills */
+  .history-pill, .config-pill {
     display: flex; align-items: center; gap: 5px;
     background: rgba(255,255,255,0.18);
     border: 1.5px solid rgba(255,255,255,0.35);
@@ -43,8 +43,8 @@
     transition: all 0.15s ease; white-space: nowrap;
     letter-spacing: 0.02em;
   }
-  .history-pill:active { background: rgba(255,255,255,0.3); transform: scale(0.96); }
-  .history-pill svg { width: 14px; height: 14px; }
+  .history-pill:active, .config-pill:active { background: rgba(255,255,255,0.3); transform: scale(0.96); }
+  .history-pill svg, .config-pill svg { width: 14px; height: 14px; }
   .history-pill-badge {
     background: #ff4757; color: white;
     font-size: 0.6rem; font-weight: 800;
@@ -154,7 +154,6 @@
   /* ── CONFIG ── */
   .config-notice { background: #fff8e6; border: 1.5px solid #f0c040; border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; font-size: 0.82rem; color: #7a5800; line-height: 1.5; }
   .config-notice strong { display: block; margin-bottom: 4px; font-size: 0.88rem; }
-  .config-toggle { background: none; border: 2px solid var(--brand); border-radius: 10px; padding: 10px 16px; color: var(--brand); font-family: 'Barlow', sans-serif; font-size: 0.85rem; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
   #configPanel { display: none; background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
   #configPanel.open { display: block; animation: slideUp 0.25s ease; }
   #configPanel label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--brand); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; margin-top: 14px; }
@@ -285,6 +284,10 @@
       <div class="header-sub">Delivery Confirmation</div>
     </div>
     <div class="header-right">
+      <button class="config-pill" onclick="toggleConfig()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        Config
+      </button>
       <button class="history-pill" onclick="openPinModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         History
@@ -344,14 +347,6 @@
 <main>
 
   <!-- CONFIG -->
-  <div class="config-notice" id="configNotice">
-    <strong>⚙️ Setup Required</strong>
-    Enter your Supabase project URL and anon key below before recording deliveries.
-  </div>
-  <button class="config-toggle" onclick="toggleConfig()">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-    Supabase Configuration
-  </button>
   <div id="configPanel">
     <label>Supabase Project URL</label>
     <input type="text" id="cfgUrl" placeholder="https://xxxxxxxxxxxx.supabase.co">
