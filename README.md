@@ -10,6 +10,7 @@ A mobile-friendly web application for recording and managing delivery confirmati
 - **Photo upload** — photos saved to Supabase Storage, named automatically as `YYYYMMDD_HHMMSS_CustomerName.jpg`
 - **GPS location** — automatically captures coordinates and reverse-geocodes to a readable address at the point of submission
 - **Customer search** — searchable dropdown populated from a Supabase `customers` table, ensuring consistent naming across all records
+- **Offline mode** — deliveries submitted without a connection are queued locally on the device and automatically synced to Supabase when connectivity returns
 - **Delivery history** — PIN-protected history view with search, date range and driver filter, grouped by driver in ascending time order
 - **Analytics** — PIN-protected analytics page with stat cards and a pie chart of deliveries by driver
 - **No login required** — drivers access via a direct URL in any mobile browser, no app install or account needed
@@ -24,6 +25,7 @@ A mobile-friendly web application for recording and managing delivery confirmati
 | Hosting | GitHub Pages |
 | Database | Supabase (PostgreSQL) |
 | File Storage | Supabase Storage |
+| Offline Storage | Browser IndexedDB |
 | Charts | Chart.js |
 | Geocoding | OpenStreetMap Nominatim (free, no API key) |
 
@@ -147,6 +149,25 @@ Go to: **Supabase → Project Settings → API → CORS** and add:
 ```
 https://yourusername.github.io
 ```
+
+---
+
+## Offline Mode
+
+The app supports fully offline delivery recording. When a driver has no internet connection:
+
+1. A yellow notice appears on the form: *"No connection — delivery will be saved and uploaded when you're back online"*
+2. The driver fills in and submits the form as normal
+3. The photo and all delivery data are saved locally on the device using **IndexedDB** (the browser's built-in local database)
+4. The success screen confirms the delivery was saved offline
+5. An amber sync bar appears in the app showing how many deliveries are queued
+
+When the connection returns, the app automatically detects this and syncs all queued deliveries to Supabase in the background — no action required from the driver. The sync bar turns green on completion and then disappears.
+
+**Important notes for drivers:**
+- Queued deliveries survive closing and reopening the browser — they are stored on the device until synced
+- Do not clear browser site data while deliveries are queued offline — this will permanently delete unsynced records
+- History and Analytics still require an active internet connection as they read from Supabase
 
 ---
 
