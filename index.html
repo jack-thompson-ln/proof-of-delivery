@@ -354,6 +354,7 @@
   .stat-card-icon svg { width: 15px; height: 15px; color: var(--brand); }
   .stat-card-value { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--brand); line-height: 1; }
   .stat-card-label { font-size: 0.62rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.3; text-align: center; }
+  .stat-card-sub { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); text-align: center; margin-top: -2px; }
   .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
   .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
   .legend-name { flex: 1; font-weight: 600; color: var(--text); }
@@ -671,21 +672,18 @@
       </div>
     </div>
 
-    <div class="stat-cards">
+    <div class="stat-cards" style="grid-template-columns: repeat(2, 1fr);">
       <div class="stat-card">
         <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
         <div class="stat-card-value" id="statTopDriver">—</div>
         <div class="stat-card-label">Top Driver</div>
+        <div class="stat-card-sub" id="statTopDriverCount"></div>
       </div>
       <div class="stat-card">
         <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
         <div class="stat-card-value" id="statTopCustomer">—</div>
         <div class="stat-card-label">Top Customer</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-        <div class="stat-card-value" id="statTotal">—</div>
-        <div class="stat-card-label">Total Deliveries</div>
+        <div class="stat-card-sub" id="statTopCustomerCount"></div>
       </div>
     </div>
 
@@ -698,6 +696,16 @@
         <canvas id="pieChart"></canvas>
       </div>
       <div class="pie-legend" id="pieLegend"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Deliveries by Hour of Day
+      </div>
+      <div class="chart-wrap" style="max-width:100%;">
+        <canvas id="lineChart"></canvas>
+      </div>
     </div>
   </div>
 
@@ -1487,7 +1495,8 @@ function closeLightbox() {
 }
 
 // ── ANALYTICS ────────────────────────────────────────────
-let pieChartInstance = null;
+let pieChartInstance  = null;
+let lineChartInstance = null;
 const PIE_BLUES = [
   '#004b8e','#0062b8','#0077d4','#0099ff','#33aaff',
   '#66bbff','#003a6e','#005299','#1a6fa8','#2980b9'
@@ -1505,20 +1514,17 @@ async function loadAnalytics() {
   const toEl   = document.getElementById('analyticsDateTo');
   if (!fromEl.value) fromEl.value = today;
   if (!toEl.value)   toEl.value   = today;
-
   const dateFrom = fromEl.value;
   const dateTo   = toEl.value;
-
-  // Fetch filtered records
-  let query = `/rest/v1/${config.table}?order=delivery_datetime.desc&limit=1000`;
+  let query = `/rest/v1/${config.table}?order=delivery_datetime.asc&limit=1000`;
   if (dateFrom) query += `&delivery_datetime=gte.${dateFrom}T00:00:00`;
   if (dateTo)   query += `&delivery_datetime=lte.${dateTo}T23:59:59`;
-
   try {
     const res = await sbRequest(query, { headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': '0-999' } });
     if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
     const records = await res.json();
     renderPieChart(records);
+    renderLineChart(records);
   } catch(err) {
     document.getElementById('pieChartWrap').innerHTML = `<div class="chart-empty">Error loading data: ${err.message}</div>`;
   }
@@ -1528,11 +1534,11 @@ function renderPieChart(records) {
   const total = records.length;
 
   // ── Stat cards ──
-  document.getElementById('statTotal').textContent = total;
-
   if (total === 0) {
-    document.getElementById('statTopDriver').textContent   = '—';
-    document.getElementById('statTopCustomer').textContent = '—';
+    document.getElementById('statTopDriver').textContent      = '—';
+    document.getElementById('statTopDriverCount').textContent = '';
+    document.getElementById('statTopCustomer').textContent      = '—';
+    document.getElementById('statTopCustomerCount').textContent = '';
     document.getElementById('pieChartWrap').innerHTML = '<div class="chart-empty">No deliveries in this date range.</div>';
     document.getElementById('pieLegend').innerHTML = '';
     if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
@@ -1543,35 +1549,57 @@ function renderPieChart(records) {
   const driverTally = {};
   records.forEach(r => { const d = r.driver_name || 'Unknown'; driverTally[d] = (driverTally[d] || 0) + 1; });
   const topDriver = Object.entries(driverTally).sort((a,b) => b[1]-a[1])[0];
-  document.getElementById('statTopDriver').textContent = topDriver ? topDriver[0] : '—';
+  document.getElementById('statTopDriver').textContent      = topDriver ? topDriver[0] : '—';
+  document.getElementById('statTopDriverCount').textContent = topDriver ? `${topDriver[1]} drop${topDriver[1] !== 1 ? 's' : ''}` : '';
 
-  // Top customer — use only first part before ' - ' or first word
+  // Top customer — first part before ' - '
   const customerTally = {};
   records.forEach(r => {
-    const full = r.customer_name || 'Unknown';
+    const full  = r.customer_name || 'Unknown';
     const short = full.includes(' - ') ? full.split(' - ')[0].trim() : full.split(' ')[0].trim();
     customerTally[short] = (customerTally[short] || 0) + 1;
   });
   const topCustomer = Object.entries(customerTally).sort((a,b) => b[1]-a[1])[0];
-  document.getElementById('statTopCustomer').textContent = topCustomer ? topCustomer[0] : '—';
+  document.getElementById('statTopCustomer').textContent      = topCustomer ? topCustomer[0] : '—';
+  document.getElementById('statTopCustomerCount').textContent = topCustomer ? `${topCustomer[1]} drop${topCustomer[1] !== 1 ? 's' : ''}` : '';
 
   // ── Pie chart ──
-  const tally = {};
+  const tally   = {};
   records.forEach(r => { const d = r.driver_name || 'Unknown'; tally[d] = (tally[d] || 0) + 1; });
-  const sorted  = Object.entries(tally).sort((a,b) => b[1]-a[1]);
-  const labels  = sorted.map(([name]) => name);
-  const values  = sorted.map(([,count]) => count);
-  const colours = labels.map((_, i) => PIE_BLUES[i % PIE_BLUES.length]);
+  const sorted   = Object.entries(tally).sort((a,b) => b[1]-a[1]);
+  const labels   = sorted.map(([name]) => name);
+  const values   = sorted.map(([,count]) => count);
+  const colours  = labels.map((_, i) => PIE_BLUES[i % PIE_BLUES.length]);
   const pieTotal = values.reduce((a,b) => a+b, 0);
 
-  // Restore canvas if replaced
   const wrap = document.getElementById('pieChartWrap');
   if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="pieChart"></canvas>';
   const ctx = document.getElementById('pieChart').getContext('2d');
   if (pieChartInstance) pieChartInstance.destroy();
 
+  // Centre total text plugin
+  const centerTextPlugin = {
+    id: 'centerText',
+    beforeDraw(chart) {
+      const { width, height, ctx } = chart;
+      ctx.save();
+      const fontSize = Math.min(width, height) * 0.13;
+      ctx.font = `800 ${fontSize}px 'Barlow Condensed', sans-serif`;
+      ctx.fillStyle = '#004b8e';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = chart.chartArea.left + (chart.chartArea.right  - chart.chartArea.left) / 2;
+      const cy = chart.chartArea.top  + (chart.chartArea.bottom - chart.chartArea.top)  / 2;
+      ctx.fillText(pieTotal, cx, cy - fontSize * 0.3);
+      ctx.font = `600 ${fontSize * 0.45}px 'Barlow', sans-serif`;
+      ctx.fillStyle = '#5a7a9a';
+      ctx.fillText('deliveries', cx, cy + fontSize * 0.5);
+      ctx.restore();
+    }
+  };
+
   pieChartInstance = new Chart(ctx, {
-    type: 'pie',
+    type: 'doughnut',
     data: {
       labels,
       datasets: [{
@@ -1584,15 +1612,17 @@ function renderPieChart(records) {
     },
     options: {
       responsive: true,
+      cutout: '60%',
       plugins: {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: ctx => ` ${ctx.label}: ${ctx.parsed} deliveries (${Math.round(ctx.parsed/pieTotal*100)}%)`
+            label: ctx => ` ${ctx.label}: ${ctx.parsed} drops (${Math.round(ctx.parsed/pieTotal*100)}%)`
           }
         }
       }
-    }
+    },
+    plugins: [centerTextPlugin]
   });
 
   // Custom legend
@@ -1604,6 +1634,81 @@ function renderPieChart(records) {
       <div class="legend-count">${count}<span class="legend-pct">${pct}%</span></div>
     </div>`;
   }).join('');
+}
+
+function renderLineChart(records) {
+  // Build hourly buckets 0–23
+  const hourCounts = Array(24).fill(0);
+  records.forEach(r => {
+    if (r.delivery_datetime) {
+      const h = new Date(r.delivery_datetime).getHours();
+      hourCounts[h]++;
+    }
+  });
+
+  // Only show hours that have any deliveries or span the working range (6-22)
+  const minHour = Math.min(6,  hourCounts.findIndex(v => v > 0) >= 0 ? hourCounts.findIndex(v => v > 0) : 6);
+  const maxHour = Math.max(20, [...hourCounts].reverse().findIndex(v => v > 0) >= 0 ? 23 - [...hourCounts].reverse().findIndex(v => v > 0) : 20);
+  const hourLabels = [];
+  const hourValues = [];
+  for (let h = minHour; h <= maxHour; h++) {
+    hourLabels.push(`${String(h).padStart(2,'0')}:00`);
+    hourValues.push(hourCounts[h]);
+  }
+
+  const canvas = document.getElementById('lineChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (lineChartInstance) lineChartInstance.destroy();
+
+  const peakCount = Math.max(...hourValues);
+
+  lineChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: hourLabels,
+      datasets: [{
+        label: 'Deliveries',
+        data: hourValues,
+        backgroundColor: hourValues.map(v => v === peakCount && v > 0 ? '#004b8e' : 'rgba(0,99,190,0.25)'),
+        borderColor:     hourValues.map(v => v === peakCount && v > 0 ? '#003a6e' : '#0062b8'),
+        borderWidth: 1.5,
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => `${items[0].label}–${String(parseInt(items[0].label)+1).padStart(2,'0')}:00`,
+            label: ctx  => ` ${ctx.parsed.y} deliver${ctx.parsed.y !== 1 ? 'ies' : 'y'}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: { family: "'Barlow', sans-serif", size: 11 },
+            color: '#5a7a9a',
+            maxRotation: 45
+          }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1,
+            font: { family: "'Barlow', sans-serif", size: 11 },
+            color: '#5a7a9a'
+          },
+          grid: { color: 'rgba(0,75,142,0.06)' }
+        }
+      }
+    }
+  });
 }
 
 // ── HELPERS ───────────────────────────────────────────────
