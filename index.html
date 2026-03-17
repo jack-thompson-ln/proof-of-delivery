@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 <title>FMF POD</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
     --brand: #004b8e;
@@ -34,18 +35,17 @@
   .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
   /* Header pills */
-  .history-pill, .config-pill {
-    display: flex; align-items: center; gap: 5px;
+  .history-pill, .config-pill, .analytics-pill {
+    display: flex; align-items: center; justify-content: center;
     background: rgba(255,255,255,0.18);
     border: 1.5px solid rgba(255,255,255,0.35);
-    border-radius: 20px; padding: 7px 12px;
-    color: white; font-family: 'Barlow', sans-serif;
-    font-size: 0.8rem; font-weight: 700; cursor: pointer;
-    transition: all 0.15s ease; white-space: nowrap;
-    letter-spacing: 0.02em;
+    border-radius: 10px; padding: 8px;
+    color: white; cursor: pointer;
+    transition: all 0.15s ease;
+    width: 36px; height: 36px; flex-shrink: 0;
   }
-  .history-pill:active, .config-pill:active { background: rgba(255,255,255,0.3); transform: scale(0.96); }
-  .history-pill svg, .config-pill svg { width: 14px; height: 14px; }
+  .history-pill:active, .config-pill:active, .analytics-pill:active { background: rgba(255,255,255,0.3); transform: scale(0.96); }
+  .history-pill svg, .config-pill svg, .analytics-pill svg { width: 17px; height: 17px; }
   .history-pill-badge {
     background: #ff4757; color: white;
     font-size: 0.6rem; font-weight: 800;
@@ -281,6 +281,25 @@
   #lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; object-fit: contain; }
   .lightbox-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.15); border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; }
   .lightbox-close svg { width: 20px; height: 20px; }
+
+  /* Analytics view */
+  #analyticsView { display: none; }
+  #analyticsView.show { display: block; animation: slideUp 0.3s ease; }
+  .analytics-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .analytics-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--brand); }
+  .analytics-filter-bar { background: white; border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+  .analytics-total { font-family: 'Barlow Condensed', sans-serif; font-size: 0.75rem; font-weight: 700; color: var(--brand); background: rgba(0,75,142,0.08); border-radius: 20px; padding: 4px 12px; margin-left: auto; flex-shrink: 0; }
+  .chart-card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
+  .chart-card-title { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+  .chart-card-title svg { width: 14px; height: 14px; }
+  .chart-wrap { position: relative; width: 100%; max-width: 320px; margin: 0 auto; }
+  .chart-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 0.9rem; }
+  .pie-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+  .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .legend-name { flex: 1; font-weight: 600; color: var(--text); }
+  .legend-count { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--brand); }
+  .legend-pct { font-size: 0.75rem; color: var(--text-muted); margin-left: 4px; }
 </style>
 </head>
 <body>
@@ -297,13 +316,14 @@
       <div class="header-sub">Delivery Confirmation</div>
     </div>
     <div class="header-right">
-      <button class="config-pill" onclick="toggleConfig()">
+      <button class="config-pill" onclick="toggleConfig()" title="Configuration">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-        Config
       </button>
-      <button class="history-pill" onclick="openPinModal()">
+      <button class="analytics-pill" onclick="openPinModal('analytics')" title="Analytics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      </button>
+      <button class="history-pill" onclick="openPinModal('history')" title="History">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        History
         <span class="history-pill-badge" id="historyBadge"></span>
       </button>
       <div class="datetime-pill">
@@ -552,6 +572,38 @@
     <div class="detail-card" id="detailInfo"></div>
   </div>
 
+  <!-- ANALYTICS VIEW -->
+  <div id="analyticsView">
+    <div class="analytics-header">
+      <button class="back-btn" onclick="showForm()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <div class="analytics-title">Analytics</div>
+      <div class="analytics-total" id="analyticsTotal"></div>
+    </div>
+
+    <div class="analytics-filter-bar">
+      <div class="filter-row">
+        <span class="filter-label">From</span>
+        <input type="date" id="analyticsDateFrom" onchange="loadAnalytics()">
+        <span class="filter-label">To</span>
+        <input type="date" id="analyticsDateTo" onchange="loadAnalytics()">
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+        Deliveries by Driver
+      </div>
+      <div id="pieChartWrap" class="chart-wrap">
+        <canvas id="pieChart"></canvas>
+      </div>
+      <div class="pie-legend" id="pieLegend"></div>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -591,8 +643,10 @@ updateClock();
 
 // ── PIN MODAL ─────────────────────────────────────────────
 let pinEntry = '';
+let pinDestination = 'history';
 
-function openPinModal() {
+function openPinModal(dest = 'history') {
+  pinDestination = dest;
   pinEntry = '';
   updatePinDots();
   document.getElementById('pinError').textContent = '';
@@ -623,7 +677,8 @@ function updatePinDots() {
 function checkPin() {
   if (pinEntry === (config.pin || '1234')) {
     closePinModal();
-    showHistory();
+    if (pinDestination === 'analytics') showAnalytics();
+    else showHistory();
   } else {
     for (let i = 0; i < 4; i++) document.getElementById('pd'+i).classList.add('error');
     document.getElementById('pinError').textContent = 'Incorrect PIN. Try again.';
@@ -637,6 +692,7 @@ function showForm() {
   document.getElementById('successScreen').classList.remove('show');
   document.getElementById('historyView').classList.remove('show');
   document.getElementById('detailView').classList.remove('show');
+  document.getElementById('analyticsView').classList.remove('show');
   window.scrollTo(0,0);
 }
 function showHistory() {
@@ -644,8 +700,18 @@ function showHistory() {
   document.getElementById('successScreen').classList.remove('show');
   document.getElementById('historyView').classList.add('show');
   document.getElementById('detailView').classList.remove('show');
+  document.getElementById('analyticsView').classList.remove('show');
   window.scrollTo(0,0);
   loadHistory();
+}
+function showAnalytics() {
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('successScreen').classList.remove('show');
+  document.getElementById('historyView').classList.remove('show');
+  document.getElementById('detailView').classList.remove('show');
+  document.getElementById('analyticsView').classList.add('show');
+  window.scrollTo(0,0);
+  loadAnalytics();
 }
 function showDetail(record) {
   document.getElementById('historyView').classList.remove('show');
@@ -1078,6 +1144,112 @@ function openLightbox(url) {
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
   document.getElementById('lightboxImg').src = '';
+}
+
+// ── ANALYTICS ────────────────────────────────────────────
+let pieChartInstance = null;
+const PIE_BLUES = [
+  '#004b8e','#0062b8','#0077d4','#0099ff','#33aaff',
+  '#66bbff','#003a6e','#005299','#1a6fa8','#2980b9'
+];
+
+function todayStrA() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+}
+
+async function loadAnalytics() {
+  const today = todayStrA();
+  const fromEl = document.getElementById('analyticsDateFrom');
+  const toEl   = document.getElementById('analyticsDateTo');
+  if (!fromEl.value) fromEl.value = today;
+  if (!toEl.value)   toEl.value   = today;
+
+  const dateFrom = fromEl.value;
+  const dateTo   = toEl.value;
+
+  // Fetch filtered records
+  let query = `/rest/v1/${config.table}?order=delivery_datetime.desc&limit=1000`;
+  if (dateFrom) query += `&delivery_datetime=gte.${dateFrom}T00:00:00`;
+  if (dateTo)   query += `&delivery_datetime=lte.${dateTo}T23:59:59`;
+
+  try {
+    const res = await sbRequest(query, { headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': '0-999' } });
+    if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
+    const records = await res.json();
+    renderPieChart(records);
+  } catch(err) {
+    document.getElementById('pieChartWrap').innerHTML = `<div class="chart-empty">Error loading data: ${err.message}</div>`;
+  }
+}
+
+function renderPieChart(records) {
+  document.getElementById('analyticsTotal').textContent =
+    `${records.length} delivery${records.length !== 1 ? 's' : ''}`;
+
+  if (records.length === 0) {
+    document.getElementById('pieChartWrap').innerHTML = '<div class="chart-empty">No deliveries in this date range.</div>';
+    document.getElementById('pieLegend').innerHTML = '';
+    if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
+    return;
+  }
+
+  // Tally by driver
+  const tally = {};
+  records.forEach(r => {
+    const d = r.driver_name || 'Unknown';
+    tally[d] = (tally[d] || 0) + 1;
+  });
+  const sorted = Object.entries(tally).sort((a,b) => b[1] - a[1]);
+  const labels  = sorted.map(([name]) => name);
+  const values  = sorted.map(([,count]) => count);
+  const colours = labels.map((_, i) => PIE_BLUES[i % PIE_BLUES.length]);
+  const total   = values.reduce((a,b) => a+b, 0);
+
+  // Restore canvas if it was replaced
+  const wrap = document.getElementById('pieChartWrap');
+  if (!wrap.querySelector('canvas')) {
+    wrap.innerHTML = '<canvas id="pieChart"></canvas>';
+  }
+  const ctx = document.getElementById('pieChart').getContext('2d');
+
+  if (pieChartInstance) pieChartInstance.destroy();
+
+  pieChartInstance = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colours,
+        borderColor: '#ffffff',
+        borderWidth: 3,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed} deliveries (${Math.round(ctx.parsed/total*100)}%)`
+          }
+        }
+      }
+    }
+  });
+
+  // Custom legend
+  document.getElementById('pieLegend').innerHTML = sorted.map(([name, count], i) => {
+    const pct = Math.round(count / total * 100);
+    return `<div class="legend-item">
+      <div class="legend-dot" style="background:${colours[i]}"></div>
+      <div class="legend-name">${escHtml(name)}</div>
+      <div class="legend-count">${count}<span class="legend-pct">${pct}%</span></div>
+    </div>`;
+  }).join('');
 }
 
 // ── HELPERS ───────────────────────────────────────────────
