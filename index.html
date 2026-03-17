@@ -557,7 +557,7 @@ function loadConfig() {
   document.getElementById('cfgBucket').value = config.bucket;
   document.getElementById('cfgTable').value  = config.table;
   document.getElementById('cfgPin').value    = '****';
-  document.getElementById('configNotice').style.display = 'none';
+  // config is hardcoded, no notice needed
 }
 function saveConfig() {
   document.getElementById('configPanel').classList.remove('open');
@@ -954,22 +954,24 @@ function renderRecordList(records) {
     return;
   }
 
-  list.innerHTML = records.map(r => {
+  // Store filtered set globally so onclick index works
+  window._filteredRecords = records;
+
+  list.innerHTML = records.map((r, i) => {
     const dt      = r.delivery_datetime ? new Date(r.delivery_datetime) : null;
     const dateStr = dt ? dt.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' }) : '—';
     const timeStr = dt ? dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) : '';
     const thumb   = r.photo_url
-      ? `<img class="record-thumb" src="${r.photo_url}" alt="Delivery photo" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+      ? `<img class="record-thumb" src="${r.photo_url}" alt="Delivery photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
       : '';
-    const thumbPh = `<div class="record-thumb-placeholder" ${r.photo_url?'style="display:none"':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>`;
+    const thumbPh = `<div class="record-thumb-placeholder" ${r.photo_url ? 'style="display:none"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>`;
     const notesPreview = r.notes ? `<div class="record-notes-preview">📝 ${escHtml(r.notes)}</div>` : '';
-    const safeR = encodeURIComponent(JSON.stringify(r));
-    return `<div class="record-card" onclick="showDetail(JSON.parse(decodeURIComponent('${safeR}')))">
+    return `<div class="record-card" onclick="showDetail(window._filteredRecords[${i}])">
       ${thumb}${thumbPh}
       <div class="record-info">
-        <div class="record-customer">${escHtml(r.customer_name||'—')}</div>
-        <div class="record-meta">${dateStr}${timeStr?' · '+timeStr:''}</div>
-        <div class="record-driver-badge">${escHtml(r.driver_name||'—')}</div>
+        <div class="record-customer">${escHtml(r.customer_name || '—')}</div>
+        <div class="record-meta">${dateStr}${timeStr ? ' · ' + timeStr : ''}</div>
+        <div class="record-driver-badge">${escHtml(r.driver_name || '—')}</div>
         ${notesPreview}
       </div>
       <div class="record-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
