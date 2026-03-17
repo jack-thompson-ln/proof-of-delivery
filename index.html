@@ -342,6 +342,10 @@
   .analytics-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
   .analytics-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--brand); }
   .analytics-filter-bar { background: white; border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+  .date-preset-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .date-preset-chip { background: var(--off-white); border: 2px solid var(--border); border-radius: 20px; padding: 7px 4px; font-family: 'Barlow', sans-serif; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; white-space: nowrap; touch-action: manipulation; text-align: center; width: 100%; }
+  .date-preset-chip:active { transform: scale(0.96); }
+  .date-preset-chip.active { background: var(--brand); border-color: var(--brand); color: white; }
   .chart-card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
   .chart-card-title { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
   .chart-card-title svg { width: 14px; height: 14px; }
@@ -664,11 +668,19 @@
     </div>
 
     <div class="analytics-filter-bar">
+      <div class="date-preset-chips">
+        <button class="date-preset-chip" onclick="setAnalyticsPreset('today')">Today</button>
+        <button class="date-preset-chip" onclick="setAnalyticsPreset('this_week')">This Week</button>
+        <button class="date-preset-chip" onclick="setAnalyticsPreset('this_month')">This Month</button>
+        <button class="date-preset-chip" onclick="setAnalyticsPreset('yesterday')">Yesterday</button>
+        <button class="date-preset-chip" onclick="setAnalyticsPreset('last_week')">Last Week</button>
+        <button class="date-preset-chip" onclick="setAnalyticsPreset('last_month')">Last Month</button>
+      </div>
       <div class="filter-row">
         <span class="filter-label">From</span>
-        <input type="date" id="analyticsDateFrom" onchange="loadAnalytics()">
+        <input type="date" id="analyticsDateFrom" onchange="onAnalyticsDateChange()">
         <span class="filter-label">To</span>
-        <input type="date" id="analyticsDateTo" onchange="loadAnalytics()">
+        <input type="date" id="analyticsDateTo" onchange="onAnalyticsDateChange()">
       </div>
     </div>
 
@@ -1527,12 +1539,62 @@ function todayStrA() {
   return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
 }
 
+function dateToStr(d) {
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function setAnalyticsPreset(preset) {
+  const now   = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let from, to;
+
+  if (preset === 'today') {
+    from = to = today;
+  } else if (preset === 'yesterday') {
+    const y = new Date(today); y.setDate(y.getDate() - 1);
+    from = to = y;
+  } else if (preset === 'this_week') {
+    const day = today.getDay() || 7; // Mon=1
+    from = new Date(today); from.setDate(today.getDate() - day + 1);
+    to   = today;
+  } else if (preset === 'last_week') {
+    const day = today.getDay() || 7;
+    to   = new Date(today); to.setDate(today.getDate() - day);
+    from = new Date(to);    from.setDate(to.getDate() - 6);
+  } else if (preset === 'this_month') {
+    from = new Date(today.getFullYear(), today.getMonth(), 1);
+    to   = today;
+  } else if (preset === 'last_month') {
+    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    to   = new Date(today.getFullYear(), today.getMonth(), 0);
+  }
+
+  document.getElementById('analyticsDateFrom').value = dateToStr(from);
+  document.getElementById('analyticsDateTo').value   = dateToStr(to);
+  updatePresetChips(preset);
+  loadAnalytics();
+}
+
+function onAnalyticsDateChange() {
+  updatePresetChips(null);
+  loadAnalytics();
+}
+
+function updatePresetChips(active) {
+  const presets = ['today','this_week','this_month','yesterday','last_week','last_month'];
+  document.querySelectorAll('.date-preset-chip').forEach((chip, i) => {
+    chip.classList.toggle('active', presets[i] === active);
+  });
+}
+
 async function loadAnalytics() {
   const today = todayStrA();
   const fromEl = document.getElementById('analyticsDateFrom');
   const toEl   = document.getElementById('analyticsDateTo');
-  if (!fromEl.value) fromEl.value = today;
-  if (!toEl.value)   toEl.value   = today;
+  if (!fromEl.value) { fromEl.value = today; updatePresetChips('today'); }
+  if (!toEl.value)   { toEl.value   = today; }
+
   const dateFrom = fromEl.value;
   const dateTo   = toEl.value;
   let query = `/rest/v1/${config.table}?order=delivery_datetime.asc&limit=1000`;
