@@ -314,6 +314,28 @@
   .lightbox-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.15); border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; }
   .lightbox-close svg { width: 20px; height: 20px; }
 
+  /* Offline / sync bar */
+  .sync-bar {
+    background: #f0a500; color: white;
+    padding: 8px 16px; display: none;
+    align-items: center; gap: 10px;
+    font-family: 'Barlow', sans-serif; font-size: 0.82rem; font-weight: 600;
+  }
+  .sync-bar.show { display: flex; }
+  .sync-bar.syncing { background: var(--brand); }
+  .sync-bar.success { background: var(--success); }
+  .sync-bar svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .sync-bar-text { flex: 1; }
+  .sync-bar-count { background: rgba(0,0,0,0.2); border-radius: 10px; padding: 1px 8px; font-size: 0.75rem; font-weight: 800; }
+  .offline-notice {
+    background: rgba(240,165,0,0.12); border: 1.5px solid rgba(240,165,0,0.4);
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 14px;
+    font-size: 0.82rem; color: #7a5800; display: none;
+    align-items: center; gap: 8px;
+  }
+  .offline-notice.show { display: flex; }
+  .offline-notice svg { width: 16px; height: 16px; flex-shrink: 0; }
+
   /* Analytics view */
   #analyticsView { display: none; }
   #analyticsView.show { display: block; animation: slideUp 0.3s ease; }
@@ -370,6 +392,13 @@
     </div>
   </div>
 </header>
+
+<!-- SYNC BAR -->
+<div class="sync-bar" id="syncBar">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" id="syncIcon"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+  <span class="sync-bar-text" id="syncBarText">Deliveries queued — waiting for connection</span>
+  <span class="sync-bar-count" id="syncBarCount"></span>
+</div>
 
 <!-- PIN MODAL -->
 <div class="modal-overlay" id="pinModal">
@@ -436,6 +465,10 @@
 
   <!-- FORM VIEW -->
   <div id="formSection">
+    <div class="offline-notice" id="offlineNotice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+      <span>No connection — delivery will be saved and uploaded when you're back online.</span>
+    </div>
     <div class="steps">
       <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">Driver</div></div>
       <div class="step" id="step2"><div class="step-num">2</div><div class="step-label">Customer</div></div>
@@ -1032,55 +1065,198 @@ function getLocation() {
   });
 }
 
+// ── OFFLINE QUEUE (IndexedDB) ─────────────────────────────
+const DB_NAME    = 'fmf_pod_offline';
+const DB_VERSION = 1;
+const STORE_NAME = 'queue';
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (db) { resolve(db); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+async function queueRecord(record) {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx  = database.transaction(STORE_NAME, 'readwrite');
+    const req = tx.objectStore(STORE_NAME).add(record);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+async function getQueuedRecords() {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx  = database.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+async function deleteQueuedRecord(id) {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx  = database.transaction(STORE_NAME, 'readwrite');
+    const req = tx.objectStore(STORE_NAME).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+async function updateSyncBar() {
+  const queued = await getQueuedRecords();
+  const bar    = document.getElementById('syncBar');
+  const count  = document.getElementById('syncBarCount');
+  const text   = document.getElementById('syncBarText');
+  if (queued.length === 0) {
+    bar.classList.remove('show','syncing','success');
+    return;
+  }
+  bar.classList.add('show');
+  bar.classList.remove('syncing','success');
+  count.textContent = queued.length;
+  text.textContent  = `${queued.length} deliver${queued.length === 1 ? 'y' : 'ies'} queued — waiting for connection`;
+}
+
+async function syncQueue() {
+  const queued = await getQueuedRecords();
+  if (queued.length === 0) return;
+
+  const bar  = document.getElementById('syncBar');
+  const text = document.getElementById('syncBarText');
+  const icon = document.getElementById('syncIcon');
+  bar.classList.add('show','syncing');
+  bar.classList.remove('success');
+  text.textContent = `Syncing ${queued.length} queued deliver${queued.length === 1 ? 'y' : 'ies'}...`;
+  icon.innerHTML   = '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>';
+
+  let synced = 0;
+  for (const item of queued) {
+    try {
+      // Re-upload photo from base64
+      const { id, photoBase64, photoMime, photoFilename, record } = item;
+      const blob     = base64ToBlob(photoBase64, photoMime);
+      const photoUrl = await uploadPhoto(photoFilename, blob);
+      record.photo_url = photoUrl;
+      await insertRecord(record);
+      await deleteQueuedRecord(id);
+      synced++;
+    } catch(e) {
+      console.warn('Sync failed for item', item.id, e.message);
+      break; // Stop if still offline
+    }
+  }
+
+  const remaining = await getQueuedRecords();
+  if (remaining.length === 0) {
+    bar.classList.remove('syncing');
+    bar.classList.add('success');
+    text.textContent = `${synced} deliver${synced === 1 ? 'y' : 'ies'} synced successfully!`;
+    document.getElementById('syncBarCount').textContent = '';
+    icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+    setTimeout(() => {
+      bar.classList.remove('show','success');
+    }, 3000);
+  } else {
+    bar.classList.remove('syncing','success');
+    await updateSyncBar();
+  }
+}
+
+function base64ToBlob(base64, mime) {
+  const bytes  = atob(base64);
+  const arr    = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+function updateOnlineStatus() {
+  const offline = !navigator.onLine;
+  document.getElementById('offlineNotice').classList.toggle('show', offline);
+  if (!offline) syncQueue();
+}
+
+window.addEventListener('online',  updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+
 // ── SUBMIT ────────────────────────────────────────────────
 async function submitDelivery() {
   const customerName = document.getElementById('customerName').value.trim();
   const notes        = document.getElementById('deliveryNotes').value.trim();
   const now          = new Date();
   if (!selectedDriver) return alert('Please select a driver.');
-  if (!customerName)   return alert('Please enter a customer name.');
+  if (!customerName)   return alert('Please select a customer.');
   if (!photoFile)      return alert('Please take a delivery photo.');
   document.getElementById('statusError').classList.remove('show');
   document.getElementById('statusLoading').classList.add('show');
   document.getElementById('submitBtn').disabled = true;
   setUploadStep(1);
+
   try {
-    // Step 1: Get GPS location
+    // Step 1: GPS
     const loc = await getLocation();
-    // Update location card
-    document.getElementById('locationText').textContent  = loc.address;
+    document.getElementById('locationText').textContent   = loc.address;
     document.getElementById('locationCoords').textContent = loc.lat ? `${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}` : '';
-    const locStatus = document.getElementById('locationStatus');
-    locStatus.innerHTML = loc.lat
+    document.getElementById('locationStatus').innerHTML   = loc.lat
       ? '<div class="ts-live-dot"></div>Got it'
       : '<div style="width:6px;height:6px;border-radius:50%;background:#f0a500"></div>Approx';
 
-    // Step 2: Upload photo
-    setUploadStep(2);
     const filename = buildFilename(customerName);
-    const photoUrl = await uploadPhoto(filename, photoFile);
-
-    // Step 3: Save record
-    setUploadStep(3);
-    await insertRecord({
+    const record = {
       customer_name:     customerName,
       driver_name:       selectedDriver,
       delivery_datetime: now.toISOString(),
-      photo_url:         photoUrl,
+      photo_url:         null,
       photo_filename:    filename,
       notes:             notes || null,
       latitude:          loc.lat,
       longitude:         loc.lng,
       address:           loc.address
-    });
+    };
 
-    // Step 4: Done
-    setUploadStep(4);
-    await new Promise(r => setTimeout(r, 350));
-    document.getElementById('statusLoading').classList.remove('show');
-    document.getElementById('formSection').style.display = 'none';
-    document.getElementById('successScreen').classList.add('show');
-    document.getElementById('successRef').textContent = `📁 ${filename}`;
+    if (!navigator.onLine) {
+      // ── OFFLINE: store to IndexedDB ──
+      setUploadStep(2);
+      // Convert photo to base64 for storage
+      const photoBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = e => resolve(e.target.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(photoFile);
+      });
+      await queueRecord({ photoBase64, photoMime: photoFile.type || 'image/jpeg', photoFilename: filename, record });
+      await updateSyncBar();
+      setUploadStep(4);
+      await new Promise(r => setTimeout(r, 350));
+      document.getElementById('statusLoading').classList.remove('show');
+      document.getElementById('formSection').style.display = 'none';
+      const ss = document.getElementById('successScreen');
+      ss.classList.add('show');
+      document.getElementById('successRef').textContent = `📴 Saved offline — will sync when online`;
+    } else {
+      // ── ONLINE: upload immediately ──
+      setUploadStep(2);
+      const photoUrl = await uploadPhoto(filename, photoFile);
+      record.photo_url = photoUrl;
+      setUploadStep(3);
+      await insertRecord(record);
+      setUploadStep(4);
+      await new Promise(r => setTimeout(r, 350));
+      document.getElementById('statusLoading').classList.remove('show');
+      document.getElementById('formSection').style.display = 'none';
+      document.getElementById('successScreen').classList.add('show');
+      document.getElementById('successRef').textContent = `📁 ${filename}`;
+    }
   } catch(err) {
     console.error(err);
     document.getElementById('statusLoading').classList.remove('show');
@@ -1439,6 +1615,8 @@ function escHtml(str) {
 loadConfig();
 updateSteps();
 initCustomers();
+updateOnlineStatus();
+updateSyncBar();
 </script>
 </body>
 </html>
