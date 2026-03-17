@@ -624,7 +624,6 @@ function showForm() {
   document.getElementById('successScreen').classList.remove('show');
   document.getElementById('historyView').classList.remove('show');
   document.getElementById('detailView').classList.remove('show');
-  document.getElementById('configNotice').style.display = (config.url && config.key) ? 'none' : '';
   window.scrollTo(0,0);
 }
 function showHistory() {
@@ -632,7 +631,6 @@ function showHistory() {
   document.getElementById('successScreen').classList.remove('show');
   document.getElementById('historyView').classList.add('show');
   document.getElementById('detailView').classList.remove('show');
-  document.getElementById('configNotice').style.display = 'none';
   window.scrollTo(0,0);
   loadHistory();
 }
