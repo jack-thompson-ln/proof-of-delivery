@@ -186,6 +186,9 @@ Table Editor → customers → Insert row → fill in `name` → Save
 **Hide a customer without deleting:**
 Find the row → set `active` to `false` → Save
 
+**Customer list loading:**
+The app loads all active customers on startup using paginated requests (1,000 records per page), so there is no upper limit on the number of customers — large lists of 3,000+ records are fully supported. All customers are loaded into memory once and searched locally, so the search remains fast regardless of list size.
+
 **Customer naming convention:**
 The analytics Top Customer stat uses the first segment of the customer name before ` - ` as a short code. For example `A137 - MICHAEL GOMEZ` displays as `A137`. It is recommended to follow this `CODE - FULL NAME` format for all customers to keep analytics readable.
 
