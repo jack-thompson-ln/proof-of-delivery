@@ -343,8 +343,8 @@
     <div class="pin-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     </div>
-    <h3>History Access</h3>
-    <p>Enter your 4-digit PIN to view delivery history</p>
+    <h3 id="pinModalTitle">History Access</h3>
+    <p id="pinModalDesc">Enter your 4-digit PIN to view delivery history</p>
     <div class="pin-dots">
       <div class="pin-dot" id="pd0"></div>
       <div class="pin-dot" id="pd1"></div>
@@ -440,22 +440,6 @@
 
     <div class="card">
       <div class="card-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Date & Time
-      </div>
-      <div class="timestamp-display">
-        <div class="ts-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-        <div>
-          <div class="ts-time" id="tsTime">--:--:--</div>
-          <div class="ts-date" id="tsDate">Loading...</div>
-        </div>
-        <div class="ts-live"><div class="ts-live-dot"></div>Live</div>
-      </div>
-      <p class="field-note" style="margin-top:8px;">Timestamp captured automatically at submission.</p>
-    </div>
-
-    <div class="card">
-      <div class="card-label">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         Delivery Photo
       </div>
@@ -474,6 +458,30 @@
 
     <div class="card">
       <div class="card-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Notes <span style="font-weight:400;opacity:0.6;margin-left:4px;">(optional)</span>
+      </div>
+      <textarea id="deliveryNotes" rows="3" placeholder="Any additional delivery notes..." style="resize:vertical;"></textarea>
+
+      <div style="height:1px;background:var(--border);margin:18px 0;"></div>
+
+      <div class="card-label" style="margin-bottom:10px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Date & Time
+      </div>
+      <div class="timestamp-display">
+        <div class="ts-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div>
+          <div class="ts-time" id="tsTime">--:--:--</div>
+          <div class="ts-date" id="tsDate">Loading...</div>
+        </div>
+        <div class="ts-live"><div class="ts-live-dot"></div>Live</div>
+      </div>
+      <p class="field-note" style="margin-top:8px;">Timestamp captured automatically at submission.</p>
+
+      <div style="height:1px;background:var(--border);margin:18px 0;"></div>
+
+      <div class="card-label" style="margin-bottom:10px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         Delivery Location
       </div>
@@ -488,14 +496,6 @@
         <div class="ts-live" id="locationStatus"><div class="ts-live-dot"></div>Auto</div>
       </div>
       <p class="field-note" style="margin-top:8px;">GPS coordinates and address recorded automatically when you tap Record Delivery.</p>
-    </div>
-
-    <div class="card">
-      <div class="card-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Notes <span style="font-weight:400;opacity:0.6;margin-left:4px;">(optional)</span>
-      </div>
-      <textarea id="deliveryNotes" rows="3" placeholder="Any additional delivery notes..." style="resize:vertical;"></textarea>
     </div>
 
     <div class="status-bar loading" id="statusLoading">
@@ -650,6 +650,8 @@ function openPinModal(dest = 'history') {
   pinEntry = '';
   updatePinDots();
   document.getElementById('pinError').textContent = '';
+  document.getElementById('pinModalTitle').textContent = dest === 'analytics' ? 'Analytics Access' : 'History Access';
+  document.getElementById('pinModalDesc').textContent  = dest === 'analytics' ? 'Enter your 4-digit PIN to view analytics' : 'Enter your 4-digit PIN to view delivery history';
   document.getElementById('pinModal').classList.add('open');
 }
 function closePinModal() {
