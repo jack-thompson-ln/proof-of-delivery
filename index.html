@@ -219,6 +219,18 @@
 
   /* Record list */
   .record-list { display: flex; flex-direction: column; gap: 10px; }
+  .driver-group-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 6px; margin-bottom: 2px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.85rem; font-weight: 800;
+    color: var(--brand); letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .driver-group-header::after {
+    content: ''; flex: 1; height: 1.5px;
+    background: var(--border); border-radius: 2px;
+  }
+  .driver-group-header:first-child { margin-top: 0; }
   .record-card {
     background: white; border-radius: 14px; padding: 14px 14px 14px 14px;
     box-shadow: var(--shadow); border: 1.5px solid var(--border);
@@ -881,18 +893,29 @@ function resetForm() {
 // ── HISTORY ───────────────────────────────────────────────
 let allRecords = [];
 let activeDriverFilter = null;
-const KNOWN_DRIVERS = ['Paddy','Becky','Ben','Ian','Ken','Nick','Sam','James'];
+
+function todayStr() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+}
 
 async function loadHistory() {
   const list = document.getElementById('historyList');
   list.innerHTML = `<div class="history-loading"><div class="spinner"></div>Loading records...</div>`;
   document.getElementById('historyCount').textContent = '';
-  buildDriverChips();
+
+  // Default date range to today
+  const today = todayStr();
+  if (!document.getElementById('filterDateFrom').value) document.getElementById('filterDateFrom').value = today;
+  if (!document.getElementById('filterDateTo').value)   document.getElementById('filterDateTo').value   = today;
+
   try {
     allRecords = await fetchRecords();
     // Update badge
     const badge = document.getElementById('historyBadge');
     if (allRecords.length > 0) { badge.textContent = allRecords.length; badge.classList.add('show'); }
+    buildDriverChips();
     applyFilters();
   } catch(err) {
     list.innerHTML = `<div class="history-empty">
@@ -902,10 +925,11 @@ async function loadHistory() {
 }
 
 function buildDriverChips() {
+  // Build driver list dynamically from returned records
+  const drivers = [...new Set(allRecords.map(r => r.driver_name).filter(Boolean))].sort();
   const wrap = document.getElementById('driverChips');
-  const drivers = KNOWN_DRIVERS;
-  wrap.innerHTML = ['All',...drivers].map(d =>
-    `<button class="driver-chip${d==='All'&&!activeDriverFilter?' active':d===activeDriverFilter?' active':''}" onclick="filterByDriver('${d}')">${d}</button>`
+  wrap.innerHTML = ['All', ...drivers].map(d =>
+    `<button class="driver-chip${(d === 'All' && !activeDriverFilter) || d === activeDriverFilter ? ' active' : ''}" onclick="filterByDriver('${escHtml(d)}')">${escHtml(d)}</button>`
   ).join('');
 }
 
@@ -924,9 +948,9 @@ function applyFilters() {
     const matchSearch = !search ||
       (r.customer_name||'').toLowerCase().includes(search) ||
       (r.driver_name||'').toLowerCase().includes(search);
-    const recDate = r.delivery_datetime ? r.delivery_datetime.slice(0,10) : '';
-    const matchFrom   = !dateFrom || recDate >= dateFrom;
-    const matchTo     = !dateTo   || recDate <= dateTo;
+    const recDate    = r.delivery_datetime ? r.delivery_datetime.slice(0,10) : '';
+    const matchFrom  = !dateFrom || recDate >= dateFrom;
+    const matchTo    = !dateTo   || recDate <= dateTo;
     const matchDriver = !activeDriverFilter || (r.driver_name||'') === activeDriverFilter;
     return matchSearch && matchFrom && matchTo && matchDriver;
   });
@@ -936,15 +960,15 @@ function applyFilters() {
 
 function clearFilters() {
   document.getElementById('filterSearch').value   = '';
-  document.getElementById('filterDateFrom').value = '';
-  document.getElementById('filterDateTo').value   = '';
+  document.getElementById('filterDateFrom').value = todayStr();
+  document.getElementById('filterDateTo').value   = todayStr();
   activeDriverFilter = null;
   buildDriverChips();
   applyFilters();
 }
 
 function renderRecordList(records) {
-  const list = document.getElementById('historyList');
+  const list  = document.getElementById('historyList');
   const count = document.getElementById('historyCount');
   count.textContent = `${records.length} record${records.length !== 1 ? 's' : ''}`;
 
@@ -955,28 +979,49 @@ function renderRecordList(records) {
     return;
   }
 
-  // Store filtered set globally so onclick index works
-  window._filteredRecords = records;
+  // Sort ascending by datetime within each driver group
+  const sorted = [...records].sort((a, b) => {
+    const driverCmp = (a.driver_name||'').localeCompare(b.driver_name||'');
+    if (driverCmp !== 0) return driverCmp;
+    return new Date(a.delivery_datetime) - new Date(b.delivery_datetime);
+  });
 
-  list.innerHTML = records.map((r, i) => {
-    const dt      = r.delivery_datetime ? new Date(r.delivery_datetime) : null;
-    const dateStr = dt ? dt.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' }) : '—';
-    const timeStr = dt ? dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) : '';
-    const thumb   = r.photo_url
-      ? `<img class="record-thumb" src="${r.photo_url}" alt="Delivery photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-      : '';
-    const thumbPh = `<div class="record-thumb-placeholder" ${r.photo_url ? 'style="display:none"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>`;
-    const notesPreview = r.notes ? `<div class="record-notes-preview">📝 ${escHtml(r.notes)}</div>` : '';
-    return `<div class="record-card" onclick="showDetail(window._filteredRecords[${i}])">
-      ${thumb}${thumbPh}
-      <div class="record-info">
-        <div class="record-customer">${escHtml(r.customer_name || '—')}</div>
-        <div class="record-meta">${dateStr}${timeStr ? ' · ' + timeStr : ''}</div>
-        <div class="record-driver-badge">${escHtml(r.driver_name || '—')}</div>
-        ${notesPreview}
-      </div>
-      <div class="record-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
-    </div>`;
+  // Store globally for onclick index lookup
+  window._filteredRecords = sorted;
+
+  // Group by driver
+  const groups = {};
+  sorted.forEach((r, i) => {
+    const driver = r.driver_name || 'Unknown';
+    if (!groups[driver]) groups[driver] = [];
+    groups[driver].push({ r, i });
+  });
+
+  list.innerHTML = Object.keys(groups).sort().map(driver => {
+    const cards = groups[driver].map(({ r, i }) => {
+      const dt      = r.delivery_datetime ? new Date(r.delivery_datetime) : null;
+      const dateStr = dt ? dt.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' }) : '—';
+      const timeStr = dt ? dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) : '';
+      const thumb   = r.photo_url
+        ? `<img class="record-thumb" src="${r.photo_url}" alt="Delivery photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : '';
+      const thumbPh = `<div class="record-thumb-placeholder" ${r.photo_url ? 'style="display:none"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>`;
+      const notesPreview = r.notes ? `<div class="record-notes-preview">📝 ${escHtml(r.notes)}</div>` : '';
+      return `<div class="record-card" onclick="showDetail(window._filteredRecords[${i}])">
+        ${thumb}${thumbPh}
+        <div class="record-info">
+          <div class="record-customer">${escHtml(r.customer_name || '—')}</div>
+          <div class="record-meta">${dateStr}${timeStr ? ' · ' + timeStr : ''}</div>
+          ${notesPreview}
+        </div>
+        <div class="record-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>`;
+    }).join('');
+
+    return `<div class="driver-group-header">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      ${escHtml(driver)}
+    </div>${cards}`;
   }).join('');
 }
 
