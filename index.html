@@ -857,12 +857,21 @@ let allCustomers = [];
 let customerSelected = false;
 
 async function fetchCustomers() {
-  const res = await sbRequest(`/rest/v1/customers?select=name&active=eq.true&order=name.asc&limit=500`, {
-    headers: { 'Accept': 'application/json' }
-  });
-  if (!res.ok) throw new Error(`Failed to load customers (${res.status})`);
-  const data = await res.json();
-  return data.map(r => r.name);
+  let all = [];
+  let from = 0;
+  const pageSize = 1000;
+  while (true) {
+    const to = from + pageSize - 1;
+    const res = await sbRequest(`/rest/v1/customers?select=name&active=eq.true&order=name.asc`, {
+      headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': `${from}-${to}` }
+    });
+    if (!res.ok) throw new Error(`Failed to load customers (${res.status})`);
+    const page = await res.json();
+    all = all.concat(page);
+    if (page.length < pageSize) break;
+    from += pageSize;
+  }
+  return all.map(r => r.name);
 }
 
 async function initCustomers() {
