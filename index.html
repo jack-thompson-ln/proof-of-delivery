@@ -166,6 +166,37 @@
   .input-wrap.valid .valid-tick { display: block; }
   .input-wrap.valid input { border-color: rgba(0,184,107,0.5); }
 
+  /* Customer search */
+  .customer-search-wrap { position: relative; }
+  .customer-search-wrap .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; }
+  .customer-search-wrap input { padding-left: 36px; padding-right: 40px; }
+  .customer-search-wrap input.selected-state { border-color: rgba(0,184,107,0.5); background: white; }
+  .customer-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px; display: none; }
+  .customer-clear.show { display: flex; align-items: center; justify-content: center; }
+  .customer-clear svg { width: 15px; height: 15px; }
+  .customer-dropdown {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: white; border: 2px solid var(--brand);
+    border-radius: 12px; box-shadow: 0 8px 30px rgba(0,75,142,0.18);
+    z-index: 50; max-height: 240px; overflow-y: auto;
+    display: none;
+  }
+  .customer-dropdown.open { display: block; animation: slideUp 0.15s ease; }
+  .customer-option {
+    padding: 12px 16px; font-size: 0.95rem; font-weight: 500;
+    color: var(--text); cursor: pointer; border-bottom: 1px solid var(--off-white);
+    transition: background 0.1s;
+  }
+  .customer-option:last-child { border-bottom: none; }
+  .customer-option:active, .customer-option.highlighted { background: rgba(0,75,142,0.06); }
+  .customer-option mark { background: none; color: var(--brand); font-weight: 700; }
+  .customer-loading { padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .customer-empty { padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+  .customer-selected-badge { display: none; align-items: center; gap: 8px; margin-top: 8px; background: rgba(0,75,142,0.07); border-radius: 8px; padding: 8px 12px; }
+  .customer-selected-badge.show { display: flex; }
+  .customer-selected-badge span { font-size: 0.88rem; font-weight: 600; color: var(--brand); flex: 1; }
+  .customer-selected-badge svg { width: 15px; height: 15px; color: var(--success); flex-shrink: 0; }
+
   /* ══ PIN MODAL ══ */
   .modal-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0,20,50,0.65); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
   .modal-overlay.open { opacity: 1; pointer-events: all; }
@@ -432,10 +463,20 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
         Customer / Recipient
       </div>
-      <div class="input-wrap" id="customerWrap">
-        <input type="text" id="customerName" placeholder="Enter customer or company name..." oninput="validateCustomer()">
-        <svg class="valid-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      <div class="customer-search-wrap" id="customerWrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="customerSearch" placeholder="Search for customer..." oninput="onCustomerSearch()" onfocus="openCustomerDropdown()" autocomplete="off">
+        <button class="customer-clear" id="customerClear" onclick="clearCustomer()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="customer-dropdown" id="customerDropdown"></div>
       </div>
+      <div class="customer-selected-badge" id="customerSelectedBadge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="customerSelectedName"></span>
+      </div>
+      <!-- Hidden field holds the actual selected value -->
+      <input type="hidden" id="customerName">
     </div>
 
     <div class="card">
@@ -747,10 +788,104 @@ function toggleOther() {
 }
 function onOtherDriverInput() { selectedDriver = document.getElementById('otherDriverInput').value.trim(); updateSteps(); }
 
-// ── CUSTOMER ──────────────────────────────────────────────
-function validateCustomer() {
-  const val = document.getElementById('customerName').value.trim();
-  document.getElementById('customerWrap').classList.toggle('valid', val.length > 1);
+// ── CUSTOMER SEARCH ───────────────────────────────────────
+let allCustomers = [];
+let customerSelected = false;
+
+async function fetchCustomers() {
+  const res = await sbRequest(`/rest/v1/customers?select=name&active=eq.true&order=name.asc&limit=500`, {
+    headers: { 'Accept': 'application/json' }
+  });
+  if (!res.ok) throw new Error(`Failed to load customers (${res.status})`);
+  const data = await res.json();
+  return data.map(r => r.name);
+}
+
+async function initCustomers() {
+  try {
+    allCustomers = await fetchCustomers();
+  } catch(e) {
+    console.warn('Could not load customers:', e.message);
+  }
+}
+
+function onCustomerSearch() {
+  customerSelected = false;
+  document.getElementById('customerName').value = '';
+  document.getElementById('customerSelectedBadge').classList.remove('show');
+  document.getElementById('customerSearch').classList.remove('selected-state');
+  document.getElementById('customerClear').classList.toggle('show', document.getElementById('customerSearch').value.length > 0);
+  openCustomerDropdown();
+  updateSteps();
+}
+
+function openCustomerDropdown() {
+  if (customerSelected) return;
+  const query = document.getElementById('customerSearch').value.trim().toLowerCase();
+  const dropdown = document.getElementById('customerDropdown');
+
+  if (allCustomers.length === 0) {
+    dropdown.innerHTML = `<div class="customer-loading"><div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>Loading customers...</div>`;
+    dropdown.classList.add('open');
+    fetchCustomers().then(names => {
+      allCustomers = names;
+      openCustomerDropdown();
+    });
+    return;
+  }
+
+  const matches = query
+    ? allCustomers.filter(n => n.toLowerCase().includes(query))
+    : allCustomers;
+
+  if (matches.length === 0) {
+    dropdown.innerHTML = `<div class="customer-empty">No customers match "<strong>${escHtml(query)}</strong>"</div>`;
+  } else {
+    dropdown.innerHTML = matches.map(name => {
+      const label = query
+        ? name.replace(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<mark>$1</mark>')
+        : escHtml(name);
+      return `<div class="customer-option" onclick="selectCustomer('${escHtml(name)}')">${label}</div>`;
+    }).join('');
+  }
+  dropdown.classList.add('open');
+
+  // Close on outside tap
+  setTimeout(() => {
+    document.addEventListener('click', closeCustomerDropdownOutside, { once: true });
+  }, 0);
+}
+
+function closeCustomerDropdownOutside(e) {
+  const wrap = document.getElementById('customerWrap');
+  if (!wrap.contains(e.target)) closeCustomerDropdown();
+  else document.addEventListener('click', closeCustomerDropdownOutside, { once: true });
+}
+
+function closeCustomerDropdown() {
+  document.getElementById('customerDropdown').classList.remove('open');
+}
+
+function selectCustomer(name) {
+  customerSelected = true;
+  document.getElementById('customerName').value = name;
+  document.getElementById('customerSearch').value = name;
+  document.getElementById('customerSearch').classList.add('selected-state');
+  document.getElementById('customerSelectedName').textContent = name;
+  document.getElementById('customerSelectedBadge').classList.add('show');
+  document.getElementById('customerClear').classList.add('show');
+  closeCustomerDropdown();
+  updateSteps();
+}
+
+function clearCustomer() {
+  customerSelected = false;
+  document.getElementById('customerName').value = '';
+  document.getElementById('customerSearch').value = '';
+  document.getElementById('customerSearch').classList.remove('selected-state');
+  document.getElementById('customerSelectedBadge').classList.remove('show');
+  document.getElementById('customerClear').classList.remove('show');
+  closeCustomerDropdown();
   updateSteps();
 }
 
@@ -940,7 +1075,11 @@ function resetForm() {
   document.getElementById('otherInputWrap').classList.remove('visible');
   document.getElementById('otherDriverInput').value = '';
   document.getElementById('customerName').value = '';
-  document.getElementById('customerWrap').classList.remove('valid');
+  document.getElementById('customerSearch').value = '';
+  document.getElementById('customerSearch').classList.remove('selected-state');
+  document.getElementById('customerSelectedBadge').classList.remove('show');
+  document.getElementById('customerClear').classList.remove('show');
+  customerSelected = false;
   document.getElementById('deliveryNotes').value = '';
   document.getElementById('photoInput').value = '';
   document.getElementById('photoPreview').style.display = 'none';
@@ -1262,6 +1401,7 @@ function escHtml(str) {
 // ── INIT ──────────────────────────────────────────────────
 loadConfig();
 updateSteps();
+initCustomers();
 </script>
 </body>
 </html>
