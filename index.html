@@ -1645,9 +1645,16 @@ function renderPieChart(records) {
   // Top driver
   const driverTally = {};
   records.forEach(r => { const d = r.driver_name || 'Unknown'; driverTally[d] = (driverTally[d] || 0) + 1; });
-  const topDriver = Object.entries(driverTally).sort((a,b) => b[1]-a[1])[0];
-  document.getElementById('statTopDriver').textContent      = topDriver ? topDriver[0] : '—';
-  document.getElementById('statTopDriverCount').textContent = topDriver ? `${topDriver[1]} drop${topDriver[1] !== 1 ? 's' : ''}` : '';
+  const topDriver    = Object.entries(driverTally).sort((a,b) => b[1]-a[1])[0];
+  const topDriverVal = topDriver ? topDriver[1] : 0;
+  const topDrivers   = Object.entries(driverTally).filter(([,v]) => v === topDriverVal);
+  if (topDrivers.length > 1) {
+    document.getElementById('statTopDriver').textContent      = 'Multiple';
+    document.getElementById('statTopDriverCount').textContent = `${topDriverVal} drop${topDriverVal !== 1 ? 's' : ''} each`;
+  } else {
+    document.getElementById('statTopDriver').textContent      = topDriver ? topDriver[0] : '—';
+    document.getElementById('statTopDriverCount').textContent = topDriver ? `${topDriverVal} drop${topDriverVal !== 1 ? 's' : ''}` : '';
+  }
 
   // Top customer — first part before ' - '
   const customerTally = {};
@@ -1656,9 +1663,16 @@ function renderPieChart(records) {
     const short = full.includes(' - ') ? full.split(' - ')[0].trim() : full.split(' ')[0].trim();
     customerTally[short] = (customerTally[short] || 0) + 1;
   });
-  const topCustomer = Object.entries(customerTally).sort((a,b) => b[1]-a[1])[0];
-  document.getElementById('statTopCustomer').textContent      = topCustomer ? topCustomer[0] : '—';
-  document.getElementById('statTopCustomerCount').textContent = topCustomer ? `${topCustomer[1]} drop${topCustomer[1] !== 1 ? 's' : ''}` : '';
+  const topCustomer    = Object.entries(customerTally).sort((a,b) => b[1]-a[1])[0];
+  const topCustomerVal = topCustomer ? topCustomer[1] : 0;
+  const topCustomers   = Object.entries(customerTally).filter(([,v]) => v === topCustomerVal);
+  if (topCustomers.length > 1) {
+    document.getElementById('statTopCustomer').textContent      = 'Multiple';
+    document.getElementById('statTopCustomerCount').textContent = `${topCustomerVal} drop${topCustomerVal !== 1 ? 's' : ''} each`;
+  } else {
+    document.getElementById('statTopCustomer').textContent      = topCustomer ? topCustomer[0] : '—';
+    document.getElementById('statTopCustomerCount').textContent = topCustomer ? `${topCustomerVal} drop${topCustomerVal !== 1 ? 's' : ''}` : '';
+  }
 
   // ── Pie chart ──
   const tally   = {};
