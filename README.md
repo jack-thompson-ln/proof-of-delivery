@@ -7,11 +7,11 @@ A mobile-friendly web application for recording and managing delivery confirmati
 ## Features
 
 - **Delivery recording** — capture driver name, customer, photo, GPS location, timestamp and notes in one simple form
-- **Photo upload** — photos are saved to Supabase Storage and named automatically as `YYYYMMDD_HHMMSS_CustomerName.jpg`
+- **Photo upload** — photos saved to Supabase Storage, named automatically as `YYYYMMDD_HHMMSS_CustomerName.jpg`
 - **GPS location** — automatically captures coordinates and reverse-geocodes to a readable address at the point of submission
-- **Customer search** — searchable dropdown populated from a Supabase customers table, ensuring consistent naming
+- **Customer search** — searchable dropdown populated from a Supabase `customers` table, ensuring consistent naming across all records
 - **Delivery history** — PIN-protected history view with search, date range and driver filter, grouped by driver in ascending time order
-- **Analytics** — PIN-protected pie chart showing deliveries by driver for any date range
+- **Analytics** — PIN-protected analytics page with stat cards and a pie chart of deliveries by driver
 - **No login required** — drivers access via a direct URL in any mobile browser, no app install or account needed
 
 ---
@@ -108,7 +108,7 @@ with check (bucket_id = 'delivery-photos');
 4. Go to **Settings → Pages → Source → Deploy from branch → main**
 5. Your app will be live at `https://yourusername.github.io/fmf-pod`
 
-Share the URL with drivers — they bookmark it on their phone's home screen for quick access.
+Share the URL with drivers — they can bookmark it on their phone's home screen for quick access.
 
 ---
 
@@ -138,6 +138,18 @@ const config = {
 
 ---
 
+## CORS Configuration
+
+Because the app is hosted on GitHub Pages and makes API calls to Supabase, your GitHub Pages domain must be whitelisted.
+
+Go to: **Supabase → Project Settings → API → CORS** and add:
+
+```
+https://yourusername.github.io
+```
+
+---
+
 ## Managing Customers
 
 Customers are managed directly in Supabase — no code changes required.
@@ -147,14 +159,18 @@ Table Editor → customers → Insert row → fill in `name` → Save
 
 **Bulk import via CSV:**
 1. Create a `.csv` file with a single column headed `name`
-2. Table Editor → customers → Import data → select your file → Import
+2. One customer name per row
+3. Table Editor → customers → Import data → select your file → Import
 
 **Hide a customer without deleting:**
 Find the row → set `active` to `false` → Save
 
+**Customer naming convention:**
+The analytics Top Customer stat uses the first segment of the customer name before ` - ` as a short code. For example `A137 - MICHAEL GOMEZ` displays as `A137`. It is recommended to follow this `CODE - FULL NAME` format for all customers to keep analytics readable.
+
 ---
 
-## Drivers
+## Managing Drivers
 
 The driver list is hardcoded in `index.html`. To add or remove drivers, locate the driver grid section and update the buttons:
 
@@ -162,25 +178,40 @@ The driver list is hardcoded in `index.html`. To add or remove drivers, locate t
 <button class="driver-btn" onclick="selectDriver(this,'DriverName')">DriverName</button>
 ```
 
-An **Other / Not listed** option is always available for drivers not in the preset list.
+Current drivers: Paddy, Becky, Ben, Ian, Ken, Nick, Sam, James.
+
+An **Other / Not listed** option is always available for drivers not in the preset list, allowing a name to be typed manually.
+
+---
+
+## History
+
+The History screen is PIN-protected (same PIN as Analytics). It provides:
+
+- **Search** — filter by customer name or driver name
+- **Date range** — defaults to today, adjustable via From/To date pickers
+- **Driver filter chips** — dynamically generated from records in the database, including any manually entered names
+- **Grouped view** — records grouped by driver, sorted ascending by time within each group
+- **Detail view** — tap any record to see the full delivery detail including photo (tap photo to fullscreen), address, coordinates, driver, customer, date, time and notes
+
+---
+
+## Analytics
+
+The Analytics screen is PIN-protected (same PIN as History). It provides:
+
+- **Date range filter** — defaults to today
+- **Stat cards** (row of 3):
+  - **Top Driver** — driver with the most deliveries in the selected range
+  - **Top Customer** — customer with the most deliveries, displayed as short code (first part before ` - `)
+  - **Total Deliveries** — total count for the selected range
+- **Pie chart** — deliveries by driver in shades of blue, with a custom legend showing count and percentage per driver
 
 ---
 
 ## PIN Protection
 
-Both the History and Analytics screens are protected by a 4-digit PIN. The PIN is set in the `config` block in `index.html` (see Configuration above). It is the same PIN for both screens.
-
----
-
-## CORS Configuration
-
-Because the app is hosted on GitHub Pages and makes API calls to Supabase, your GitHub Pages domain must be added to Supabase's allowed origins.
-
-Go to: **Supabase → Project Settings → API → CORS** and add:
-
-```
-https://yourusername.github.io
-```
+Both the History and Analytics screens require a 4-digit PIN. The PIN is set in the `config` block in `index.html`. The same PIN is used for both screens. The PIN is never displayed in the app — the Config panel shows `****` in its place.
 
 ---
 
