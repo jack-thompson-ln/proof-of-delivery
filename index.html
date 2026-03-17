@@ -899,15 +899,25 @@ function openCustomerDropdown() {
   }
 
   const matches = query
-    ? allCustomers.filter(n => n.toLowerCase().includes(query))
+    ? allCustomers.filter(n => {
+        const name = n.toLowerCase();
+        return query.split(/\s+/).filter(Boolean).every(word => name.includes(word));
+      })
     : allCustomers;
 
   if (matches.length === 0) {
     dropdown.innerHTML = `<div class="customer-empty">No customers match "<strong>${escHtml(query)}</strong>"</div>`;
   } else {
     dropdown.innerHTML = matches.map(name => {
-      const label = query
-        ? name.replace(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<mark>$1</mark>')
+    const label = query
+        ? (() => {
+            let highlighted = escHtml(name);
+            query.split(/\s+/).filter(Boolean).forEach(word => {
+              const escaped = word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+              highlighted = highlighted.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+            });
+            return highlighted;
+          })()
         : escHtml(name);
       return `<div class="customer-option" onclick="selectCustomer('${escHtml(name)}')">${label}</div>`;
     }).join('');
