@@ -712,6 +712,17 @@
 
     <div class="chart-card">
       <div class="chart-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+        Deliveries by Customer
+      </div>
+      <div id="customerPieWrap" class="chart-wrap">
+        <canvas id="customerPieChart"></canvas>
+      </div>
+      <div class="pie-legend" id="customerPieLegend"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Deliveries by Hour of Day
       </div>
@@ -1526,8 +1537,9 @@ function closeLightbox() {
 }
 
 // ── ANALYTICS ────────────────────────────────────────────
-let pieChartInstance  = null;
-let lineChartInstance = null;
+let pieChartInstance         = null;
+let customerPieChartInstance = null;
+let lineChartInstance        = null;
 const PIE_BLUES = [
   '#004b8e','#0062b8','#0077d4','#0099ff','#33aaff',
   '#66bbff','#003a6e','#005299','#1a6fa8','#2980b9'
@@ -1605,6 +1617,7 @@ async function loadAnalytics() {
     if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
     const records = await res.json();
     renderPieChart(records);
+    renderCustomerPieChart(records);
     renderLineChart(records);
   } catch(err) {
     document.getElementById('pieChartWrap').innerHTML = `<div class="chart-empty">Error loading data: ${err.message}</div>`;
@@ -1620,9 +1633,12 @@ function renderPieChart(records) {
     document.getElementById('statTopDriverCount').textContent = '';
     document.getElementById('statTopCustomer').textContent      = '—';
     document.getElementById('statTopCustomerCount').textContent = '';
-    document.getElementById('pieChartWrap').innerHTML = '<div class="chart-empty">No deliveries in this date range.</div>';
-    document.getElementById('pieLegend').innerHTML = '';
-    if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
+    document.getElementById('pieChartWrap').innerHTML    = '<div class="chart-empty">No deliveries in this date range.</div>';
+    document.getElementById('customerPieWrap').innerHTML  = '<div class="chart-empty">No deliveries in this date range.</div>';
+    document.getElementById('pieLegend').innerHTML         = '';
+    document.getElementById('customerPieLegend').innerHTML = '';
+    if (pieChartInstance)         { pieChartInstance.destroy();         pieChartInstance         = null; }
+    if (customerPieChartInstance) { customerPieChartInstance.destroy(); customerPieChartInstance = null; }
     return;
   }
 
@@ -1715,6 +1731,87 @@ function renderPieChart(records) {
       <div class="legend-count">${count}<span class="legend-pct">${pct}%</span></div>
     </div>`;
   }).join('');
+}
+
+function renderCustomerPieChart(records) {
+  // Tally by customer short code
+  const tally = {};
+  records.forEach(r => {
+    const full  = r.customer_name || 'Unknown';
+    const short = full.includes(' - ') ? full.split(' - ')[0].trim() : full.split(' ')[0].trim();
+    tally[short] = (tally[short] || 0) + 1;
+  });
+  const sorted   = Object.entries(tally).sort((a,b) => b[1]-a[1]);
+  const labels   = sorted.map(([name]) => name);
+  const values   = sorted.map(([,count]) => count);
+  const colours  = labels.map((_, i) => PIE_BLUES[i % PIE_BLUES.length]);
+  const pieTotal = values.reduce((a,b) => a+b, 0);
+
+  const wrap = document.getElementById('customerPieWrap');
+  if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="customerPieChart"></canvas>';
+  const ctx = document.getElementById('customerPieChart').getContext('2d');
+  if (customerPieChartInstance) customerPieChartInstance.destroy();
+
+  const centerTextPlugin = {
+    id: 'centerTextCustomer',
+    beforeDraw(chart) {
+      const { width, height, ctx } = chart;
+      ctx.save();
+      const fontSize = Math.min(width, height) * 0.13;
+      ctx.font = `800 ${fontSize}px 'Barlow Condensed', sans-serif`;
+      ctx.fillStyle = '#004b8e';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = chart.chartArea.left + (chart.chartArea.right  - chart.chartArea.left) / 2;
+      const cy = chart.chartArea.top  + (chart.chartArea.bottom - chart.chartArea.top)  / 2;
+      ctx.fillText(pieTotal, cx, cy - fontSize * 0.3);
+      ctx.font = `600 ${fontSize * 0.45}px 'Barlow', sans-serif`;
+      ctx.fillStyle = '#5a7a9a';
+      ctx.fillText('deliveries', cx, cy + fontSize * 0.5);
+      ctx.restore();
+    }
+  };
+
+  customerPieChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colours,
+        borderColor: '#ffffff',
+        borderWidth: 3,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '60%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed} drops (${Math.round(ctx.parsed/pieTotal*100)}%)`
+          }
+        }
+      }
+    },
+    plugins: [centerTextPlugin]
+  });
+
+  // Custom legend — show top 10 to keep it readable
+  const display = sorted.slice(0, 10);
+  const remaining = sorted.length - display.length;
+  document.getElementById('customerPieLegend').innerHTML =
+    display.map(([name, count], i) => {
+      const pct = Math.round(count / pieTotal * 100);
+      return `<div class="legend-item">
+        <div class="legend-dot" style="background:${colours[i]}"></div>
+        <div class="legend-name">${escHtml(name)}</div>
+        <div class="legend-count">${count}<span class="legend-pct">${pct}%</span></div>
+      </div>`;
+    }).join('') +
+    (remaining > 0 ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;text-align:center;">+${remaining} more customers</div>` : '');
 }
 
 function renderLineChart(records) {
