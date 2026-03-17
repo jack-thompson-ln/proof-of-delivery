@@ -75,7 +75,8 @@
   .step.done .step-label { color: var(--brand); }
 
   /* ── CARDS ── */
-  .card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); animation: slideUp 0.3s ease both; overflow: visible; }
+  .card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); overflow: visible; position: relative; z-index: 1; }
+  .card.customer-card { z-index: 100; }
   @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
   .card-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
   .card-label svg { width: 14px; height: 14px; opacity: 0.8; }
@@ -101,7 +102,7 @@
   .other-input-wrap.visible { display: block; }
 
   /* ── PHOTO ── */
-  .photo-zone { border: 2.5px dashed var(--border); border-radius: 12px; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; background: var(--off-white); transition: all 0.2s; }
+  .photo-zone { border: 2.5px dashed var(--border); border-radius: 12px; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; background: var(--off-white); transition: all 0.2s; z-index: 1; }
   .photo-zone.has-photo { border-style: solid; border-color: var(--brand); }
   .photo-zone img { width: 100%; object-fit: cover; display: block; min-height: 180px; max-height: 280px; }
   .photo-placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px; }
@@ -167,7 +168,7 @@
   .input-wrap.valid input { border-color: rgba(0,184,107,0.5); }
 
   /* Customer search */
-  .customer-search-wrap { position: relative; }
+  .customer-search-wrap { position: relative; z-index: 300; }
   .customer-search-wrap .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; }
   .customer-search-wrap input { padding-left: 36px; padding-right: 40px; }
   .customer-search-wrap input.selected-state { border-color: rgba(0,184,107,0.5); background: white; }
@@ -458,7 +459,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card customer-card">
       <div class="card-label">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
         Customer / Recipient
