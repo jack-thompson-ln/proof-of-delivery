@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Proof of Delivery</title>
+<title>FMF POD</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -80,13 +80,13 @@
   .card-label svg { width: 14px; height: 14px; opacity: 0.8; }
 
   /* ── INPUTS ── */
-  input[type="text"], textarea {
+  input[type="text"], input[type="password"], textarea {
     width: 100%; padding: 13px 16px; border: 2px solid var(--border); border-radius: 10px;
     font-family: 'Barlow', sans-serif; font-size: 1rem; font-weight: 500; color: var(--text);
     background: var(--off-white); transition: border-color 0.2s, box-shadow 0.2s;
     -webkit-appearance: none; outline: none;
   }
-  input[type="text"]:focus, textarea:focus { border-color: var(--brand); background: white; box-shadow: 0 0 0 3px rgba(0,75,142,0.1); }
+  input[type="text"]:focus, input[type="password"]:focus, textarea:focus { border-color: var(--brand); background: white; box-shadow: 0 0 0 3px rgba(0,75,142,0.1); }
   input::placeholder, textarea::placeholder { color: var(--text-muted); font-weight: 400; }
 
   /* ── DRIVER GRID ── */
@@ -280,7 +280,7 @@
       </svg>
     </div>
     <div class="header-titles">
-      <div class="header-title">Proof of Delivery</div>
+      <div class="header-title">FMF POD</div>
       <div class="header-sub">Delivery Confirmation</div>
     </div>
     <div class="header-right">
@@ -359,7 +359,7 @@
     <label>Database Table Name</label>
     <input type="text" id="cfgTable" placeholder="deliveries">
     <label>History PIN (4 digits)</label>
-    <input type="text" id="cfgPin" placeholder="1234" maxlength="4">
+    <input type="password" id="cfgPin" placeholder="****" maxlength="4" readonly>
     <p class="field-note">PIN required to access delivery history</p>
     <button class="save-config-btn" onclick="saveConfig()">Save Configuration</button>
   </div>
@@ -441,6 +441,24 @@
 
     <div class="card">
       <div class="card-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Delivery Location
+      </div>
+      <div class="timestamp-display" id="locationDisplay">
+        <div class="ts-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div class="ts-time" style="font-size:0.85rem;font-weight:600;" id="locationText">Captured at submission</div>
+          <div class="ts-date" id="locationCoords"></div>
+        </div>
+        <div class="ts-live" id="locationStatus"><div class="ts-live-dot"></div>Auto</div>
+      </div>
+      <p class="field-note" style="margin-top:8px;">GPS coordinates and address recorded automatically when you tap Record Delivery.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-label">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Notes <span style="font-weight:400;opacity:0.6;margin-left:4px;">(optional)</span>
       </div>
@@ -451,9 +469,10 @@
       <div class="spinner"></div>
       <div class="status-text">
         <strong>Saving delivery record...</strong>
-        <div class="upload-step" id="uStep1"><span class="step-dot"></span>Uploading photo to storage</div>
-        <div class="upload-step" id="uStep2"><span class="step-dot"></span>Saving record to database</div>
-        <div class="upload-step" id="uStep3"><span class="step-dot"></span>Finalising</div>
+        <div class="upload-step" id="uStep1"><span class="step-dot"></span>Capturing location</div>
+        <div class="upload-step" id="uStep2"><span class="step-dot"></span>Uploading photo to storage</div>
+        <div class="upload-step" id="uStep3"><span class="step-dot"></span>Saving record to database</div>
+        <div class="upload-step" id="uStep4"><span class="step-dot"></span>Finalising</div>
       </div>
     </div>
     <div class="status-bar error" id="statusError">
@@ -523,33 +542,26 @@
 </main>
 
 <script>
-// ── CONFIG ────────────────────────────────────────────────
-let config = { url: '', key: '', bucket: 'delivery-photos', table: 'deliveries', pin: '1234' };
+// ── CONFIG (hardcoded) ────────────────────────────────────
+const config = {
+  url:    'https://hrbxfroqtpdiikkvwklp.supabase.co',
+  key:    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyYnhmcm9xdHBkaWlra3Z3a2xwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzI5NTYsImV4cCI6MjA4OTI0ODk1Nn0.6rR8TVFK0wXX9oEcSPYTCZw4mvE58wsM2fvNwCEHqtQ',
+  bucket: 'delivery-photos',
+  table:  'deliveries',
+  pin:    '1122'
+};
 
 function loadConfig() {
-  try {
-    const saved = localStorage.getItem('pod_sb_config');
-    if (saved) {
-      config = { ...config, ...JSON.parse(saved) };
-      document.getElementById('cfgUrl').value    = config.url    || '';
-      document.getElementById('cfgKey').value    = config.key    || '';
-      document.getElementById('cfgBucket').value = config.bucket || 'delivery-photos';
-      document.getElementById('cfgTable').value  = config.table  || 'deliveries';
-      document.getElementById('cfgPin').value    = config.pin    || '1234';
-      if (config.url && config.key) document.getElementById('configNotice').style.display = 'none';
-    }
-  } catch(e) {}
+  document.getElementById('cfgUrl').value    = config.url;
+  document.getElementById('cfgKey').value    = config.key;
+  document.getElementById('cfgBucket').value = config.bucket;
+  document.getElementById('cfgTable').value  = config.table;
+  document.getElementById('cfgPin').value    = '****';
+  document.getElementById('configNotice').style.display = 'none';
 }
 function saveConfig() {
-  config.url    = document.getElementById('cfgUrl').value.trim().replace(/\/$/, '');
-  config.key    = document.getElementById('cfgKey').value.trim();
-  config.bucket = document.getElementById('cfgBucket').value.trim() || 'delivery-photos';
-  config.table  = document.getElementById('cfgTable').value.trim()  || 'deliveries';
-  config.pin    = document.getElementById('cfgPin').value.trim()    || '1234';
-  localStorage.setItem('pod_sb_config', JSON.stringify(config));
   document.getElementById('configPanel').classList.remove('open');
-  if (config.url && config.key) document.getElementById('configNotice').style.display = 'none';
-  alert('Configuration saved!');
+  alert('Configuration is hardcoded in this build. Edit the HTML file to change settings.');
 }
 function toggleConfig() { document.getElementById('configPanel').classList.toggle('open'); }
 
@@ -715,8 +727,9 @@ function buildFilename(customerName) {
 
 // ── UPLOAD STEPS ──────────────────────────────────────────
 function setUploadStep(n) {
-  [1,2,3].forEach(i => {
+  [1,2,3,4].forEach(i => {
     const el = document.getElementById('uStep'+i);
+    if (!el) return;
     el.classList.remove('active','done');
     if (i < n) el.classList.add('done');
     if (i === n) el.classList.add('active');
@@ -751,6 +764,31 @@ async function fetchRecords() {
   return await res.json();
 }
 
+// ── LOCATION ──────────────────────────────────────────────
+function getLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) { resolve({ lat: null, lng: null, address: 'Geolocation not supported' }); return; }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        let address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        try {
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+          const d = await r.json();
+          if (d && d.display_name) address = d.display_name;
+        } catch(e) {}
+        resolve({ lat, lng, address });
+      },
+      (err) => {
+        const msgs = { 1: 'Location permission denied', 2: 'Location unavailable', 3: 'Location request timed out' };
+        resolve({ lat: null, lng: null, address: msgs[err.code] || 'Location error' });
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  });
+}
+
 // ── SUBMIT ────────────────────────────────────────────────
 async function submitDelivery() {
   const customerName = document.getElementById('customerName').value.trim();
@@ -759,17 +797,42 @@ async function submitDelivery() {
   if (!selectedDriver) return alert('Please select a driver.');
   if (!customerName)   return alert('Please enter a customer name.');
   if (!photoFile)      return alert('Please take a delivery photo.');
-  if (!config.url || !config.key) return alert('Please configure your Supabase settings first.');
   document.getElementById('statusError').classList.remove('show');
   document.getElementById('statusLoading').classList.add('show');
   document.getElementById('submitBtn').disabled = true;
   setUploadStep(1);
   try {
+    // Step 1: Get GPS location
+    const loc = await getLocation();
+    // Update location card
+    document.getElementById('locationText').textContent  = loc.address;
+    document.getElementById('locationCoords').textContent = loc.lat ? `${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}` : '';
+    const locStatus = document.getElementById('locationStatus');
+    locStatus.innerHTML = loc.lat
+      ? '<div class="ts-live-dot"></div>Got it'
+      : '<div style="width:6px;height:6px;border-radius:50%;background:#f0a500"></div>Approx';
+
+    // Step 2: Upload photo
+    setUploadStep(2);
     const filename = buildFilename(customerName);
     const photoUrl = await uploadPhoto(filename, photoFile);
-    setUploadStep(2);
-    await insertRecord({ customer_name: customerName, driver_name: selectedDriver, delivery_datetime: now.toISOString(), photo_url: photoUrl, photo_filename: filename, notes: notes || null });
+
+    // Step 3: Save record
     setUploadStep(3);
+    await insertRecord({
+      customer_name:     customerName,
+      driver_name:       selectedDriver,
+      delivery_datetime: now.toISOString(),
+      photo_url:         photoUrl,
+      photo_filename:    filename,
+      notes:             notes || null,
+      latitude:          loc.lat,
+      longitude:         loc.lng,
+      address:           loc.address
+    });
+
+    // Step 4: Done
+    setUploadStep(4);
     await new Promise(r => setTimeout(r, 350));
     document.getElementById('statusLoading').classList.remove('show');
     document.getElementById('formSection').style.display = 'none';
@@ -803,6 +866,10 @@ function resetForm() {
   document.getElementById('submitBtn').disabled = true;
   document.getElementById('formSection').style.display = 'block';
   document.getElementById('successScreen').classList.remove('show');
+  // Reset location card
+  document.getElementById('locationText').textContent = 'Captured at submission';
+  document.getElementById('locationCoords').textContent = '';
+  document.getElementById('locationStatus').innerHTML = '<div class="ts-live-dot"></div>Auto';
   updateSteps(); window.scrollTo(0,0);
 }
 
@@ -936,6 +1003,10 @@ function renderDetail(r) {
       <div class="detail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
       <div><div class="detail-label">Time</div><div class="detail-value">${timeStr}</div></div>
     </div>
+    ${r.address ? `<div class="detail-row">
+      <div class="detail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+      <div><div class="detail-label">Location</div><div class="detail-value">${escHtml(r.address)}</div>${r.latitude ? `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}</div>` : ''}</div>
+    </div>` : ''}
     ${r.notes ? `<div class="detail-row">
       <div class="detail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
       <div><div class="detail-label">Notes</div><div class="detail-notes-text">${escHtml(r.notes)}</div></div>
