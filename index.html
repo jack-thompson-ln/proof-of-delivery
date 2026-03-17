@@ -75,7 +75,7 @@
   .step.done .step-label { color: var(--brand); }
 
   /* ── CARDS ── */
-  .card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); animation: slideUp 0.3s ease both; }
+  .card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); animation: slideUp 0.3s ease both; overflow: visible; }
   @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
   .card-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
   .card-label svg { width: 14px; height: 14px; opacity: 0.8; }
@@ -178,7 +178,7 @@
     position: absolute; top: calc(100% + 6px); left: 0; right: 0;
     background: white; border: 2px solid var(--brand);
     border-radius: 12px; box-shadow: 0 8px 30px rgba(0,75,142,0.18);
-    z-index: 50; max-height: 240px; overflow-y: auto;
+    z-index: 200; max-height: 240px; overflow-y: auto;
     display: none;
   }
   .customer-dropdown.open { display: block; animation: slideUp 0.15s ease; }
