@@ -320,13 +320,18 @@
   .analytics-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
   .analytics-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--brand); }
   .analytics-filter-bar { background: white; border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
-  .analytics-total { font-family: 'Barlow Condensed', sans-serif; font-size: 0.75rem; font-weight: 700; color: var(--brand); background: rgba(0,75,142,0.08); border-radius: 20px; padding: 4px 12px; margin-left: auto; flex-shrink: 0; }
   .chart-card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
   .chart-card-title { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
   .chart-card-title svg { width: 14px; height: 14px; }
   .chart-wrap { position: relative; width: 100%; max-width: 320px; margin: 0 auto; }
   .chart-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 0.9rem; }
   .pie-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+  .stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .stat-card { background: white; border-radius: var(--radius); padding: 16px 12px; box-shadow: var(--shadow); border: 1.5px solid var(--border); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .stat-card-icon { width: 32px; height: 32px; background: rgba(0,75,142,0.08); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .stat-card-icon svg { width: 15px; height: 15px; color: var(--brand); }
+  .stat-card-value { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--brand); line-height: 1; }
+  .stat-card-label { font-size: 0.62rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.3; text-align: center; }
   .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
   .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
   .legend-name { flex: 1; font-weight: 600; color: var(--text); }
@@ -622,7 +627,6 @@
         Back
       </button>
       <div class="analytics-title">Analytics</div>
-      <div class="analytics-total" id="analyticsTotal"></div>
     </div>
 
     <div class="analytics-filter-bar">
@@ -631,6 +635,24 @@
         <input type="date" id="analyticsDateFrom" onchange="loadAnalytics()">
         <span class="filter-label">To</span>
         <input type="date" id="analyticsDateTo" onchange="loadAnalytics()">
+      </div>
+    </div>
+
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
+        <div class="stat-card-value" id="statTopDriver">—</div>
+        <div class="stat-card-label">Top Driver</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+        <div class="stat-card-value" id="statTopCustomer">—</div>
+        <div class="stat-card-label">Top Customer</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <div class="stat-card-value" id="statTotal">—</div>
+        <div class="stat-card-label">Total Deliveries</div>
       </div>
     </div>
 
@@ -1327,35 +1349,49 @@ async function loadAnalytics() {
 }
 
 function renderPieChart(records) {
-  document.getElementById('analyticsTotal').textContent =
-    `${records.length} delivery${records.length !== 1 ? 's' : ''}`;
+  const total = records.length;
 
-  if (records.length === 0) {
+  // ── Stat cards ──
+  document.getElementById('statTotal').textContent = total;
+
+  if (total === 0) {
+    document.getElementById('statTopDriver').textContent   = '—';
+    document.getElementById('statTopCustomer').textContent = '—';
     document.getElementById('pieChartWrap').innerHTML = '<div class="chart-empty">No deliveries in this date range.</div>';
     document.getElementById('pieLegend').innerHTML = '';
     if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
     return;
   }
 
-  // Tally by driver
-  const tally = {};
+  // Top driver
+  const driverTally = {};
+  records.forEach(r => { const d = r.driver_name || 'Unknown'; driverTally[d] = (driverTally[d] || 0) + 1; });
+  const topDriver = Object.entries(driverTally).sort((a,b) => b[1]-a[1])[0];
+  document.getElementById('statTopDriver').textContent = topDriver ? topDriver[0] : '—';
+
+  // Top customer — use only first part before ' - ' or first word
+  const customerTally = {};
   records.forEach(r => {
-    const d = r.driver_name || 'Unknown';
-    tally[d] = (tally[d] || 0) + 1;
+    const full = r.customer_name || 'Unknown';
+    const short = full.includes(' - ') ? full.split(' - ')[0].trim() : full.split(' ')[0].trim();
+    customerTally[short] = (customerTally[short] || 0) + 1;
   });
-  const sorted = Object.entries(tally).sort((a,b) => b[1] - a[1]);
+  const topCustomer = Object.entries(customerTally).sort((a,b) => b[1]-a[1])[0];
+  document.getElementById('statTopCustomer').textContent = topCustomer ? topCustomer[0] : '—';
+
+  // ── Pie chart ──
+  const tally = {};
+  records.forEach(r => { const d = r.driver_name || 'Unknown'; tally[d] = (tally[d] || 0) + 1; });
+  const sorted  = Object.entries(tally).sort((a,b) => b[1]-a[1]);
   const labels  = sorted.map(([name]) => name);
   const values  = sorted.map(([,count]) => count);
   const colours = labels.map((_, i) => PIE_BLUES[i % PIE_BLUES.length]);
-  const total   = values.reduce((a,b) => a+b, 0);
+  const pieTotal = values.reduce((a,b) => a+b, 0);
 
-  // Restore canvas if it was replaced
+  // Restore canvas if replaced
   const wrap = document.getElementById('pieChartWrap');
-  if (!wrap.querySelector('canvas')) {
-    wrap.innerHTML = '<canvas id="pieChart"></canvas>';
-  }
+  if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="pieChart"></canvas>';
   const ctx = document.getElementById('pieChart').getContext('2d');
-
   if (pieChartInstance) pieChartInstance.destroy();
 
   pieChartInstance = new Chart(ctx, {
@@ -1376,7 +1412,7 @@ function renderPieChart(records) {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: ctx => ` ${ctx.label}: ${ctx.parsed} deliveries (${Math.round(ctx.parsed/total*100)}%)`
+            label: ctx => ` ${ctx.label}: ${ctx.parsed} deliveries (${Math.round(ctx.parsed/pieTotal*100)}%)`
           }
         }
       }
@@ -1385,7 +1421,7 @@ function renderPieChart(records) {
 
   // Custom legend
   document.getElementById('pieLegend').innerHTML = sorted.map(([name, count], i) => {
-    const pct = Math.round(count / total * 100);
+    const pct = Math.round(count / pieTotal * 100);
     return `<div class="legend-item">
       <div class="legend-dot" style="background:${colours[i]}"></div>
       <div class="legend-name">${escHtml(name)}</div>
