@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 <title>FMF POD</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -20,6 +20,7 @@
     --radius: 16px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  button, a, input, select, textarea { touch-action: manipulation; }
   body { font-family: 'Barlow', sans-serif; background: var(--off-white); color: var(--text); min-height: 100dvh; }
 
   /* ── HEADER ── */
@@ -180,7 +181,7 @@
   .pin-dot.error { background: var(--error); border-color: var(--error); animation: shake 0.35s ease; }
   @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
   .pin-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
-  .pin-key { background: var(--off-white); border: 2px solid var(--border); border-radius: 12px; padding: 13px; font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--text); cursor: pointer; transition: all 0.1s; user-select: none; }
+  .pin-key { background: var(--off-white); border: 2px solid var(--border); border-radius: 12px; padding: 13px; font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--text); cursor: pointer; transition: all 0.1s; user-select: none; touch-action: manipulation; }
   .pin-key:active { background: var(--brand); color: white; border-color: var(--brand); transform: scale(0.93); }
   .pin-key.empty { visibility: hidden; }
   .pin-key.backspace { font-size: 1rem; }
