@@ -189,8 +189,11 @@ Find the row → set `active` to `false` → Save
 **Customer list loading:**
 The app loads all active customers on startup using paginated requests (1,000 records per page), so there is no upper limit on the number of customers — large lists of 3,000+ records are fully supported. All customers are loaded into memory once and searched locally, so the search remains fast regardless of list size.
 
+**Customer search:**
+The search field supports multi-keyword searching across the full customer name. Typing multiple words (e.g. `specialist heat`) will return any customer whose name contains all of those words in any position. Each matching word is highlighted individually in the dropdown results.
+
 **Customer naming convention:**
-The analytics Top Customer stat uses the first segment of the customer name before ` - ` as a short code. For example `A137 - MICHAEL GOMEZ` displays as `A137`. It is recommended to follow this `CODE - FULL NAME` format for all customers to keep analytics readable.
+The analytics Top Customer stat and customer doughnut chart use the first segment of the customer name before ` - ` as a short code. For example `A137 - MICHAEL GOMEZ` displays as `A137`. It is recommended to follow this `CODE - FULL NAME` format for all customers to keep analytics readable.
 
 ---
 
@@ -239,11 +242,14 @@ Two cards displayed side by side:
 
 | Card | Shows |
 |---|---|
-| **Top Driver** | Name of the driver with the most deliveries, plus their drop count (e.g. "14 drops") |
-| **Top Customer** | Short code of the most-delivered-to customer (first part before ` - `), plus their drop count |
+| **Top Driver** | Name of the driver with the most deliveries, plus their drop count (e.g. "14 drops"). If multiple drivers are tied, shows "Multiple" and "X drops each" |
+| **Top Customer** | Short code of the most-delivered-to customer (first part before ` - `), plus their drop count. If multiple customers are tied, shows "Multiple" and "X drops each" |
 
 ### Deliveries by Driver — Doughnut chart
 A doughnut chart in shades of blue showing the split of deliveries across drivers for the selected date range. The total delivery count is displayed in the centre of the chart. A custom legend below shows each driver's name, count and percentage.
+
+### Deliveries by Customer — Doughnut chart
+An identical doughnut chart showing the split of deliveries across customers. Customer names are displayed as their short code (first part before ` - `). The legend shows the top 10 customers with count and percentage, plus a note of how many additional customers are not shown.
 
 ### Deliveries by Hour of Day — Bar chart
 A bar chart showing how many deliveries were completed in each hour of the working day. The peak hour is highlighted in full dark blue (`#004b8e`) while all other hours appear in a lighter blue, making the busiest time of day immediately visible. Tooltips show the exact hour range and delivery count when tapped. The chart automatically scales to only show relevant working hours based on the data.
