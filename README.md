@@ -225,7 +225,14 @@ The History screen is PIN-protected (same PIN as Analytics). It provides:
 The Analytics screen is PIN-protected (same PIN as History). It provides:
 
 ### Date range filter
-Defaults to today. Adjustable via From/To date pickers — all charts and stat cards update automatically when changed.
+Defaults to today. Six preset pills sit above the date pickers in a 2×3 grid for quick selection:
+
+```
+[ Today      ] [ This Week  ] [ This Month ]
+[ Yesterday  ] [ Last Week  ] [ Last Month ]
+```
+
+The active preset is highlighted in blue. Manually adjusting the From/To date pickers deactivates all presets, indicating a custom range is in use. All charts and stat cards update immediately when any preset or date is changed.
 
 ### Stat cards
 Two cards displayed side by side:
