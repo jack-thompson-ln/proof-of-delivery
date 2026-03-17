@@ -12,7 +12,7 @@ A mobile-friendly web application for recording and managing delivery confirmati
 - **Customer search** — searchable dropdown populated from a Supabase `customers` table, ensuring consistent naming across all records
 - **Offline mode** — deliveries submitted without a connection are queued locally on the device and automatically synced to Supabase when connectivity returns
 - **Delivery history** — PIN-protected history view with search, date range and driver filter, grouped by driver in ascending time order
-- **Analytics** — PIN-protected analytics page with stat cards and a pie chart of deliveries by driver
+- **Analytics** — PIN-protected analytics page with stat cards, a doughnut chart of deliveries by driver, and an hourly delivery bar chart
 - **No login required** — drivers access via a direct URL in any mobile browser, no app install or account needed
 
 ---
@@ -221,12 +221,22 @@ The History screen is PIN-protected (same PIN as Analytics). It provides:
 
 The Analytics screen is PIN-protected (same PIN as History). It provides:
 
-- **Date range filter** — defaults to today
-- **Stat cards** (row of 3):
-  - **Top Driver** — driver with the most deliveries in the selected range
-  - **Top Customer** — customer with the most deliveries, displayed as short code (first part before ` - `)
-  - **Total Deliveries** — total count for the selected range
-- **Pie chart** — deliveries by driver in shades of blue, with a custom legend showing count and percentage per driver
+### Date range filter
+Defaults to today. Adjustable via From/To date pickers — all charts and stat cards update automatically when changed.
+
+### Stat cards
+Two cards displayed side by side:
+
+| Card | Shows |
+|---|---|
+| **Top Driver** | Name of the driver with the most deliveries, plus their drop count (e.g. "14 drops") |
+| **Top Customer** | Short code of the most-delivered-to customer (first part before ` - `), plus their drop count |
+
+### Deliveries by Driver — Doughnut chart
+A doughnut chart in shades of blue showing the split of deliveries across drivers for the selected date range. The total delivery count is displayed in the centre of the chart. A custom legend below shows each driver's name, count and percentage.
+
+### Deliveries by Hour of Day — Bar chart
+A bar chart showing how many deliveries were completed in each hour of the working day. The peak hour is highlighted in full dark blue (`#004b8e`) while all other hours appear in a lighter blue, making the busiest time of day immediately visible. Tooltips show the exact hour range and delivery count when tapped. The chart automatically scales to only show relevant working hours based on the data.
 
 ---
 
