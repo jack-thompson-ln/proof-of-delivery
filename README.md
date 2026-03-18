@@ -6,14 +6,14 @@ A mobile-friendly web application for recording and managing delivery confirmati
 
 ## Features
 
-- **Delivery recording** — capture driver name, customer, photo, GPS location, timestamp and notes in one simple form
+- **Driver login** — drivers authenticate with their name and a personal 4-digit PIN before recording deliveries. The app remembers the logged-in driver until they explicitly log out
+- **Delivery recording** — capture customer, photo, GPS location, timestamp and notes in one simple form
 - **Photo upload** — photos saved to Supabase Storage, named automatically as `YYYYMMDD_HHMMSS_CustomerName.jpg`
 - **GPS location** — automatically captures coordinates and reverse-geocodes to a readable address at the point of submission
 - **Customer search** — searchable dropdown populated from a Supabase `customers` table, ensuring consistent naming across all records
 - **Offline mode** — deliveries submitted without a connection are queued locally on the device and automatically synced to Supabase when connectivity returns
 - **Delivery history** — PIN-protected history view with search, date range and driver filter, grouped by driver in ascending time order
-- **Analytics** — PIN-protected analytics page with stat cards, a doughnut chart of deliveries by driver, and an hourly delivery bar chart
-- **No login required** — drivers access via a direct URL in any mobile browser, no app install or account needed
+- **Analytics** — PIN-protected analytics page with stat cards, doughnut charts and an hourly delivery bar chart
 
 ---
 
@@ -82,7 +82,26 @@ create table customers (
 alter table customers disable row level security;
 ```
 
-### 3. Create the Storage bucket
+### 3. Create the `drivers` table
+
+```sql
+create table drivers (
+  id         uuid default gen_random_uuid() primary key,
+  name       text not null unique,
+  pin        text not null,
+  active     boolean default true,
+  created_at timestamptz default now()
+);
+
+alter table drivers disable row level security;
+
+create policy "Allow public reads"
+on drivers for select to anon using (true);
+```
+
+Add each driver via **Table Editor → drivers → Insert row**, filling in `name` and `pin` (4-digit PIN stored as text).
+
+### 4. Create the Storage bucket
 
 - Go to **Storage → New bucket**
 - Name it `delivery-photos`
@@ -136,6 +155,8 @@ const config = {
 | `table` | Supabase table name for delivery records |
 | `pin` | 4-digit PIN to access History and Analytics |
 
+The Config panel is accessible from the login screen via the ⚙️ icon and is displayed as a fixed overlay. The PIN field always shows `****` for security.
+
 > The anon/public key is safe to include in client-side code — it is designed for browser use and access is controlled by Supabase Row Level Security policies.
 
 ---
@@ -149,6 +170,36 @@ Go to: **Supabase → Project Settings → API → CORS** and add:
 ```
 https://yourusername.github.io
 ```
+
+---
+
+## Driver Login
+
+The app uses a two-step login flow on a full-screen branded login page:
+
+1. **Step 1** — Driver taps their name from a grid (loaded dynamically from the `drivers` Supabase table)
+2. **Step 2** — Driver enters their personal 4-digit PIN on a keypad
+
+On successful login the driver is remembered in the browser's `localStorage` — the next time they open the app they go straight to the delivery form without needing to log in again.
+
+**Logging out:**
+A logout button (↩ icon) sits in the top-right of the delivery form header. Tapping it shows a confirmation prompt and returns the driver to the login screen.
+
+**Managing drivers:**
+Drivers are managed entirely in Supabase — no code changes required.
+
+| Action | How |
+|---|---|
+| Add a driver | Table Editor → drivers → Insert row → fill in `name` and `pin` |
+| Change a driver's PIN | Find the row → edit `pin` → Save |
+| Deactivate a driver | Find the row → set `active` to `false` → Save |
+| Remove a driver | Select the row → Delete |
+
+---
+
+## Login Screen Admin Access
+
+The login screen includes three admin icon pills (Config, Analytics, History) so administrators can access these features without logging in as a driver. Tapping Analytics or History prompts for the admin PIN as normal. When the Back button is tapped from these screens, the login page is restored.
 
 ---
 
@@ -197,27 +248,13 @@ The analytics Top Customer stat and customer doughnut chart use the first segmen
 
 ---
 
-## Managing Drivers
-
-The driver list is hardcoded in `index.html`. To add or remove drivers, locate the driver grid section and update the buttons:
-
-```html
-<button class="driver-btn" onclick="selectDriver(this,'DriverName')">DriverName</button>
-```
-
-Current drivers: Paddy, Becky, Ben, Ian, Ken, Nick, Sam, James.
-
-An **Other / Not listed** option is always available for drivers not in the preset list, allowing a name to be typed manually.
-
----
-
 ## History
 
-The History screen is PIN-protected (same PIN as Analytics). It provides:
+The History screen is PIN-protected (same PIN as Analytics). It is accessible from both the login screen and the delivery form. It provides:
 
 - **Search** — filter by customer name or driver name
 - **Date range** — defaults to today, adjustable via From/To date pickers
-- **Driver filter chips** — dynamically generated from records in the database, including any manually entered names
+- **Driver filter chips** — dynamically generated from records in the database
 - **Grouped view** — records grouped by driver, sorted ascending by time within each group
 - **Detail view** — tap any record to see the full delivery detail including photo (tap photo to fullscreen), address, coordinates, driver, customer, date, time and notes
 
@@ -225,7 +262,7 @@ The History screen is PIN-protected (same PIN as Analytics). It provides:
 
 ## Analytics
 
-The Analytics screen is PIN-protected (same PIN as History). It provides:
+The Analytics screen is PIN-protected (same PIN as History). It is accessible from both the login screen and the delivery form.
 
 ### Date range filter
 Defaults to today. Six preset pills sit above the date pickers in a 2×3 grid for quick selection:
@@ -258,7 +295,7 @@ A bar chart showing how many deliveries were completed in each hour of the worki
 
 ## PIN Protection
 
-Both the History and Analytics screens require a 4-digit PIN. The PIN is set in the `config` block in `index.html`. The same PIN is used for both screens. The PIN is never displayed in the app — the Config panel shows `****` in its place.
+The History and Analytics screens share a single 4-digit admin PIN, set in the `config` block in `index.html`. Driver PINs are separate and stored in the `drivers` Supabase table. The admin PIN is never displayed in the app — the Config panel shows `****` in its place.
 
 ---
 
