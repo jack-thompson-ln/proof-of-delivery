@@ -561,17 +561,240 @@
 
   @media (min-width: 900px) {
     main { max-width: 760px; }
-
-    /* History — two-column record list on very wide screens */
-    /* (keep single column — content is better readable single col) */
-
-    /* Analytics stat cards — keep 3-column, just give more padding */
     .stat-card { padding: 20px 16px; }
     .stat-card-value { font-size: 1.6rem; }
-
-    /* Chart side by side */
     .chart-wrap { max-width: 440px; }
   }
+
+  /* ══ ROUTE PILL (header) ══ */
+  .route-pill {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.18);
+    border: 1.5px solid rgba(255,255,255,0.35);
+    border-radius: 10px; padding: 8px;
+    color: white; cursor: pointer;
+    transition: all 0.15s ease;
+    width: 36px; height: 36px; flex-shrink: 0;
+    touch-action: manipulation; position: relative;
+  }
+  .route-pill:active { background: rgba(255,255,255,0.3); transform: scale(0.96); }
+  .route-pill svg { width: 17px; height: 17px; }
+  .route-pill-badge {
+    position: absolute; top: -5px; right: -5px;
+    background: var(--success); color: white;
+    font-size: 0.55rem; font-weight: 800;
+    border-radius: 8px; padding: 1px 4px;
+    min-width: 14px; text-align: center; line-height: 1.5;
+    display: none; border: 1.5px solid var(--brand);
+  }
+  .route-pill-badge.show { display: block; }
+
+  /* ══ ACTIVE ROUTE CARD (on form) ══ */
+  .route-active-card {
+    background: white; border-radius: var(--radius);
+    margin-bottom: 14px; box-shadow: var(--shadow);
+    border: 2px solid var(--brand); overflow: hidden;
+    display: none;
+  }
+  .route-active-card.show { display: block; animation: slideUp 0.3s ease; }
+  .route-active-header {
+    background: var(--brand); padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .route-active-icon {
+    width: 32px; height: 32px; background: rgba(255,255,255,0.18);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .route-active-icon svg { width: 16px; height: 16px; color: white; }
+  .route-active-title { font-family: "Barlow Condensed", sans-serif; font-size: 1rem; font-weight: 800; color: white; flex: 1; }
+  .route-active-meta { font-size: 0.7rem; color: rgba(255,255,255,0.75); }
+  .route-status-badge {
+    font-family: "Barlow Condensed", sans-serif; font-size: 0.65rem; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 6px; flex-shrink: 0;
+  }
+  .route-status-badge.draft    { background: rgba(255,255,255,0.2); color: white; }
+  .route-status-badge.active   { background: var(--success); color: white; }
+  .route-status-badge.completed { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); }
+  .route-stops-list { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .route-stop-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 10px;
+    background: var(--off-white); border: 1.5px solid var(--border);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .route-stop-item.delivered { background: rgba(0,184,107,0.07); border-color: rgba(0,184,107,0.3); cursor: default; }
+  .route-stop-item.active-stop { background: rgba(0,75,142,0.07); border-color: var(--brand); border-width: 2px; }
+  .route-stop-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--border); display: flex; align-items: center; justify-content: center;
+    font-family: "Barlow Condensed", sans-serif; font-size: 0.75rem; font-weight: 800;
+    color: var(--text-muted); flex-shrink: 0;
+  }
+  .route-stop-item.delivered .route-stop-num { background: var(--success); color: white; }
+  .route-stop-item.active-stop .route-stop-num { background: var(--brand); color: white; }
+  .route-stop-name { flex: 1; font-size: 0.88rem; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .route-stop-item.delivered .route-stop-name { color: var(--text-muted); text-decoration: line-through; }
+  .route-stop-tick { width: 18px; height: 18px; color: var(--success); flex-shrink: 0; }
+  .route-stop-arrow { width: 16px; height: 16px; color: var(--brand); flex-shrink: 0; }
+  .route-active-actions { padding: 0 14px 14px; display: flex; gap: 8px; }
+  .route-start-btn {
+    flex: 1; padding: 11px; background: var(--success); color: white; border: none;
+    border-radius: 10px; font-family: "Barlow Condensed", sans-serif;
+    font-size: 0.95rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .route-start-btn svg { width: 15px; height: 15px; }
+  .route-finish-btn {
+    flex: 1; padding: 11px; background: var(--brand); color: white; border: none;
+    border-radius: 10px; font-family: "Barlow Condensed", sans-serif;
+    font-size: 0.95rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .route-finish-btn:disabled { background: #a0b8cc; cursor: not-allowed; }
+  .route-finish-btn svg { width: 15px; height: 15px; }
+  .route-edit-btn {
+    padding: 11px 14px; background: none; color: var(--text-muted);
+    border: 2px solid var(--border); border-radius: 10px;
+    font-family: "Barlow", sans-serif; font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+  }
+
+  /* ══ ROUTE LIST VIEW ══ */
+  #routeView { display: none; }
+  #routeView.show { display: block; animation: slideUp 0.3s ease; }
+  .route-builder-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .route-builder-title { font-family: "Barlow Condensed", sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--brand); flex: 1; }
+  .route-list-card {
+    background: white; border-radius: var(--radius); padding: 16px;
+    margin-bottom: 12px; box-shadow: var(--shadow); border: 1.5px solid var(--border);
+    display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.15s;
+  }
+  .route-list-card:active { transform: scale(0.99); }
+  .route-list-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .route-list-icon.draft    { background: rgba(0,75,142,0.08); }
+  .route-list-icon.active   { background: rgba(0,184,107,0.12); }
+  .route-list-icon.completed { background: rgba(0,75,142,0.05); }
+  .route-list-icon svg { width: 20px; height: 20px; }
+  .route-list-icon.draft svg    { color: var(--brand); }
+  .route-list-icon.active svg   { color: var(--success); }
+  .route-list-icon.completed svg { color: var(--text-muted); }
+  .route-list-info { flex: 1; min-width: 0; }
+  .route-list-name { font-family: "Barlow Condensed", sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--text); }
+  .route-list-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+  .route-list-badge {
+    font-family: "Barlow Condensed", sans-serif; font-size: 0.65rem; font-weight: 800;
+    letter-spacing: 0.07em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; flex-shrink: 0;
+  }
+  .route-list-badge.draft    { background: rgba(0,75,142,0.1); color: var(--brand); }
+  .route-list-badge.active   { background: rgba(0,184,107,0.15); color: #007a47; }
+  .route-list-badge.completed { background: var(--off-white); color: var(--text-muted); }
+  .new-route-btn {
+    width: 100%; padding: 14px; background: var(--brand); color: white; border: none;
+    border-radius: 14px; font-family: "Barlow Condensed", sans-serif;
+    font-size: 1.1rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s; box-shadow: 0 6px 24px rgba(0,75,142,0.3);
+    display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 18px;
+  }
+  .new-route-btn svg { width: 18px; height: 18px; }
+  .route-list-empty { text-align: center; padding: 48px 20px; color: var(--text-muted); }
+  .route-list-empty svg { width: 48px; height: 48px; margin: 0 auto 14px; display: block; opacity: 0.2; }
+  .route-list-empty p { font-size: 0.9rem; line-height: 1.6; }
+
+  /* ══ ROUTE EDITOR OVERLAY ══ */
+  #routeEditorOverlay {
+    display: none; position: fixed; inset: 0; z-index: 350;
+    background: var(--off-white); flex-direction: column;
+  }
+  #routeEditorOverlay.open { display: flex; animation: slideUp 0.25s ease; }
+  .route-editor-panel { display: flex; flex-direction: column; width: 100%; height: 100%; }
+  .route-editor-header {
+    background: var(--brand); padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+  }
+  .route-editor-title { font-family: "Barlow Condensed", sans-serif; font-size: 1.1rem; font-weight: 800; color: white; flex: 1; }
+  .route-editor-close {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.35);
+    border-radius: 10px; width: 36px; height: 36px; color: white; cursor: pointer;
+    touch-action: manipulation; transition: all 0.15s; flex-shrink: 0; border: none;
+  }
+  .route-editor-close svg { width: 17px; height: 17px; }
+  .route-editor-save {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    background: white; border: none; border-radius: 10px;
+    padding: 8px 14px; color: var(--brand); cursor: pointer;
+    font-family: "Barlow Condensed", sans-serif; font-size: 0.85rem; font-weight: 800;
+    letter-spacing: 0.05em; text-transform: uppercase; transition: all 0.15s; flex-shrink: 0;
+  }
+  .route-editor-save svg { width: 14px; height: 14px; }
+  .route-editor-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .route-editor-section { background: white; border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
+  .route-editor-section-label { font-family: "Barlow Condensed", sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .route-stops-count-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); font-family: "Barlow", sans-serif; letter-spacing: 0; text-transform: none; }
+  .route-editor-input {
+    width: 100%; padding: 11px 14px; border: 2px solid var(--border); border-radius: 10px;
+    font-family: "Barlow", sans-serif; font-size: 0.95rem; font-weight: 500; color: var(--text);
+    background: var(--off-white); outline: none; -webkit-appearance: none; transition: border-color 0.2s;
+  }
+  .route-editor-input:focus { border-color: var(--brand); background: white; box-shadow: 0 0 0 3px rgba(0,75,142,0.1); }
+  .route-customer-search-wrap { position: relative; }
+  .route-customer-search-wrap .rc-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; }
+  .route-customer-search-wrap .route-editor-input { padding-left: 34px; }
+  .route-customer-dropdown {
+    position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 200;
+    background: white; border: 2px solid var(--brand); border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,75,142,0.18); max-height: 220px; overflow-y: auto; display: none;
+  }
+  .route-customer-dropdown.open { display: block; animation: slideUp 0.15s ease; }
+  .route-customer-option { padding: 11px 15px; font-size: 0.9rem; font-weight: 500; color: var(--text); cursor: pointer; border-bottom: 1px solid var(--off-white); transition: background 0.1s; }
+  .route-customer-option:last-child { border-bottom: none; }
+  .route-customer-option:active { background: rgba(0,75,142,0.06); }
+  .route-customer-option mark { background: none; color: var(--brand); font-weight: 700; }
+  .route-customer-option.already-added { color: var(--text-muted); pointer-events: none; font-style: italic; }
+  .route-stop-drag-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px; border-radius: 10px; margin-bottom: 6px;
+    background: var(--off-white); border: 1.5px solid var(--border);
+    user-select: none; transition: box-shadow 0.15s, opacity 0.15s, border-color 0.15s;
+    touch-action: none;
+  }
+  .route-stop-drag-item:last-child { margin-bottom: 0; }
+  .route-stop-drag-item.dragging { opacity: 0.35; }
+  .route-stop-drag-item.drag-over { border-color: var(--brand); background: rgba(0,75,142,0.06); box-shadow: 0 0 0 2px rgba(0,75,142,0.2); }
+  .drag-handle { color: var(--text-muted); flex-shrink: 0; cursor: grab; padding: 2px; display: flex; }
+  .drag-handle svg { width: 16px; height: 16px; }
+  .stop-drag-num {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--brand);
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Barlow Condensed", sans-serif; font-size: 0.72rem; font-weight: 800;
+    color: white; flex-shrink: 0;
+  }
+  .stop-drag-name { flex: 1; font-size: 0.88rem; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stop-drag-remove { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.1s; }
+  .stop-drag-remove:active { background: rgba(224,60,60,0.1); color: var(--error); }
+  .stop-drag-remove svg { width: 15px; height: 15px; }
+  .route-stops-empty-msg { text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.6; }
+
+  @media (hover: hover) and (pointer: fine) {
+    .route-pill:hover { background: rgba(255,255,255,0.28); }
+    .route-stop-item:not(.delivered):hover { border-color: var(--brand); background: rgba(0,75,142,0.05); }
+    .route-start-btn:hover { filter: brightness(1.08); }
+    .route-finish-btn:hover:not(:disabled) { background: var(--brand-dark); }
+    .route-edit-btn:hover { border-color: var(--brand); color: var(--brand); }
+    .route-list-card:hover { border-color: rgba(0,75,142,0.3); box-shadow: 0 6px 28px rgba(0,75,142,0.14); transform: translateY(-1px); }
+    .new-route-btn:hover { background: var(--brand-dark); }
+    .stop-drag-remove:hover { background: rgba(224,60,60,0.1); color: var(--error); }
+    .route-customer-option:hover { background: rgba(0,75,142,0.06); }
+    .route-editor-close:hover { background: rgba(255,255,255,0.28); }
+    .route-editor-save:hover { background: rgba(255,255,255,0.9); }
+  }
+  @media (min-width: 700px) {
+    #routeEditorOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
+    .route-editor-panel { max-width: 560px; height: 90vh; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.35); background: var(--off-white); }
+  }
+
 </style>
 </head>
 <body>
@@ -649,6 +872,10 @@
     <div class="header-right">
       <button class="logout-pill" onclick="logoutDriver()" title="Log Out" id="logoutBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+      <button class="route-pill" id="routePill" onclick="showRouteView()" title="My Routes" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
+        <span class="route-pill-badge" id="routePillBadge"></span>
       </button>
       <div class="datetime-pill">
         <div class="datetime-time" id="headerTime">--:--</div>
@@ -742,6 +969,22 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
       <span>No connection — delivery will be saved and uploaded when you're back online.</span>
     </div>
+    <!-- Active route card -->
+    <div class="route-active-card" id="routeActiveCard">
+      <div class="route-active-header">
+        <div class="route-active-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div class="route-active-title" id="routeCardTitle">Today's Route</div>
+          <div class="route-active-meta" id="routeCardMeta">0 stops</div>
+        </div>
+        <span class="route-status-badge draft" id="routeCardBadge">Draft</span>
+      </div>
+      <div class="route-stops-list" id="routeCardStops"></div>
+      <div class="route-active-actions" id="routeCardActions"></div>
+    </div>
+
     <!-- Driver welcome strip -->
     <div class="driver-welcome">
       <div class="driver-welcome-icon">
@@ -927,6 +1170,65 @@
       <div class="map-info-bar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         <span id="mapInfoText">Numbered markers show drop order. Tap a marker for details.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROUTE VIEW -->
+  <div id="routeView">
+    <div class="route-builder-header">
+      <button class="back-btn" onclick="showForm()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <div class="route-builder-title">My Routes</div>
+    </div>
+    <button class="new-route-btn" onclick="openRouteEditor(null)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Route
+    </button>
+    <div id="routeListContainer"></div>
+  </div>
+
+  <!-- ROUTE EDITOR OVERLAY -->
+  <div id="routeEditorOverlay">
+    <div class="route-editor-panel">
+      <div class="route-editor-header">
+        <button class="route-editor-close" onclick="closeRouteEditor()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="route-editor-title" id="routeEditorTitle">New Route</div>
+        <button class="route-editor-save" onclick="saveRoute()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Save
+        </button>
+      </div>
+      <div class="route-editor-body">
+        <div class="route-editor-section">
+          <div class="route-editor-section-label">Route Name <span style="font-weight:400;opacity:0.6;font-family:Barlow,sans-serif;text-transform:none;letter-spacing:0;">(optional)</span></div>
+          <input class="route-editor-input" type="text" id="routeEditorName" placeholder="e.g. Morning run, North area…" maxlength="60">
+        </div>
+        <div class="route-editor-section">
+          <div class="route-editor-section-label">Date</div>
+          <input class="route-editor-input" type="date" id="routeEditorDate">
+        </div>
+        <div class="route-editor-section">
+          <div class="route-editor-section-label">Add Customers</div>
+          <div class="route-customer-search-wrap" id="rcSearchWrap">
+            <svg class="rc-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="route-editor-input" type="text" id="rcSearch" placeholder="Search and add customers…" oninput="onRcSearch()" onfocus="openRcDropdown()" autocomplete="off">
+            <div class="route-customer-dropdown" id="rcDropdown"></div>
+          </div>
+        </div>
+        <div class="route-editor-section">
+          <div class="route-editor-section-label">
+            Stop Order
+            <span class="route-stops-count-label" id="routeStopsCountLabel">0 stops</span>
+          </div>
+          <div id="routeStopsList">
+            <div class="route-stops-empty-msg">No stops added yet.<br>Search for customers above to add them.</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1121,6 +1423,7 @@ function showForm() {
   document.getElementById('historyView').classList.remove('show');
   document.getElementById('detailView').classList.remove('show');
   document.getElementById('analyticsView').classList.remove('show');
+  document.getElementById('routeView').classList.remove('show');
   window.scrollTo(0,0);
 }
 function showHistory() {
@@ -1148,6 +1451,18 @@ function showDetail(record) {
   document.getElementById('detailView').classList.add('show');
   renderDetail(record);
   window.scrollTo(0,0);
+}
+
+function showRouteView() {
+  document.getElementById('driverLoginScreen').classList.add('hidden');
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('successScreen').classList.remove('show');
+  document.getElementById('historyView').classList.remove('show');
+  document.getElementById('detailView').classList.remove('show');
+  document.getElementById('analyticsView').classList.remove('show');
+  document.getElementById('routeView').classList.add('show');
+  window.scrollTo(0,0);
+  loadRouteList();
 }
 
 // ── DRIVER LOGIN ──────────────────────────────────────────
@@ -1248,7 +1563,9 @@ function showAppAsDriver(name) {
   document.getElementById('driverLoginScreen').classList.add('hidden');
   document.getElementById('driverWelcomeName').textContent = name;
   document.getElementById('formSection').style.display = 'block';
+  document.getElementById('routePill').style.display = 'flex';
   updateSteps();
+  loadActiveRoute();
 }
 
 function logoutDriver() {
@@ -1724,6 +2041,8 @@ function resetForm() {
   document.getElementById('locationCoords').textContent = '';
   document.getElementById('locationStatus').innerHTML = '<div class="ts-live-dot"></div>Auto';
   updateSteps(); window.scrollTo(0,0);
+  // Refresh route card in case a stop was just delivered
+  loadActiveRoute();
 }
 
 // ── HISTORY ───────────────────────────────────────────────
@@ -2535,6 +2854,502 @@ function renderLineChart(records) {
       }
     }
   });
+}
+
+
+// ══ ROUTES ═══════════════════════════════════════════════
+let allRoutes        = [];       // cached from Supabase
+let editingRoute     = null;     // route object being edited (null = new)
+let editorStops      = [];       // [{customer}] ordered array in editor
+let activeRouteData  = null;     // the currently active/draft route for today's card
+let dragSrcIndex     = null;     // drag-and-drop source index
+
+// ── Supabase helpers ──────────────────────────────────────
+async function fetchRoutes() {
+  const res = await sbRequest(
+    `/rest/v1/routes?driver_name=eq.${encodeURIComponent(loggedInDriver)}&order=route_date.desc,created_at.desc&limit=100`,
+    { headers: { 'Accept': 'application/json' } }
+  );
+  if (!res.ok) throw new Error(`Routes fetch failed (${res.status})`);
+  return await res.json();
+}
+
+async function upsertRoute(route) {
+  const method  = route.id ? 'PATCH' : 'POST';
+  const path    = route.id
+    ? `/rest/v1/routes?id=eq.${route.id}`
+    : `/rest/v1/routes`;
+  const body    = { ...route };
+  if (!route.id) delete body.id;
+  const res = await sbRequest(path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'Prefer': route.id ? 'return=representation' : 'return=representation' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `Save failed (${res.status})`); }
+  return await res.json();
+}
+
+async function updateRouteStatus(id, patch) {
+  const res = await sbRequest(`/rest/v1/routes?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+    body: JSON.stringify(patch)
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `Update failed (${res.status})`); }
+  return await res.json();
+}
+
+async function deleteRoute(id) {
+  const res = await sbRequest(`/rest/v1/routes?id=eq.${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+}
+
+// ── Fetch today's deliveries for route cross-check ────────
+async function fetchTodayDeliveries() {
+  const today = todayStr();
+  const res = await sbRequest(
+    `/rest/v1/deliveries?driver_name=eq.${encodeURIComponent(loggedInDriver)}&delivery_datetime=gte.${today}T00:00:00&delivery_datetime=lte.${today}T23:59:59&select=customer_name`,
+    { headers: { 'Accept': 'application/json' } }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.map(d => d.customer_name);
+}
+
+// ── Active route card on form ─────────────────────────────
+async function loadActiveRoute() {
+  const card = document.getElementById('routeActiveCard');
+  if (!loggedInDriver) { card.classList.remove('show'); return; }
+
+  try {
+    const today = todayStr();
+    // Find the most relevant route: active first, then draft for today
+    const res = await sbRequest(
+      `/rest/v1/routes?driver_name=eq.${encodeURIComponent(loggedInDriver)}&route_date=eq.${today}&status=neq.completed&order=status.asc,created_at.desc&limit=10`,
+      { headers: { 'Accept': 'application/json' } }
+    );
+    const routes = res.ok ? await res.json() : [];
+    // Prefer active, then draft
+    const active = routes.find(r => r.status === 'active') || routes.find(r => r.status === 'draft') || null;
+
+    if (!active) { card.classList.remove('show'); activeRouteData = null; updateRoutePillBadge(); return; }
+    activeRouteData = active;
+
+    const deliveredToday = active.status === 'active' ? await fetchTodayDeliveries() : [];
+    renderActiveRouteCard(active, deliveredToday);
+    card.classList.add('show');
+    updateRoutePillBadge();
+  } catch(e) {
+    console.warn('Could not load active route:', e.message);
+    document.getElementById('routeActiveCard').classList.remove('show');
+  }
+}
+
+function renderActiveRouteCard(route, deliveredCustomers) {
+  const stops = Array.isArray(route.stops) ? route.stops : [];
+  const isActive = route.status === 'active';
+  const isDraft  = route.status === 'draft';
+
+  // Header
+  const title = route.route_name || formatRouteDate(route.route_date);
+  document.getElementById('routeCardTitle').textContent = title;
+  document.getElementById('routeCardMeta').textContent  = `${stops.length} stop${stops.length !== 1 ? 's' : ''}`;
+  const badge = document.getElementById('routeCardBadge');
+  badge.textContent = route.status.charAt(0).toUpperCase() + route.status.slice(1);
+  badge.className = `route-status-badge ${route.status}`;
+
+  // Stops list
+  const deliveredSet = new Set(deliveredCustomers.map(n => n.toLowerCase()));
+  const stopsList = document.getElementById('routeCardStops');
+
+  // Find the first undelivered stop (next active stop)
+  let firstUndelivered = -1;
+  stops.forEach((s, i) => {
+    if (firstUndelivered === -1 && !deliveredSet.has((s.customer||'').toLowerCase())) firstUndelivered = i;
+  });
+
+  stopsList.innerHTML = stops.map((s, i) => {
+    const done = deliveredSet.has((s.customer||'').toLowerCase());
+    const isNext = isActive && !done && i === firstUndelivered;
+    const cls = done ? 'delivered' : (isNext ? 'active-stop' : '');
+    const rightIcon = done
+      ? `<svg class="route-stop-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
+      : (isNext ? `<svg class="route-stop-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>` : '');
+    const onclick = (!done && isActive) ? `onclick="prefillFromRoute('${escAttr(s.customer)}')"` : '';
+    return `<div class="route-stop-item ${cls}" ${onclick}>
+      <div class="route-stop-num">${done ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : (i+1)}</div>
+      <div class="route-stop-name">${escHtml(s.customer||'')}</div>
+      ${rightIcon}
+    </div>`;
+  }).join('');
+
+  // Actions
+  const deliveredCount = stops.filter(s => deliveredSet.has((s.customer||'').toLowerCase())).length;
+  const allDone = deliveredCount === stops.length && stops.length > 0;
+  const actions = document.getElementById('routeCardActions');
+
+  if (isDraft) {
+    actions.innerHTML = `
+      <button class="route-start-btn" onclick="startRoute('${route.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Start Route
+      </button>
+      <button class="route-edit-btn" onclick="openRouteEditor('${route.id}')">Edit</button>`;
+  } else if (isActive) {
+    actions.innerHTML = `
+      <button class="route-finish-btn" ${allDone ? '' : 'disabled'} onclick="finishRoute('${route.id}')" id="routeFinishBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        ${allDone ? 'Finish Route' : `${deliveredCount}/${stops.length} Delivered`}
+      </button>
+      <button class="route-edit-btn" onclick="openRouteEditor('${route.id}')">Edit</button>`;
+  }
+}
+
+function updateRoutePillBadge() {
+  const badge = document.getElementById('routePillBadge');
+  if (!badge) return;
+  if (activeRouteData && activeRouteData.status === 'active') {
+    badge.textContent = '●';
+    badge.classList.add('show');
+  } else {
+    badge.classList.remove('show');
+  }
+}
+
+// Prefill customer on form when tapping an active route stop
+function prefillFromRoute(customerName) {
+  // Scroll to form top, set the customer
+  window.scrollTo(0, 0);
+  selectCustomer(customerName);
+  // Scroll the customer card into view
+  setTimeout(() => {
+    const el = document.getElementById('customerWrap');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+}
+
+// ── Start / Finish route ──────────────────────────────────
+async function startRoute(id) {
+  try {
+    await updateRouteStatus(id, { status: 'active', started_at: new Date().toISOString() });
+    await loadActiveRoute();
+  } catch(e) { alert('Could not start route: ' + e.message); }
+}
+
+async function finishRoute(id) {
+  const allDone = document.getElementById('routeFinishBtn') && !document.getElementById('routeFinishBtn').disabled;
+  if (!allDone) {
+    if (!confirm('Not all stops are delivered yet. Mark route as complete anyway?')) return;
+  }
+  try {
+    await updateRouteStatus(id, { status: 'completed', completed_at: new Date().toISOString() });
+    activeRouteData = null;
+    document.getElementById('routeActiveCard').classList.remove('show');
+    updateRoutePillBadge();
+  } catch(e) { alert('Could not finish route: ' + e.message); }
+}
+
+// ── Route list view ───────────────────────────────────────
+async function loadRouteList() {
+  const container = document.getElementById('routeListContainer');
+  container.innerHTML = `<div class="history-loading"><div class="spinner"></div>Loading routes...</div>`;
+  try {
+    allRoutes = await fetchRoutes();
+    renderRouteList();
+  } catch(e) {
+    container.innerHTML = `<div class="route-list-empty"><p>Could not load routes.<br><span style="font-size:0.8rem">${e.message}</span></p></div>`;
+  }
+}
+
+function renderRouteList() {
+  const container = document.getElementById('routeListContainer');
+  if (!allRoutes.length) {
+    container.innerHTML = `<div class="route-list-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
+      <p>No routes yet.<br>Tap <strong>New Route</strong> to create one.</p></div>`;
+    return;
+  }
+  container.innerHTML = allRoutes.map(r => {
+    const stops = Array.isArray(r.stops) ? r.stops : [];
+    const dateLabel = formatRouteDate(r.route_date);
+    const name = r.route_name ? `${r.route_name}` : dateLabel;
+    const meta = `${dateLabel} · ${stops.length} stop${stops.length !== 1 ? 's' : ''}`;
+    const iconSvg = r.status === 'active'
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"/></svg>`
+      : r.status === 'completed'
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>`;
+    return `<div class="route-list-card" onclick="openRouteEditor('${r.id}')">
+      <div class="route-list-icon ${r.status}">${iconSvg}</div>
+      <div class="route-list-info">
+        <div class="route-list-name">${escHtml(name)}</div>
+        <div class="route-list-meta">${escHtml(meta)}</div>
+      </div>
+      <span class="route-list-badge ${r.status}">${r.status.charAt(0).toUpperCase()+r.status.slice(1)}</span>
+    </div>`;
+  }).join('');
+}
+
+function formatRouteDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + 'T12:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yest  = new Date(today); yest.setDate(yest.getDate()-1);
+  const tom   = new Date(today); tom.setDate(tom.getDate()+1);
+  const dStr  = d.toDateString();
+  if (dStr === today.toDateString()) return 'Today';
+  if (dStr === yest.toDateString())  return 'Yesterday';
+  if (dStr === tom.toDateString())   return 'Tomorrow';
+  return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+}
+
+// ── Route Editor ──────────────────────────────────────────
+function openRouteEditor(routeId) {
+  const overlay = document.getElementById('routeEditorOverlay');
+  editingRoute  = routeId ? (allRoutes.find(r => r.id === routeId) || null) : null;
+
+  if (editingRoute) {
+    document.getElementById('routeEditorTitle').textContent = editingRoute.route_name || 'Edit Route';
+    document.getElementById('routeEditorName').value  = editingRoute.route_name || '';
+    document.getElementById('routeEditorDate').value  = editingRoute.route_date  || todayStr();
+    editorStops = Array.isArray(editingRoute.stops) ? editingRoute.stops.map(s => ({...s})) : [];
+  } else {
+    document.getElementById('routeEditorTitle').textContent = 'New Route';
+    document.getElementById('routeEditorName').value  = '';
+    document.getElementById('routeEditorDate').value  = todayStr();
+    editorStops = [];
+  }
+
+  document.getElementById('rcSearch').value = '';
+  document.getElementById('rcDropdown').classList.remove('open');
+  renderEditorStops();
+  overlay.classList.add('open');
+  window.scrollTo(0,0);
+}
+
+function closeRouteEditor() {
+  document.getElementById('routeEditorOverlay').classList.remove('open');
+  document.getElementById('rcDropdown').classList.remove('open');
+}
+
+async function saveRoute() {
+  const name = document.getElementById('routeEditorName').value.trim();
+  const date = document.getElementById('routeEditorDate').value;
+  if (!date) { alert('Please select a date for this route.'); return; }
+  if (editorStops.length === 0) { alert('Please add at least one stop.'); return; }
+
+  const payload = {
+    driver_name: loggedInDriver,
+    route_name:  name || null,
+    route_date:  date,
+    stops:       editorStops,
+    status:      editingRoute ? editingRoute.status : 'draft'
+  };
+  if (editingRoute) payload.id = editingRoute.id;
+
+  const btn = document.querySelector('.route-editor-save');
+  btn.textContent = 'Saving…';
+  try {
+    const result = await upsertRoute(payload);
+    // Update local cache
+    const saved = Array.isArray(result) ? result[0] : result;
+    if (editingRoute) {
+      const idx = allRoutes.findIndex(r => r.id === saved.id);
+      if (idx >= 0) allRoutes[idx] = saved; else allRoutes.unshift(saved);
+    } else {
+      allRoutes.unshift(saved);
+    }
+    closeRouteEditor();
+    renderRouteList();
+    // Refresh active card if the edited route is today's
+    await loadActiveRoute();
+  } catch(e) {
+    alert('Could not save route: ' + e.message);
+  } finally {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg> Save';
+  }
+}
+
+// ── Editor stop rendering ─────────────────────────────────
+function renderEditorStops() {
+  const list = document.getElementById('routeStopsList');
+  document.getElementById('routeStopsCountLabel').textContent = `${editorStops.length} stop${editorStops.length !== 1 ? 's' : ''}`;
+
+  if (editorStops.length === 0) {
+    list.innerHTML = `<div class="route-stops-empty-msg">No stops added yet.<br>Search for customers above to add them.</div>`;
+    return;
+  }
+  list.innerHTML = editorStops.map((s, i) => `
+    <div class="route-stop-drag-item" draggable="true"
+      data-index="${i}"
+      ondragstart="onDragStart(event,${i})"
+      ondragover="onDragOver(event,${i})"
+      ondrop="onDrop(event,${i})"
+      ondragend="onDragEnd(event)"
+      ontouchstart="onTouchStart(event,${i})"
+      ontouchmove="onTouchMove(event)"
+      ontouchend="onTouchEnd(event,${i})">
+      <span class="drag-handle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+      </span>
+      <div class="stop-drag-num">${i+1}</div>
+      <div class="stop-drag-name">${escHtml(s.customer||'')}</div>
+      <button class="stop-drag-remove" onclick="removeStop(${i})" title="Remove">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>`).join('');
+}
+
+function removeStop(index) {
+  editorStops.splice(index, 1);
+  renderEditorStops();
+}
+
+// ── Customer search in editor ─────────────────────────────
+function onRcSearch() {
+  openRcDropdown();
+}
+
+function openRcDropdown() {
+  const query = document.getElementById('rcSearch').value.trim().toLowerCase();
+  const dropdown = document.getElementById('rcDropdown');
+  const addedSet = new Set(editorStops.map(s => (s.customer||'').toLowerCase()));
+
+  if (allCustomers.length === 0) {
+    dropdown.innerHTML = `<div class="route-customer-option" style="color:var(--text-muted)">Loading customers…</div>`;
+    dropdown.classList.add('open');
+    return;
+  }
+
+  const matches = query
+    ? allCustomers.filter(n => query.split(/\s+/).filter(Boolean).every(w => n.toLowerCase().includes(w))).slice(0, 80)
+    : allCustomers.slice(0, 40);
+
+  if (matches.length === 0) {
+    dropdown.innerHTML = `<div class="route-customer-option" style="color:var(--text-muted);font-style:italic;">No customers found</div>`;
+  } else {
+    dropdown.innerHTML = matches.map(name => {
+      const alreadyAdded = addedSet.has(name.toLowerCase());
+      const label = query ? (() => {
+        let h = escHtml(name);
+        query.split(/\s+/).filter(Boolean).forEach(w => {
+          h = h.replace(new RegExp('('+w.replace(/[.*+?^${}()|[\]\]/g,'\$&')+')', 'gi'), '<mark>$1</mark>');
+        });
+        return h;
+      })() : escHtml(name);
+      return `<div class="route-customer-option${alreadyAdded ? ' already-added' : ''}" ${alreadyAdded ? '' : `onclick="addStopFromSearch('${escAttr(name)}')`}>${label}${alreadyAdded ? ' ✓' : ''}</div>`;
+    }).join('');
+  }
+  dropdown.classList.add('open');
+  setTimeout(() => { document.addEventListener('click', closeRcDropdownOutside, { once: true }); }, 0);
+}
+
+function closeRcDropdownOutside(e) {
+  const wrap = document.getElementById('rcSearchWrap');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('rcDropdown').classList.remove('open');
+  else document.addEventListener('click', closeRcDropdownOutside, { once: true });
+}
+
+function addStopFromSearch(customerName) {
+  editorStops.push({ customer: customerName });
+  document.getElementById('rcSearch').value = '';
+  document.getElementById('rcDropdown').classList.remove('open');
+  renderEditorStops();
+}
+
+// ── Drag-and-drop (mouse) ─────────────────────────────────
+function onDragStart(e, index) {
+  dragSrcIndex = index;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => {
+    const items = document.querySelectorAll('.route-stop-drag-item');
+    if (items[index]) items[index].classList.add('dragging');
+  }, 0);
+}
+
+function onDragOver(e, index) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.route-stop-drag-item').forEach((el, i) => {
+    el.classList.toggle('drag-over', i === index && i !== dragSrcIndex);
+  });
+}
+
+function onDrop(e, index) {
+  e.preventDefault();
+  if (dragSrcIndex === null || dragSrcIndex === index) return;
+  const moved = editorStops.splice(dragSrcIndex, 1)[0];
+  editorStops.splice(index, 0, moved);
+  dragSrcIndex = null;
+  renderEditorStops();
+}
+
+function onDragEnd(e) {
+  document.querySelectorAll('.route-stop-drag-item').forEach(el => {
+    el.classList.remove('dragging', 'drag-over');
+  });
+  dragSrcIndex = null;
+}
+
+// ── Drag-and-drop (touch) ─────────────────────────────────
+let touchSrcIndex = null;
+let touchClone    = null;
+let touchScrollY  = 0;
+
+function onTouchStart(e, index) {
+  touchSrcIndex = index;
+  touchScrollY  = window.scrollY;
+  const el = e.currentTarget;
+  const rect = el.getBoundingClientRect();
+  touchClone = el.cloneNode(true);
+  touchClone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:0.85;z-index:9999;pointer-events:none;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.2);`;
+  document.body.appendChild(touchClone);
+  el.classList.add('dragging');
+}
+
+function onTouchMove(e) {
+  if (touchClone === null) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  touchClone.style.top  = (t.clientY - 30) + 'px';
+  touchClone.style.left = (t.clientX - touchClone.offsetWidth / 2) + 'px';
+  // Highlight item underneath
+  touchClone.style.display = 'none';
+  const under = document.elementFromPoint(t.clientX, t.clientY);
+  touchClone.style.display = '';
+  document.querySelectorAll('.route-stop-drag-item').forEach(el => el.classList.remove('drag-over'));
+  const dragItem = under && under.closest('.route-stop-drag-item');
+  if (dragItem) {
+    const idx = parseInt(dragItem.dataset.index);
+    if (!isNaN(idx) && idx !== touchSrcIndex) dragItem.classList.add('drag-over');
+  }
+}
+
+function onTouchEnd(e) {
+  if (touchClone) { touchClone.remove(); touchClone = null; }
+  document.querySelectorAll('.route-stop-drag-item').forEach(el => {
+    el.classList.remove('dragging', 'drag-over');
+  });
+  if (touchSrcIndex === null) return;
+  const t = e.changedTouches[0];
+  // Find drop target
+  const under = document.elementFromPoint(t.clientX, t.clientY);
+  const dragItem = under && under.closest('.route-stop-drag-item');
+  if (dragItem) {
+    const destIndex = parseInt(dragItem.dataset.index);
+    if (!isNaN(destIndex) && destIndex !== touchSrcIndex) {
+      const moved = editorStops.splice(touchSrcIndex, 1)[0];
+      editorStops.splice(destIndex, 0, moved);
+      renderEditorStops();
+    }
+  }
+  touchSrcIndex = null;
+}
+
+// ── Utility ───────────────────────────────────────────────
+function escAttr(str) {
+  return String(str).replace(/'/g, "\'").replace(/"/g, '&quot;');
 }
 
 // ── HELPERS ───────────────────────────────────────────────
