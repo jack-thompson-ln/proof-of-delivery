@@ -228,11 +228,11 @@
   #historyView { display: none; }
   #historyView.show { display: block; animation: slideUp 0.3s ease; }
 
-  .history-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+  .history-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
   .back-btn { display: flex; align-items: center; gap: 5px; background: white; border: 2px solid var(--border); border-radius: 10px; padding: 8px 12px; font-family: 'Barlow', sans-serif; font-size: 0.82rem; font-weight: 600; color: var(--brand); cursor: pointer; flex-shrink: 0; }
   .back-btn svg { width: 15px; height: 15px; }
-  .history-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--brand); letter-spacing: 0.02em; }
-  .history-count { margin-left: auto; background: rgba(0,75,142,0.08); border-radius: 20px; padding: 4px 12px; font-size: 0.75rem; font-weight: 700; color: var(--brand); flex-shrink: 0; }
+  .history-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--brand); letter-spacing: 0.02em; flex: 1; }
+  .history-count { background: rgba(0,75,142,0.08); border-radius: 20px; padding: 4px 12px; font-size: 0.75rem; font-weight: 700; color: var(--brand); flex-shrink: 0; }
 
   /* Filter bar */
   .filter-bar { background: white; border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
@@ -426,19 +426,18 @@
   /* History map pill */
   .map-pill {
     display: flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,0.18);
-    border: 1.5px solid rgba(255,255,255,0.35);
+    background: rgba(0,75,142,0.08);
+    border: 1.5px solid var(--border);
     border-radius: 10px; padding: 8px;
-    color: white; cursor: pointer;
+    color: var(--brand); cursor: pointer;
     transition: all 0.15s ease;
     width: 36px; height: 36px; flex-shrink: 0;
     touch-action: manipulation;
-    margin-left: auto;
   }
-  .map-pill:active { background: rgba(255,255,255,0.3); transform: scale(0.96); }
+  .map-pill:active { background: rgba(0,75,142,0.15); transform: scale(0.96); }
   .map-pill svg { width: 17px; height: 17px; }
   .map-pill.disabled { opacity: 0.35; cursor: not-allowed; }
-  .map-pill.disabled:active { transform: none; background: rgba(255,255,255,0.18); }
+  .map-pill.disabled:active { transform: none; background: rgba(0,75,142,0.08); }
 
   /* History date preset chips */
   .history-preset-chips { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
