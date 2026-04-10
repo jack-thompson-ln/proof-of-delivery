@@ -451,12 +451,13 @@
   .history-preset-chip:active { transform: scale(0.96); }
   .history-preset-chip.active { background: var(--brand); border-color: var(--brand); color: white; }
 
-  /* Map overlay */
   #mapOverlay {
     display: none; position: fixed; inset: 0; z-index: 350;
     background: var(--off-white); flex-direction: column;
   }
   #mapOverlay.open { display: flex; animation: slideUp 0.25s ease; }
+  /* mobile: panel fills the overlay */
+  .map-panel { display: flex; flex-direction: column; width: 100%; height: 100%; }
   .map-overlay-header {
     background: var(--brand); padding: 12px 16px;
     display: flex; align-items: center; gap: 10px;
@@ -485,6 +486,93 @@
     font-size: 0.82rem; color: #7a5800; display: flex; align-items: center; gap: 8px;
   }
   .map-no-gps svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* ══ DESKTOP / RESPONSIVE ══ */
+
+  /* Hover states — only on non-touch (pointer: fine) */
+  @media (hover: hover) and (pointer: fine) {
+    .history-pill:hover, .config-pill:hover, .analytics-pill:hover { background: rgba(255,255,255,0.28); }
+    .logout-pill:hover { background: rgba(255,255,255,0.28); }
+    .map-close-btn:hover { background: rgba(255,255,255,0.28); }
+    .back-btn:hover { background: var(--off-white); border-color: var(--brand); }
+    .record-card:hover { border-color: rgba(0,75,142,0.3); box-shadow: 0 6px 28px rgba(0,75,142,0.16); transform: translateY(-1px); }
+    .driver-chip:hover:not(.active) { border-color: var(--brand); color: var(--brand); background: rgba(0,75,142,0.05); }
+    .history-preset-chip:hover:not(.active) { border-color: var(--brand); color: var(--brand); background: rgba(0,75,142,0.05); }
+    .date-preset-chip:hover:not(.active) { border-color: var(--brand); color: var(--brand); background: rgba(0,75,142,0.05); }
+    .driver-login-btn:hover { border-color: var(--brand); color: var(--brand); background: rgba(0,75,142,0.05); }
+    .login-key:hover, .pin-key:hover { background: rgba(0,75,142,0.08); border-color: var(--brand); }
+    .map-pill:hover:not(.disabled) { background: rgba(0,75,142,0.14); border-color: var(--brand); }
+    .submit-btn:hover:not(:disabled) { background: var(--brand-dark); box-shadow: 0 8px 28px rgba(0,75,142,0.45); }
+    .filter-clear:hover { background: var(--off-white); color: var(--error); border-color: rgba(224,60,60,0.3); }
+    .customer-option:hover { background: rgba(0,75,142,0.06); }
+    .new-delivery-btn:hover { background: var(--brand-dark); }
+    .photo-zone:hover:not(.has-photo) { border-color: var(--brand); background: rgba(0,75,142,0.03); }
+  }
+
+  /* Desktop layout — wider viewport, centred content with breathing room */
+  @media (min-width: 700px) {
+    body { background: #e8eef6; }
+
+    header { }
+    .header-inner { max-width: 1100px; margin: 0 auto; padding: 14px 32px; }
+
+    main { max-width: 680px; padding: 28px 24px 60px; }
+
+    /* Login screen — side-by-side feel on wide screens */
+    #driverLoginScreen { padding: 40px 32px; }
+    .login-box { max-width: 380px; padding: 32px 28px; }
+    .driver-login-grid { grid-template-columns: repeat(4, 1fr); }
+
+    /* Cards more comfortable */
+    .card { padding: 24px; }
+
+    /* Filter bar date row — bigger inputs */
+    .filter-row input[type="date"] { font-size: 0.88rem; padding: 11px 12px; }
+
+    /* Record cards — slightly taller thumb on desktop */
+    .record-thumb, .record-thumb-placeholder { width: 64px; height: 64px; }
+    .record-customer { font-size: 1.12rem; }
+
+    /* Analytics charts — allow wider doughnuts */
+    .chart-wrap { max-width: 380px; }
+
+    /* Detail view photo constrained to sensible size */
+    .detail-photo-wrap img { max-height: 420px; object-fit: cover; }
+
+    /* Map overlay — centred panel on desktop, not full bleed */
+    #mapOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
+    #mapOverlay .map-panel {
+      width: 100%; max-width: 900px; height: 85vh;
+      background: var(--off-white); border-radius: 20px;
+      overflow: hidden; display: flex; flex-direction: column;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+    }
+    .map-overlay-header { border-radius: 0; }
+    #mapContainer { border-radius: 0; }
+    .map-no-gps { margin: 12px 16px 0; }
+    .map-info-bar { border-radius: 0; }
+
+    /* Sync bar centred text */
+    .sync-bar { padding: 8px 32px; }
+
+    /* Step labels bigger */
+    .step-label { font-size: 0.65rem; }
+  }
+
+  @media (min-width: 900px) {
+    main { max-width: 760px; }
+
+    /* History — two-column record list on very wide screens */
+    /* (keep single column — content is better readable single col) */
+
+    /* Analytics stat cards always 2-up */
+    .stat-cards { grid-template-columns: repeat(2, 1fr) !important; gap: 14px; }
+    .stat-card { padding: 20px 16px; }
+    .stat-card-value { font-size: 1.6rem; }
+
+    /* Chart side by side */
+    .chart-wrap { max-width: 440px; }
+  }
 </style>
 </head>
 <body>
@@ -824,21 +912,23 @@
   </div>
 
   <!-- MAP OVERLAY -->
-  <div id="mapOverlay">
-    <div class="map-overlay-header">
-      <button class="map-close-btn" onclick="closeMapView()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <div class="map-overlay-title" id="mapOverlayTitle">Route Map</div>
-    </div>
-    <div id="mapNoGpsWarning" class="map-no-gps" style="display:none;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      Some drops have no GPS data and won't appear on the map.
-    </div>
-    <div id="mapContainer"></div>
-    <div class="map-info-bar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-      <span id="mapInfoText">Numbered markers show drop order. Tap a marker for details.</span>
+  <div id="mapOverlay" onclick="handleMapOverlayClick(event)">
+    <div class="map-panel">
+      <div class="map-overlay-header">
+        <button class="map-close-btn" onclick="closeMapView()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="map-overlay-title" id="mapOverlayTitle">Route Map</div>
+      </div>
+      <div id="mapNoGpsWarning" class="map-no-gps" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Some drops have no GPS data and won't appear on the map.
+      </div>
+      <div id="mapContainer"></div>
+      <div class="map-info-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span id="mapInfoText">Numbered markers show drop order. Tap a marker for details.</span>
+      </div>
     </div>
   </div>
 
@@ -1820,6 +1910,19 @@ function openMapView() {
 function closeMapView() {
   document.getElementById('mapOverlay').classList.remove('open');
 }
+function handleMapOverlayClick(e) {
+  // Only close if clicking the backdrop (the overlay itself), not the panel
+  if (e.target === document.getElementById('mapOverlay')) closeMapView();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeMapView();
+    closeLightbox();
+    closePinModal();
+    document.getElementById('configPanel').classList.remove('open');
+  }
+});
 
 function initLeafletMap(gpsRecords, allSorted) {
   const container = document.getElementById('mapContainer');
