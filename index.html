@@ -565,8 +565,7 @@
     /* History — two-column record list on very wide screens */
     /* (keep single column — content is better readable single col) */
 
-    /* Analytics stat cards always 2-up */
-    .stat-cards { grid-template-columns: repeat(2, 1fr) !important; gap: 14px; }
+    /* Analytics stat cards — keep 3-column, just give more padding */
     .stat-card { padding: 20px 16px; }
     .stat-card-value { font-size: 1.6rem; }
 
@@ -972,7 +971,7 @@
       </div>
     </div>
 
-    <div class="stat-cards" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="stat-cards">
       <div class="stat-card">
         <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
         <div class="stat-card-value" id="statTopDriver">—</div>
@@ -984,6 +983,12 @@
         <div class="stat-card-value" id="statTopCustomer">—</div>
         <div class="stat-card-label">Top Customer</div>
         <div class="stat-card-sub" id="statTopCustomerCount"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg></div>
+        <div class="stat-card-value" id="statEstMiles">—</div>
+        <div class="stat-card-label">Est. Miles</div>
+        <div class="stat-card-sub" id="statEstMilesSub">between drops</div>
       </div>
     </div>
 
@@ -2200,6 +2205,46 @@ async function loadAnalytics() {
   }
 }
 
+// ── HAVERSINE ─────────────────────────────────────────────
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function calcEstimatedMiles(records) {
+  // Group by driver, sort each group chronologically, sum inter-drop distances
+  const byDriver = {};
+  records.forEach(r => {
+    if (!r.latitude || !r.longitude) return;
+    const d = r.driver_name || 'Unknown';
+    if (!byDriver[d]) byDriver[d] = [];
+    byDriver[d].push(r);
+  });
+
+  let totalKm = 0;
+  let segmentCount = 0;
+  Object.values(byDriver).forEach(drops => {
+    drops.sort((a, b) => new Date(a.delivery_datetime) - new Date(b.delivery_datetime));
+    for (let i = 1; i < drops.length; i++) {
+      const km = haversineKm(
+        drops[i-1].latitude, drops[i-1].longitude,
+        drops[i].latitude,   drops[i].longitude
+      );
+      // Sanity cap: ignore legs > 200km (likely a data anomaly or wrong GPS)
+      if (km <= 200) { totalKm += km; segmentCount++; }
+    }
+  });
+
+  if (segmentCount === 0) return null;
+  const miles = totalKm * 0.621371;
+  return miles;
+}
+
 function renderPieChart(records) {
   const total = records.length;
 
@@ -2209,6 +2254,8 @@ function renderPieChart(records) {
     document.getElementById('statTopDriverCount').textContent = '';
     document.getElementById('statTopCustomer').textContent      = '—';
     document.getElementById('statTopCustomerCount').textContent = '';
+    document.getElementById('statEstMiles').textContent    = '—';
+    document.getElementById('statEstMilesSub').textContent = 'between drops';
     document.getElementById('pieChartWrap').innerHTML    = '<div class="chart-empty">No deliveries in this date range.</div>';
     document.getElementById('customerPieWrap').innerHTML  = '<div class="chart-empty">No deliveries in this date range.</div>';
     document.getElementById('pieLegend').innerHTML         = '';
@@ -2248,6 +2295,17 @@ function renderPieChart(records) {
   } else {
     document.getElementById('statTopCustomer').textContent      = topCustomer ? topCustomer[0] : '—';
     document.getElementById('statTopCustomerCount').textContent = topCustomer ? `${topCustomerVal} drop${topCustomerVal !== 1 ? 's' : ''}` : '';
+  }
+
+  // Est. miles covered
+  const miles = calcEstimatedMiles(records);
+  if (miles === null) {
+    document.getElementById('statEstMiles').textContent    = '—';
+    document.getElementById('statEstMilesSub').textContent = 'no GPS data';
+  } else {
+    const display = miles < 10 ? miles.toFixed(1) : Math.round(miles);
+    document.getElementById('statEstMiles').textContent    = display;
+    document.getElementById('statEstMilesSub').textContent = 'est. miles driven';
   }
 
   // ── Pie chart ──
