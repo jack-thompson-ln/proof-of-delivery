@@ -6,6 +6,7 @@
 <title>FMF POD</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -80,6 +81,7 @@
   .card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); overflow: visible; position: relative; z-index: 1; }
   .card.customer-card { z-index: 100; }
   @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .card-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
   .card-label svg { width: 14px; height: 14px; opacity: 0.8; }
 
@@ -309,6 +311,25 @@
   .detail-label { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
   .detail-value { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-top: 2px; }
   .detail-notes-text { font-size: 0.88rem; color: var(--text-muted); font-style: italic; margin-top: 2px; line-height: 1.55; }
+  .send-pod-btn {
+    width: 100%; padding: 15px; margin-top: 4px; margin-bottom: 14px;
+    background: var(--brand); color: white; border: none; border-radius: 14px;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 800;
+    letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    box-shadow: 0 6px 20px rgba(0,75,142,0.28); transition: all 0.2s;
+  }
+  .send-pod-btn:active { transform: scale(0.98); }
+  .send-pod-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .send-pod-btn.loading { background: #a0b8cc; cursor: not-allowed; }
+  .pod-fallback-bar {
+    background: var(--off-white); border: 1.5px solid var(--border); border-radius: 12px;
+    padding: 12px 16px; margin-bottom: 14px; display: none;
+    align-items: center; gap: 10px; font-size: 0.82rem; color: var(--text-muted);
+  }
+  .pod-fallback-bar.show { display: flex; }
+  .pod-fallback-bar a { color: var(--brand); font-weight: 700; text-decoration: none; margin-left: auto; white-space: nowrap; }
+  .pod-fallback-bar svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--brand); }
 
   /* Lightbox */
   #lightbox { position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
@@ -516,6 +537,7 @@
     .login-key:hover, .pin-key:hover { background: rgba(0,75,142,0.08); border-color: var(--brand); }
     .map-pill:hover:not(.disabled) { background: rgba(0,75,142,0.14); border-color: var(--brand); }
     .submit-btn:hover:not(:disabled) { background: var(--brand-dark); box-shadow: 0 8px 28px rgba(0,75,142,0.45); }
+    .send-pod-btn:hover:not(.loading) { background: var(--brand-dark); box-shadow: 0 8px 28px rgba(0,75,142,0.4); }
     .filter-clear:hover { background: var(--off-white); color: var(--error); border-color: rgba(224,60,60,0.3); }
     .customer-option:hover { background: rgba(0,75,142,0.06); }
     .new-delivery-btn:hover { background: var(--brand-dark); }
@@ -1300,6 +1322,15 @@
       <div class="detail-title">Delivery Detail</div>
     </div>
     <div class="detail-photo-wrap" id="detailPhoto"></div>
+    <button class="send-pod-btn" id="sendPodBtn" onclick="sendPOD()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+      Send POD
+    </button>
+    <div class="pod-fallback-bar" id="podFallbackBar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span>PDF ready to download</span>
+      <a id="podFallbackLink" href="#" download="POD.pdf">Download</a>
+    </div>
     <div class="detail-card" id="detailInfo"></div>
   </div>
 
@@ -2512,7 +2543,15 @@ function renderRecordList(records) {
 }
 
 // ── DETAIL ────────────────────────────────────────────────
+let currentDetailRecord = null;
+
 function renderDetail(r) {
+  currentDetailRecord = r;
+  // Reset send button state
+  const btn = document.getElementById('sendPodBtn');
+  if (btn) { btn.classList.remove('loading'); btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg> Send POD'; }
+  const fb = document.getElementById('podFallbackBar');
+  if (fb) fb.classList.remove('show');
   const dt      = r.delivery_datetime ? new Date(r.delivery_datetime) : null;
   const dateStr = dt ? dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) : '—';
   const timeStr = dt ? dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '—';
@@ -3497,6 +3536,271 @@ function onTouchEnd(e) {
     }
   }
   touchSrcIndex = null;
+}
+
+// ── SEND POD ─────────────────────────────────────────────
+async function sendPOD() {
+  const r = currentDetailRecord;
+  if (!r) return;
+
+  const btn = document.getElementById('sendPodBtn');
+  btn.classList.add('loading');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating PDF...';
+
+  try {
+    const pdfBlob = await buildPODpdf(r);
+    const dt      = r.delivery_datetime ? new Date(r.delivery_datetime) : new Date();
+    const safe    = (r.customer_name || 'Delivery').replace(/[^a-zA-Z0-9 _-]/g,'').replace(/\s+/g,'_').slice(0,50);
+    const dateTag = `${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,'0')}${String(dt.getDate()).padStart(2,'0')}`;
+    const filename = `POD_${dateTag}_${safe}.pdf`;
+    const file     = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+    // Try native Web Share API (mobile + modern desktop)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: `POD — ${r.customer_name || 'Delivery'}`, text: `Proof of Delivery for ${r.customer_name || 'delivery'} on ${dt.toLocaleDateString('en-GB')}` });
+    } else if (navigator.share) {
+      // Share API exists but file sharing not supported — share URL as fallback
+      const url = URL.createObjectURL(pdfBlob);
+      await navigator.share({ title: `POD — ${r.customer_name || 'Delivery'}`, url });
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } else {
+      // Desktop fallback — trigger download and show bar
+      const url  = URL.createObjectURL(pdfBlob);
+      const link = document.getElementById('podFallbackLink');
+      link.href     = url;
+      link.download = filename;
+      link.click();
+      document.getElementById('podFallbackBar').classList.add('show');
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+  } catch(e) {
+    // User cancelled share — not an error
+    if (e.name !== 'AbortError') alert('Could not generate PDF: ' + e.message);
+  } finally {
+    btn.classList.remove('loading');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg> Send POD';
+  }
+}
+
+async function buildPODpdf(r) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const PAGE_W  = 210;
+  const PAGE_H  = 297;
+  const MARGIN  = 14;
+  const CONTENT_W = PAGE_W - MARGIN * 2;
+
+  // ── Colours ──
+  const BRAND    = [0,   75,  142];
+  const BRAND_D  = [0,   58,  110];
+  const ACCENT   = [0,   153, 255];
+  const WHITE    = [255, 255, 255];
+  const OFF_W    = [244, 247, 251];
+  const BORDER   = [220, 232, 245];
+  const MUTED    = [90,  122, 154];
+  const TEXT     = [13,  27,  42];
+  const SUCCESS  = [0,   184, 107];
+
+  // ── Header band ──────────────────────────────────────────
+  doc.setFillColor(...BRAND);
+  doc.rect(0, 0, PAGE_W, 36, 'F');
+
+  // Accent stripe
+  doc.setFillColor(...ACCENT);
+  doc.rect(0, 33, PAGE_W, 3, 'F');
+
+  // Logo mark
+  doc.setFillColor(255, 255, 255, 0.15);
+  doc.roundedRect(MARGIN, 7, 22, 22, 3, 3, 'F');
+
+  // App name
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(...WHITE);
+  doc.text('FMF POD', MARGIN + 27, 17);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(180, 210, 240);
+  doc.text('PROOF OF DELIVERY', MARGIN + 27, 23);
+
+  // Doc title right-aligned
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...WHITE);
+  doc.text('PROOF OF DELIVERY', PAGE_W - MARGIN, 17, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(180, 210, 240);
+  const genDate = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  doc.text(`Generated ${genDate}`, PAGE_W - MARGIN, 23, { align: 'right' });
+
+  let y = 46;
+
+  // ── Customer banner ─────────────────────────────────────
+  doc.setFillColor(...OFF_W);
+  doc.roundedRect(MARGIN, y, CONTENT_W, 20, 3, 3, 'F');
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(MARGIN, y, CONTENT_W, 20, 3, 3, 'S');
+
+  // Left accent bar
+  doc.setFillColor(...BRAND);
+  doc.roundedRect(MARGIN, y, 3, 20, 1, 1, 'F');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(...MUTED);
+  doc.text('CUSTOMER', MARGIN + 8, y + 7);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...TEXT);
+  const custName = r.customer_name || '—';
+  doc.text(custName, MARGIN + 8, y + 15, { maxWidth: CONTENT_W - 14 });
+  y += 26;
+
+  // ── Delivery details grid ────────────────────────────────
+  const dt      = r.delivery_datetime ? new Date(r.delivery_datetime) : null;
+  const dateStr = dt ? dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) : '—';
+  const timeStr = dt ? dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '—';
+
+  const fields = [
+    { label: 'DRIVER',          value: r.driver_name  || '—' },
+    { label: 'DATE',            value: dateStr },
+    { label: 'TIME',            value: timeStr },
+    { label: 'LOCATION',        value: r.address || '—' },
+  ];
+  if (r.doc_number) fields.splice(1, 0, { label: 'DOCUMENT NUMBER', value: r.doc_number });
+  if (r.notes)      fields.push(    { label: 'NOTES',           value: r.notes });
+
+  const COL_W = (CONTENT_W - 4) / 2;
+  let col = 0, rowY = y;
+
+  fields.forEach((f, idx) => {
+    const x = MARGIN + col * (COL_W + 4);
+
+    // Full width for location and notes
+    const isWide = f.label === 'LOCATION' || f.label === 'NOTES';
+    const cellW  = isWide ? CONTENT_W : COL_W;
+    if (isWide && col === 1) { col = 0; rowY += 22; }
+    const cx = isWide ? MARGIN : x;
+
+    // Estimate cell height for wrapped text
+    const lines = doc.splitTextToSize(f.value, cellW - 8);
+    const cellH = Math.max(18, 10 + lines.length * 4.5);
+
+    doc.setFillColor(...WHITE);
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(cx, rowY, cellW, cellH, 2, 2, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...MUTED);
+    doc.text(f.label, cx + 5, rowY + 6);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...TEXT);
+    doc.text(lines, cx + 5, rowY + 12);
+
+    if (isWide) {
+      col = 0; rowY += cellH + 3;
+    } else {
+      col++;
+      if (col === 2) { col = 0; rowY += cellH + 3; }
+    }
+  });
+
+  // Close off any half-row
+  if (col === 1) { col = 0; rowY += 22; }
+  y = rowY + 2;
+
+  // ── GPS coordinates chip ────────────────────────────────
+  if (r.latitude && r.longitude) {
+    doc.setFillColor(...OFF_W);
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(MARGIN, y, CONTENT_W, 10, 2, 2, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...MUTED);
+    doc.text('GPS COORDINATES', MARGIN + 5, y + 4.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT);
+    doc.text(`${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}`, MARGIN + 42, y + 4.5);
+    y += 14;
+  }
+
+  // ── Photo ────────────────────────────────────────────────
+  if (r.photo_url) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.text('DELIVERY PHOTO', MARGIN, y + 5);
+    y += 8;
+
+    try {
+      const imgData = await fetchImageAsBase64(r.photo_url);
+      // Measure image to fit proportionally within content width, max height 90mm
+      const imgProps = doc.getImageProperties(imgData);
+      const maxW = CONTENT_W;
+      const maxH = 90;
+      let iw = maxW, ih = (imgProps.height / imgProps.width) * maxW;
+      if (ih > maxH) { ih = maxH; iw = (imgProps.width / imgProps.height) * maxH; }
+      const ix = MARGIN + (CONTENT_W - iw) / 2;
+
+      // Photo border
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(ix - 1, y - 1, iw + 2, ih + 2, 2, 2, 'S');
+      doc.addImage(imgData, 'JPEG', ix, y, iw, ih);
+      y += ih + 5;
+    } catch(_) {
+      // Photo fetch failed — note it
+      doc.setFillColor(...OFF_W);
+      doc.roundedRect(MARGIN, y, CONTENT_W, 14, 2, 2, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...MUTED);
+      doc.text('Photo could not be embedded (network error)', MARGIN + CONTENT_W/2, y + 8, { align: 'center' });
+      y += 18;
+    }
+  }
+
+  // ── Footer ───────────────────────────────────────────────
+  const footerY = PAGE_H - 18;
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.3);
+  doc.line(MARGIN, footerY, PAGE_W - MARGIN, footerY);
+
+  doc.setFillColor(...SUCCESS);
+  doc.circle(MARGIN + 3, footerY + 6, 2.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(...SUCCESS);
+  doc.text('VERIFIED DELIVERY', MARGIN + 8, footerY + 7.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(...MUTED);
+  doc.text(`FMF POD · ${new Date().toLocaleString('en-GB')}`, PAGE_W - MARGIN, footerY + 7.5, { align: 'right' });
+
+  return doc.output('blob');
+}
+
+async function fetchImageAsBase64(url) {
+  const res = await fetch(url, { mode: 'cors' });
+  if (!res.ok) throw new Error('Image fetch failed');
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 // ── HELPERS ───────────────────────────────────────────────
