@@ -417,11 +417,24 @@
   .logout-pill svg { width: 17px; height: 17px; }
 
   /* Driver welcome strip on form */
-  .driver-welcome { display: flex; align-items: center; gap: 10px; background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
+  .driver-welcome { display: flex; flex-direction: column; gap: 10px; background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
+  .driver-welcome-top { display: flex; align-items: center; gap: 10px; }
   .driver-welcome-icon { width: 36px; height: 36px; background: rgba(0,75,142,0.08); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .driver-welcome-icon svg { width: 18px; height: 18px; color: var(--brand); }
   .driver-welcome-name { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--brand); }
   .driver-welcome-sub { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+  .driver-info-pills { display: flex; gap: 8px; }
+  .driver-info-pill {
+    flex: 1; display: flex; align-items: center; gap: 8px;
+    background: var(--off-white); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 8px 10px; min-width: 0;
+  }
+  .driver-info-pill svg { width: 14px; height: 14px; color: var(--brand); flex-shrink: 0; opacity: 0.8; }
+  .driver-info-pill-body { min-width: 0; flex: 1; }
+  .driver-info-pill-main { font-family: 'Barlow Condensed', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--text); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .driver-info-pill-sub { font-size: 0.63rem; color: var(--text-muted); font-weight: 500; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .driver-info-pill-badge { display: flex; align-items: center; gap: 3px; font-size: 0.6rem; font-weight: 700; color: var(--success); letter-spacing: 0.05em; text-transform: uppercase; flex-shrink: 0; }
+  .driver-info-pill-badge .ts-live-dot { width: 5px; height: 5px; background: var(--success); border-radius: 50%; animation: pulse 1.5s infinite; flex-shrink: 0; }
 
   /* History map pill */
   .map-pill {
@@ -1028,12 +1041,34 @@
 
     <!-- Driver welcome strip -->
     <div class="driver-welcome">
-      <div class="driver-welcome-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      <div class="driver-welcome-top">
+        <div class="driver-welcome-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        </div>
+        <div>
+          <div class="driver-welcome-name" id="driverWelcomeName"></div>
+          <div class="driver-welcome-sub">Logged in as driver</div>
+        </div>
       </div>
-      <div>
-        <div class="driver-welcome-name" id="driverWelcomeName"></div>
-        <div class="driver-welcome-sub">Logged in as driver</div>
+      <div class="driver-info-pills">
+        <!-- Clock pill -->
+        <div class="driver-info-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <div class="driver-info-pill-body">
+            <div class="driver-info-pill-main" id="tsTime">--:--:--</div>
+            <div class="driver-info-pill-sub" id="tsDate">Loading...</div>
+          </div>
+          <div class="driver-info-pill-badge"><div class="ts-live-dot"></div>Live</div>
+        </div>
+        <!-- GPS pill -->
+        <div class="driver-info-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <div class="driver-info-pill-body">
+            <div class="driver-info-pill-main" id="locationText">Auto GPS</div>
+            <div class="driver-info-pill-sub" id="locationCoords">Captured at submission</div>
+          </div>
+          <div class="driver-info-pill-badge" id="locationStatus"><div class="ts-live-dot"></div>Auto</div>
+        </div>
       </div>
     </div>
 
@@ -1097,40 +1132,6 @@
         Notes <span style="font-weight:400;opacity:0.6;margin-left:4px;">(optional)</span>
       </div>
       <textarea id="deliveryNotes" rows="3" placeholder="Any additional delivery notes..." style="resize:vertical;"></textarea>
-
-      <div style="height:1px;background:var(--border);margin:18px 0;"></div>
-
-      <div class="card-label" style="margin-bottom:10px;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Date & Time
-      </div>
-      <div class="timestamp-display">
-        <div class="ts-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-        <div>
-          <div class="ts-time" id="tsTime">--:--:--</div>
-          <div class="ts-date" id="tsDate">Loading...</div>
-        </div>
-        <div class="ts-live"><div class="ts-live-dot"></div>Live</div>
-      </div>
-      <p class="field-note" style="margin-top:8px;">Timestamp captured automatically at submission.</p>
-
-      <div style="height:1px;background:var(--border);margin:18px 0;"></div>
-
-      <div class="card-label" style="margin-bottom:10px;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        Delivery Location
-      </div>
-      <div class="timestamp-display" id="locationDisplay">
-        <div class="ts-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        </div>
-        <div style="flex:1;min-width:0;">
-          <div class="ts-time" style="font-size:0.85rem;font-weight:600;" id="locationText">Captured at submission</div>
-          <div class="ts-date" id="locationCoords"></div>
-        </div>
-        <div class="ts-live" id="locationStatus"><div class="ts-live-dot"></div>Auto</div>
-      </div>
-      <p class="field-note" style="margin-top:8px;">GPS coordinates and address recorded automatically when you tap Record Delivery.</p>
     </div>
 
     <div class="status-bar loading" id="statusLoading">
