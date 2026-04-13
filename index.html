@@ -847,7 +847,7 @@
   <div class="login-title">FMF POD</div>
   <div class="login-sub">Delivery Confirmation</div>
   <div class="login-admin-pills">
-    <button class="config-pill" onclick="toggleConfig()" title="Configuration">
+    <button class="config-pill" onclick="openPinModal('config')" title="Configuration">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
     </button>
     <button class="analytics-pill" onclick="openPinModal('analytics')" title="Analytics">
@@ -942,8 +942,8 @@
     <div class="pin-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     </div>
-    <h3 id="pinModalTitle">History Access</h3>
-    <p id="pinModalDesc">Enter your 4-digit PIN to view delivery history</p>
+    <h3 id="pinModalTitle">Admin Access</h3>
+    <p id="pinModalDesc">Enter the admin PIN</p>
     <div class="pin-dots">
       <div class="pin-dot" id="pd0"></div>
       <div class="pin-dot" id="pd1"></div>
@@ -995,9 +995,9 @@
     <input type="text" id="cfgBucket" placeholder="delivery-photos">
     <label>Database Table Name</label>
     <input type="text" id="cfgTable" placeholder="deliveries">
-    <label>History PIN (4 digits)</label>
+    <label>Admin PIN (4 digits)</label>
     <input type="password" id="cfgPin" placeholder="****" maxlength="4" readonly>
-    <p class="field-note">PIN required to access delivery history and analytics</p>
+    <p class="field-note">PIN required to access History, Analytics and Configuration. To change it, edit the <code>config.pin</code> value in the HTML source file.</p>
     <button class="save-config-btn" onclick="saveConfig()">Done</button>
   </div>
 </div>
@@ -1430,8 +1430,18 @@ function openPinModal(dest = 'history') {
   pinEntry = '';
   updatePinDots();
   document.getElementById('pinError').textContent = '';
-  document.getElementById('pinModalTitle').textContent = dest === 'analytics' ? 'Analytics Access' : 'History Access';
-  document.getElementById('pinModalDesc').textContent  = dest === 'analytics' ? 'Enter your 4-digit PIN to view analytics' : 'Enter your 4-digit PIN to view delivery history';
+  const titles = {
+    config:    'Configuration',
+    analytics: 'Analytics',
+    history:   'History'
+  };
+  const descs = {
+    config:    'Enter the admin PIN to access configuration',
+    analytics: 'Enter the admin PIN to view analytics',
+    history:   'Enter the admin PIN to view delivery history'
+  };
+  document.getElementById('pinModalTitle').textContent = titles[dest] || 'Admin Access';
+  document.getElementById('pinModalDesc').textContent  = descs[dest]  || 'Enter the admin PIN';
   document.getElementById('pinModal').classList.add('open');
 }
 function closePinModal() {
@@ -1460,6 +1470,7 @@ function checkPin() {
   if (pinEntry === (config.pin || '1234')) {
     closePinModal();
     if (pinDestination === 'analytics') showAnalytics();
+    else if (pinDestination === 'config') toggleConfig();
     else showHistory();
   } else {
     for (let i = 0; i < 4; i++) document.getElementById('pd'+i).classList.add('error');
