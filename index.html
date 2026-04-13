@@ -868,6 +868,91 @@
     #routeEditorOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
     .route-editor-panel { max-width: 560px; height: 90vh; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.35); background: var(--off-white); }
   }
+
+  /* ══ ADDRESS PICKER OVERLAY ══ */
+  #addressPickerOverlay {
+    display: none; position: fixed; inset: 0; z-index: 410;
+    background: rgba(0,20,50,0.65); backdrop-filter: blur(6px);
+    align-items: flex-end; justify-content: center; padding: 0;
+  }
+  #addressPickerOverlay.open { display: flex; }
+  .address-picker-sheet {
+    background: white; border-radius: 20px 20px 0 0; width: 100%; max-width: 560px;
+    max-height: 75vh; display: flex; flex-direction: column;
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.25);
+    animation: slideUp 0.25s ease;
+  }
+  .address-picker-header {
+    padding: 16px 20px 12px; border-bottom: 1.5px solid var(--border); flex-shrink: 0;
+  }
+  .address-picker-title {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 800;
+    color: var(--brand); letter-spacing: 0.03em; margin-bottom: 2px;
+  }
+  .address-picker-sub { font-size: 0.78rem; color: var(--text-muted); }
+  .address-picker-list { overflow-y: auto; padding: 10px 16px 20px; flex: 1; }
+  .address-picker-option {
+    display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-radius: 12px;
+    cursor: pointer; transition: all 0.15s; border: 1.5px solid var(--border);
+    margin-bottom: 8px; background: var(--off-white);
+  }
+  .address-picker-option:last-child { margin-bottom: 0; }
+  .address-picker-option:active { border-color: var(--brand); background: rgba(0,75,142,0.06); }
+  .address-picker-icon {
+    width: 32px; height: 32px; background: rgba(0,75,142,0.08); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+  }
+  .address-picker-icon svg { width: 14px; height: 14px; color: var(--brand); }
+  .address-picker-addr-label { font-size: 0.9rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+  .address-picker-addr-line { font-size: 0.75rem; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+  .address-picker-postcode {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; font-weight: 700;
+    color: var(--brand); background: rgba(0,75,142,0.08); border-radius: 5px;
+    padding: 1px 6px; margin-top: 4px; display: inline-block;
+  }
+  .address-picker-no-addr {
+    display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px;
+    cursor: pointer; border: 1.5px dashed var(--border); color: var(--text-muted);
+    font-size: 0.85rem; font-weight: 500; margin-bottom: 8px; transition: all 0.15s;
+  }
+  .address-picker-no-addr:active { border-color: var(--brand); color: var(--brand); }
+  .address-picker-cancel {
+    margin: 0 16px 16px; padding: 12px; background: none; border: 2px solid var(--border);
+    border-radius: 12px; font-family: 'Barlow', sans-serif; font-size: 0.88rem; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; width: calc(100% - 32px); transition: all 0.15s;
+  }
+  .address-picker-cancel:active { background: var(--off-white); }
+
+  /* Address label shown under each stop in editor */
+  .stop-address-label {
+    font-size: 0.68rem; color: var(--text-muted); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding-left: 38px; width: 100%;
+  }
+  .stop-address-label.has-addr { color: var(--success); }
+
+  /* ══ OPTIMISE TOAST ══ */
+  .optimise-toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--success); color: white; border-radius: 24px;
+    padding: 12px 20px; display: flex; align-items: center; gap: 10px;
+    font-family: 'Barlow', sans-serif; font-size: 0.88rem; font-weight: 600;
+    box-shadow: 0 8px 30px rgba(0,184,107,0.4); z-index: 800;
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.35s ease;
+    opacity: 0; pointer-events: none; white-space: nowrap;
+  }
+  .optimise-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .optimise-toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  @media (hover: hover) and (pointer: fine) {
+    .address-picker-option:hover { border-color: var(--brand); background: rgba(0,75,142,0.06); transform: translateY(-1px); }
+    .address-picker-no-addr:hover { border-color: var(--brand); color: var(--brand); }
+    .address-picker-cancel:hover { background: var(--off-white); border-color: var(--brand); color: var(--brand); }
+  }
+  @media (min-width: 700px) {
+    #addressPickerOverlay { align-items: center; }
+    .address-picker-sheet { border-radius: 20px; max-height: 80vh; }
+  }
 </style>
 </head>
 <body>
@@ -1312,6 +1397,18 @@
     </div>
   </div>
 
+  <!-- ADDRESS PICKER OVERLAY -->
+  <div id="addressPickerOverlay" onclick="handleAddressPickerOverlayClick(event)">
+    <div class="address-picker-sheet">
+      <div class="address-picker-header">
+        <div class="address-picker-title" id="addressPickerTitle">Select Address</div>
+        <div class="address-picker-sub" id="addressPickerSub">Choose a delivery address</div>
+      </div>
+      <div class="address-picker-list" id="addressPickerList"></div>
+      <button class="address-picker-cancel" onclick="closeAddressPicker()">Cancel — add without address</button>
+    </div>
+  </div>
+
   <!-- DETAIL VIEW -->
   <div id="detailView">
     <div class="detail-header">
@@ -1424,7 +1521,9 @@ const config = {
   key:    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhyYnhmcm9xdHBkaWlra3Z3a2xwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzI5NTYsImV4cCI6MjA4OTI0ODk1Nn0.6rR8TVFK0wXX9oEcSPYTCZw4mvE58wsM2fvNwCEHqtQ',
   bucket: 'delivery-photos',
   table:  'deliveries',
-  pin:    '1122'
+  pin:    '1122',
+  depotLat: 53.202728542529755,
+  depotLng: -0.614144219365714
 };
 
 function loadConfig() {
@@ -3374,9 +3473,37 @@ async function saveRoute() {
     } else {
       allRoutes.unshift(saved);
     }
+
+    // ── Auto-optimise stop order using nearest-neighbour ──────
+    const { stops: optimisedStops, reorderedCount } = optimiseRouteStops(
+      editorStops,
+      config.depotLat,
+      config.depotLng
+    );
+
+    if (reorderedCount > 0) {
+      // Stops were reordered — patch the route with the optimised order
+      try {
+        const patched = await patchRoute(saved.id, { stops: optimisedStops });
+        const routeIdx = allRoutes.findIndex(r => r.id === saved.id);
+        if (routeIdx >= 0) allRoutes[routeIdx] = patched;
+      } catch(e) {
+        console.warn('Could not save optimised route order:', e.message);
+      }
+    }
+
     closeRouteEditor();
     renderRouteList();
     await loadActiveRoute();
+
+    // Show result toast
+    if (reorderedCount > 0) {
+      showOptimiseToast(`Route optimised — ${reorderedCount} stop${reorderedCount !== 1 ? 's' : ''} reordered`);
+    } else if (editorStops.some(s => s.lat)) {
+      showOptimiseToast('Route saved — already in optimal order ✓');
+    } else {
+      showOptimiseToast('Route saved');
+    }
   } catch(e) {
     alert('Could not save route: ' + e.message);
   } finally {
@@ -3401,6 +3528,9 @@ function renderEditorStops() {
       <span class="drag-handle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg></span>
       <div class="stop-drag-num">${i+1}</div>
       <div class="stop-drag-name">${escHtml(s.customer||'')}</div>
+      <div class="stop-address-label ${s.lat ? 'has-addr' : ''}">${
+        s.lat ? `📍 ${escHtml(s.address_label || 'Address saved')}` : 'No address on file'
+      }</div>
       <button class="stop-drag-remove" onclick="removeStop(${i})">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -3455,11 +3585,35 @@ function closeRcOutside(e) {
   else document.addEventListener('click', closeRcOutside, { once: true });
 }
 
-function addStop(name) {
-  editorStops.push({ customer: name });
+async function addStop(name) {
   document.getElementById('rcSearch').value = '';
   document.getElementById('rcDropdown').classList.remove('open');
-  renderEditorStops();
+
+  // Fetch addresses for this customer from customer_addresses table
+  const addresses = await getAddressesForCustomer(name);
+
+  const doAdd = (addr) => {
+    const stop = { customer: name };
+    if (addr) {
+      stop.address_id    = addr.id    || null;
+      stop.lat           = addr.lat   || null;
+      stop.lng           = addr.lng   || null;
+      stop.address_label = addr.label || addr.postcode || null;
+    }
+    editorStops.push(stop);
+    renderEditorStops();
+  };
+
+  if (addresses.length === 0) {
+    // No addresses on file — add without coords
+    doAdd(null);
+  } else if (addresses.length === 1) {
+    // Exactly one address — auto-select silently
+    doAdd(addresses[0]);
+  } else {
+    // Multiple addresses — show picker sheet
+    showAddressPicker(name, addresses, doAdd);
+  }
 }
 
 // ── Drag-and-drop — mouse ────────────────────────────────────────────────────
@@ -3838,6 +3992,174 @@ async function fetchImageAsBase64(url) {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+}
+
+// ══ SMART ROUTES — ADDRESS LOOKUP & OPTIMISER ═══════════════════════════════
+
+// Cache of customer_addresses fetched this session: code → [{id,label,address_line,postcode,lat,lng}]
+const addressCache = {};
+
+// Extract customer code from full name ("A137 - MICHAEL GOMEZ" → "A137")
+function extractCustomerCode(fullName) {
+  if (!fullName) return null;
+  return fullName.split(' - ')[0].trim();
+}
+
+// Fetch addresses for an array of customer codes in one batch Supabase request
+async function fetchAddressesForCodes(codes) {
+  if (!codes || codes.length === 0) return {};
+  const codeList = codes.join(',');
+  try {
+    const res = await sbRequest(
+      `/rest/v1/customer_addresses?customer_code=in.(${encodeURIComponent(codeList)})&select=id,customer_code,label,address_line,postcode,lat,lng&order=customer_code.asc`,
+      { headers: { 'Accept': 'application/json' } }
+    );
+    if (!res.ok) return {};
+    const rows = await res.json();
+    const grouped = {};
+    rows.forEach(r => {
+      if (!grouped[r.customer_code]) grouped[r.customer_code] = [];
+      grouped[r.customer_code].push(r);
+    });
+    return grouped;
+  } catch(e) {
+    console.warn('fetchAddressesForCodes error:', e.message);
+    return {};
+  }
+}
+
+// Get addresses for a single customer — uses session cache, fetches if not cached
+async function getAddressesForCustomer(fullName) {
+  const code = extractCustomerCode(fullName);
+  if (!code) return [];
+  if (addressCache[code] !== undefined) return addressCache[code];
+  const result = await fetchAddressesForCodes([code]);
+  addressCache[code] = result[code] || [];
+  return addressCache[code];
+}
+
+// ── Address Picker UI ────────────────────────────────────────────────────────
+let addressPickerCallback = null;
+
+function showAddressPicker(customerName, addresses, callback) {
+  addressPickerCallback = callback;
+  // Store addresses for index-based onclick (avoids JSON encoding issues in template)
+  window._currentPickerAddresses = addresses;
+
+  const custDisplay = customerName.includes(' - ')
+    ? customerName.split(' - ').slice(1).join(' - ').trim()
+    : customerName;
+
+  document.getElementById('addressPickerTitle').textContent = custDisplay || customerName;
+  document.getElementById('addressPickerSub').textContent =
+    `${addresses.length} address${addresses.length !== 1 ? 'es' : ''} on file — select delivery point`;
+
+  document.getElementById('addressPickerList').innerHTML = addresses.map((addr, i) => {
+    const hasCoords = addr.lat && addr.lng;
+    const gpsBadge  = hasCoords
+      ? `<span style="font-size:0.65rem;color:var(--success);font-weight:700;margin-left:5px;">📍 GPS</span>`
+      : '';
+    return `<div class="address-picker-option" onclick="selectPickerAddressByIndex(${i})">
+      <div class="address-picker-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="address-picker-addr-label">${escHtml(addr.label || addr.address_line || addr.postcode || '—')}${gpsBadge}</div>
+        ${addr.address_line ? `<div class="address-picker-addr-line">${escHtml(addr.address_line)}</div>` : ''}
+        ${addr.postcode     ? `<div class="address-picker-postcode">${escHtml(addr.postcode)}</div>`     : ''}
+      </div>
+    </div>`;
+  }).join('') + `
+    <div class="address-picker-no-addr" onclick="selectPickerAddressByIndex(-1)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add without a stored address
+    </div>`;
+
+  document.getElementById('addressPickerOverlay').classList.add('open');
+}
+
+function selectPickerAddressByIndex(i) {
+  const addr = (i >= 0 && window._currentPickerAddresses) ? window._currentPickerAddresses[i] : null;
+  closeAddressPicker();
+  if (addressPickerCallback) addressPickerCallback(addr);
+}
+
+function closeAddressPicker() {
+  document.getElementById('addressPickerOverlay').classList.remove('open');
+  addressPickerCallback = null;
+  window._currentPickerAddresses = null;
+}
+
+function handleAddressPickerOverlayClick(e) {
+  if (e.target === document.getElementById('addressPickerOverlay')) closeAddressPicker();
+}
+
+// ── Nearest-Neighbour Route Optimiser ────────────────────────────────────────
+/**
+ * Sorts stops into the shortest order using nearest-neighbour heuristic.
+ * Starts from the depot, always picks the nearest unvisited stop next.
+ * Stops without GPS coordinates are appended at the end in their original order.
+ * @returns {{ stops: Array, reorderedCount: number }}
+ */
+function optimiseRouteStops(stops, depotLat, depotLng) {
+  if (!stops || stops.length <= 1) return { stops: [...(stops || [])], reorderedCount: 0 };
+
+  const withCoords    = stops.filter(s => s.lat && s.lng);
+  const withoutCoords = stops.filter(s => !(s.lat && s.lng));
+
+  if (withCoords.length <= 1) {
+    // Not enough GPS stops to optimise — return as-is
+    return { stops: [...stops], reorderedCount: 0 };
+  }
+
+  // Snapshot original order for comparison
+  const originalOrder = withCoords.map(s => s.customer);
+
+  // Run nearest-neighbour from depot
+  const unvisited = [...withCoords];
+  const route     = [];
+  let curLat = depotLat;
+  let curLng = depotLng;
+
+  while (unvisited.length > 0) {
+    let bestIdx = 0, bestDist = Infinity;
+    unvisited.forEach((stop, i) => {
+      const d = haversineKm(curLat, curLng, stop.lat, stop.lng);
+      if (d < bestDist) { bestDist = d; bestIdx = i; }
+    });
+    const chosen = unvisited.splice(bestIdx, 1)[0];
+    route.push(chosen);
+    curLat = chosen.lat;
+    curLng = chosen.lng;
+  }
+
+  // Count how many moved position
+  const newOrder = route.map(s => s.customer);
+  let reorderedCount = 0;
+  for (let i = 0; i < originalOrder.length; i++) {
+    if (originalOrder[i] !== newOrder[i]) reorderedCount++;
+  }
+
+  return { stops: [...route, ...withoutCoords], reorderedCount };
+}
+
+// ── Optimise Toast notification ───────────────────────────────────────────────
+let _toastTimeout = null;
+
+function showOptimiseToast(message) {
+  let toast = document.getElementById('optimiseToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id        = 'optimiseToast';
+    toast.className = 'optimise-toast';
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>${escHtml(message)}`;
+  if (_toastTimeout) clearTimeout(_toastTimeout);
+  toast.classList.remove('show');
+  void toast.offsetWidth; // force reflow to restart animation
+  toast.classList.add('show');
+  _toastTimeout = setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
 // ── HELPERS ───────────────────────────────────────────────
