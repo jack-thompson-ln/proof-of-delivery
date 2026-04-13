@@ -4079,9 +4079,11 @@ function showAddressPicker(customerName, addresses, callback) {
 }
 
 function selectPickerAddressByIndex(i) {
-  const addr = (i >= 0 && window._currentPickerAddresses) ? window._currentPickerAddresses[i] : null;
+  // Capture addr and callback BEFORE closeAddressPicker nulls them
+  const addr     = (i >= 0 && window._currentPickerAddresses) ? window._currentPickerAddresses[i] : null;
+  const callback = addressPickerCallback;
   closeAddressPicker();
-  if (addressPickerCallback) addressPickerCallback(addr);
+  if (callback) callback(addr);
 }
 
 function closeAddressPicker() {
