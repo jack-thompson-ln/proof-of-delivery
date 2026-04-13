@@ -1328,8 +1328,8 @@
     </button>
     <div class="pod-fallback-bar" id="podFallbackBar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      <span>PDF ready to download</span>
-      <a id="podFallbackLink" href="#" download="POD.pdf">Download</a>
+      <span>PDF downloaded — attach it to share</span>
+      <a id="podFallbackLink" href="#" download="POD.pdf">Download again</a>
     </div>
     <div class="detail-card" id="detailInfo"></div>
   </div>
@@ -3547,39 +3547,76 @@ async function sendPOD() {
   btn.classList.add('loading');
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating PDF...';
 
+  // Build filename — guarantee it's never empty
+  const dt      = r.delivery_datetime ? new Date(r.delivery_datetime) : new Date();
+  const dateTag = `${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,'0')}${String(dt.getDate()).padStart(2,'0')}`;
+  const safeCust = (r.customer_name || 'Delivery')
+    .replace(/[^a-zA-Z0-9\s]/g, '')   // strip special chars but keep spaces
+    .trim()
+    .replace(/\s+/g, '_')
+    .slice(0, 40) || 'Delivery';       // fallback if blank after stripping
+  const filename = `POD_${dateTag}_${safeCust}.pdf`;
+
   try {
     const pdfBlob = await buildPODpdf(r);
-    const dt      = r.delivery_datetime ? new Date(r.delivery_datetime) : new Date();
-    const safe    = (r.customer_name || 'Delivery').replace(/[^a-zA-Z0-9 _-]/g,'').replace(/\s+/g,'_').slice(0,50);
-    const dateTag = `${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,'0')}${String(dt.getDate()).padStart(2,'0')}`;
-    const filename = `POD_${dateTag}_${safe}.pdf`;
-    const file     = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-    // Try native Web Share API (mobile + modern desktop)
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: `POD — ${r.customer_name || 'Delivery'}`, text: `Proof of Delivery for ${r.customer_name || 'delivery'} on ${dt.toLocaleDateString('en-GB')}` });
-    } else if (navigator.share) {
-      // Share API exists but file sharing not supported — share URL as fallback
-      const url = URL.createObjectURL(pdfBlob);
-      await navigator.share({ title: `POD — ${r.customer_name || 'Delivery'}`, url });
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } else {
-      // Desktop fallback — trigger download and show bar
-      const url  = URL.createObjectURL(pdfBlob);
-      const link = document.getElementById('podFallbackLink');
-      link.href     = url;
-      link.download = filename;
-      link.click();
-      document.getElementById('podFallbackBar').classList.add('show');
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    if (!pdfBlob || pdfBlob.size === 0) throw new Error('PDF generation produced an empty file.');
+
+    const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+    // Try native file share (iOS Safari 15+, Android Chrome 89+)
+    const canShareFile = navigator.canShare && navigator.canShare({ files: [file] });
+
+    if (canShareFile) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: `POD — ${r.customer_name || 'Delivery'}`,
+          text:  `Proof of Delivery for ${r.customer_name || 'delivery'} — ${dt.toLocaleDateString('en-GB')}`
+        });
+        // Share sheet opened successfully — done
+        return;
+      } catch(shareErr) {
+        if (shareErr.name === 'AbortError') return; // user cancelled — don't download
+        // Share failed for another reason — fall through to download
+      }
     }
+
+    // Fallback: trigger download + show the share bar with options
+    triggerDownload(pdfBlob, filename);
+    showPodFallback(pdfBlob, filename, r, dt);
+
   } catch(e) {
-    // User cancelled share — not an error
-    if (e.name !== 'AbortError') alert('Could not generate PDF: ' + e.message);
+    if (e.name !== 'AbortError') {
+      console.error('POD error:', e);
+      alert('Could not generate POD: ' + e.message);
+    }
   } finally {
     btn.classList.remove('loading');
     btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg> Send POD';
   }
+}
+
+function triggerDownload(blob, filename) {
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
+}
+
+function showPodFallback(blob, filename, r, dt) {
+  const bar  = document.getElementById('podFallbackBar');
+  const link = document.getElementById('podFallbackLink');
+  const url  = URL.createObjectURL(blob);
+  link.href     = url;
+  link.download = filename;
+  link.textContent = 'Download again';
+  bar.classList.add('show');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 async function buildPODpdf(r) {
