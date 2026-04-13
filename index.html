@@ -760,7 +760,7 @@
   .route-customer-option mark { background: none; color: var(--brand); font-weight: 700; }
   .route-customer-option.already-added { color: var(--text-muted); pointer-events: none; font-style: italic; }
   .route-stop-drag-item {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     padding: 10px; border-radius: 10px; margin-bottom: 6px;
     background: var(--off-white); border: 1.5px solid var(--border);
     user-select: none; transition: box-shadow 0.15s, opacity 0.15s, border-color 0.15s;
@@ -781,6 +781,12 @@
   .stop-drag-remove { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.1s; }
   .stop-drag-remove:active { background: rgba(224,60,60,0.1); color: var(--error); }
   .stop-drag-remove svg { width: 15px; height: 15px; }
+  .stop-doc-row { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0 2px 0 38px; margin-top: -2px; }
+  .stop-doc-label { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; white-space: nowrap; flex-shrink: 0; }
+  .stop-doc-input { flex: 1; font-family: 'Barlow', sans-serif; font-size: 0.82rem; font-weight: 500; color: var(--text); border: 1.5px solid var(--border); border-radius: 7px; padding: 5px 9px; background: var(--off-white); outline: none; transition: border-color 0.2s; min-width: 0; }
+  .stop-doc-input:focus { border-color: var(--brand); background: white; }
+  .stop-doc-input::placeholder { color: var(--text-muted); font-weight: 400; }
+  .route-stop-doc-badge { font-size: 0.68rem; color: var(--text-muted); font-style: italic; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .route-stops-empty-msg { text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.6; }
 
   @media (hover: hover) and (pointer: fine) {
@@ -1047,6 +1053,15 @@
     </div>
 
     <div class="card">
+      <div class="card-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Document Number <span style="font-weight:400;opacity:0.6;margin-left:4px;">(optional)</span>
+      </div>
+      <input type="text" id="deliveryDocNumber" placeholder="Invoice, suspended order or pick note number..." autocomplete="off" maxlength="80">
+      <p class="field-note" style="margin-top:8px;">Enter invoice no., suspended order no., or pick note no.</p>
+
+      <div style="height:1px;background:var(--border);margin:18px 0;"></div>
+
       <div class="card-label">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Notes <span style="font-weight:400;opacity:0.6;margin-left:4px;">(optional)</span>
@@ -1949,6 +1964,7 @@ window.addEventListener('offline', updateOnlineStatus);
 async function submitDelivery() {
   const customerName = document.getElementById('customerName').value.trim();
   const notes        = document.getElementById('deliveryNotes').value.trim();
+  const docNumber    = document.getElementById('deliveryDocNumber').value.trim();
   const now          = new Date();
   if (!loggedInDriver)  return alert('No driver logged in. Please log in first.');
   if (!customerName)   return alert('Please select a customer.');
@@ -1975,6 +1991,7 @@ async function submitDelivery() {
       photo_url:         null,
       photo_filename:    filename,
       notes:             notes || null,
+      doc_number:        docNumber || null,
       latitude:          loc.lat,
       longitude:         loc.lng,
       address:           loc.address
@@ -2032,6 +2049,7 @@ function resetForm() {
   document.getElementById('customerClear').classList.remove('show');
   customerSelected = false;
   document.getElementById('deliveryNotes').value = '';
+  document.getElementById('deliveryDocNumber').value = '';
   document.getElementById('photoInput').value = '';
   document.getElementById('photoPreview').style.display = 'none';
   document.getElementById('retakeBtn').style.display = 'none';
@@ -2367,11 +2385,13 @@ function renderRecordList(records) {
         : '';
       const thumbPh = `<div class="record-thumb-placeholder" ${r.photo_url ? 'style="display:none"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>`;
       const notesPreview = r.notes ? `<div class="record-notes-preview">📝 ${escHtml(r.notes)}</div>` : '';
+      const docPreview   = r.doc_number ? `<div class="record-notes-preview" style="color:var(--brand);font-style:normal;font-weight:600;">📄 ${escHtml(r.doc_number)}</div>` : '';
       return `<div class="record-card" onclick="showDetail(window._filteredRecords[${i}])">
         ${thumb}${thumbPh}
         <div class="record-info">
           <div class="record-customer">${escHtml(r.customer_name || '—')}</div>
           <div class="record-meta">${dateStr}${timeStr ? ' · ' + timeStr : ''}</div>
+          ${docPreview}
           ${notesPreview}
         </div>
         <div class="record-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
@@ -2418,6 +2438,10 @@ function renderDetail(r) {
     ${r.address ? `<div class="detail-row">
       <div class="detail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
       <div><div class="detail-label">Location</div><div class="detail-value">${escHtml(r.address)}</div>${r.latitude ? `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}</div>` : ''}</div>
+    </div>` : ''}
+    ${r.doc_number ? `<div class="detail-row">
+      <div class="detail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+      <div><div class="detail-label">Document Number</div><div class="detail-value" style="font-family:'Barlow Condensed',sans-serif;font-size:1.05rem;font-weight:700;letter-spacing:0.03em;">${escHtml(r.doc_number)}</div></div>
     </div>` : ''}
     ${r.notes ? `<div class="detail-row">
       <div class="detail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
@@ -2965,10 +2989,14 @@ function renderActiveRouteCard(route, deliveredCustomers) {
     const right = done
       ? '<svg class="route-stop-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
       : (isNext ? '<svg class="route-stop-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' : '');
-    const click = (!done && isActive) ? `onclick="prefillFromRoute('${s.customer.replace(/'/g,"\\'")}')"` : '';
+    const click = (!done && isActive) ? `onclick="prefillFromRoute('${s.customer.replace(/'/g,"\\'")}','${(s.doc_number||'').replace(/'/g,"\\'")}')"` : '';
+    const docBadge = s.doc_number ? `<div class="route-stop-doc-badge">📄 ${escHtml(s.doc_number)}</div>` : '';
     return `<div class="route-stop-item ${cls}" ${click}>
       <div class="route-stop-num">${numInner}</div>
-      <div class="route-stop-name">${escHtml(s.customer||'')}</div>
+      <div class="route-stop-name-wrap" style="flex:1;min-width:0;overflow:hidden;">
+        <div class="route-stop-name">${escHtml(s.customer||'')}</div>
+        ${docBadge}
+      </div>
       ${right}
     </div>`;
   }).join('');
@@ -3004,8 +3032,10 @@ function updateRoutePillBadge() {
   }
 }
 
-function prefillFromRoute(customerName) {
+function prefillFromRoute(customerName, docNumber) {
   selectCustomer(customerName);
+  const docField = document.getElementById('deliveryDocNumber');
+  if (docField) docField.value = docNumber || '';
   setTimeout(() => {
     const el = document.getElementById('customerWrap');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -3169,10 +3199,22 @@ function renderEditorStops() {
       <button class="stop-drag-remove" onclick="removeStop(${i})">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
+      <div class="stop-doc-row" ontouchstart="event.stopPropagation()" ondragstart="event.stopPropagation()">
+        <span class="stop-doc-label">Doc No.</span>
+        <input class="stop-doc-input" type="text" maxlength="80" placeholder="Invoice / order / pick note (optional)"
+          value="${escHtml(s.doc_number||'')}"
+          oninput="updateStopDocNumber(${i}, this.value)"
+          ontouchstart="event.stopPropagation()"
+          ondragstart="event.stopPropagation()">
+      </div>
     </div>`).join('');
 }
 
 function removeStop(i) { editorStops.splice(i, 1); renderEditorStops(); }
+
+function updateStopDocNumber(i, val) {
+  if (editorStops[i]) editorStops[i].doc_number = val.trim() || null;
+}
 
 // ── Customer search in editor ─────────────────────────────────────────────────
 function onRcSearch() { openRcDropdown(); }
