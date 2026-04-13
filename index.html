@@ -659,6 +659,7 @@
     cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px;
   }
   .route-finish-btn:disabled { background: #a0b8cc; cursor: not-allowed; }
+  .route-finish-btn.early-finish { background: #f0a500; box-shadow: 0 4px 14px rgba(240,165,0,0.3); }
   .route-finish-btn svg { width: 15px; height: 15px; }
   .route-edit-btn {
     padding: 11px 14px; background: none; color: var(--text-muted);
@@ -817,6 +818,7 @@
     .route-stop-item:not(.delivered):hover { border-color: var(--brand); background: rgba(0,75,142,0.05); }
     .route-start-btn:hover      { filter: brightness(1.08); }
     .route-finish-btn:hover:not(:disabled) { background: var(--brand-dark); }
+    .route-finish-btn.early-finish:hover { background: #d4920a; }
     .route-edit-btn:hover       { border-color: var(--brand); color: var(--brand); }
     .route-list-card:hover      { border-color: rgba(0,75,142,0.3); box-shadow: 0 6px 28px rgba(0,75,142,0.14); transform: translateY(-1px); }
     .route-filter-chip:not(.active):hover { border-color: var(--brand); color: var(--brand); background: rgba(0,75,142,0.04); }
@@ -3107,9 +3109,9 @@ function renderActiveRouteCard(route, deliveredCustomers) {
       <button class="route-edit-btn" onclick="openRouteEditor('${route.id}')">Edit</button>`;
   } else if (isActive) {
     actions.innerHTML = `
-      <button class="route-finish-btn" id="routeFinishBtn" ${allDone ? '' : 'disabled'} onclick="finishRoute('${route.id}')">
+      <button class="route-finish-btn${allDone ? '' : ' early-finish'}" id="routeFinishBtn" onclick="finishRoute('${route.id}', ${allDone})">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        ${allDone ? 'Finish Route' : `${delivCount}/${stops.length} Delivered`}
+        ${allDone ? 'Finish Route' : `Finish Early (${delivCount}/${stops.length})`}
       </button>
       <button class="route-edit-btn" onclick="openRouteEditor('${route.id}')">Edit</button>`;
   }
@@ -3145,10 +3147,9 @@ async function startRoute(id) {
   } catch(e) { alert('Could not start route: ' + e.message); }
 }
 
-async function finishRoute(id) {
-  const btn = document.getElementById('routeFinishBtn');
-  if (btn && btn.disabled) {
-    if (!confirm('Not all stops delivered yet. Mark route as complete anyway?')) return;
+async function finishRoute(id, allDone) {
+  if (!allDone) {
+    if (!confirm('Not all stops have been delivered. Finish the route early anyway?')) return;
   }
   try {
     await patchRoute(id, { status: 'completed', completed_at: new Date().toISOString() });
