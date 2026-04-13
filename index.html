@@ -674,7 +674,7 @@
   .route-builder-title { font-family: "Barlow Condensed", sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--brand); flex: 1; }
   .route-list-card {
     background: white; border-radius: var(--radius); padding: 16px;
-    margin-bottom: 12px; box-shadow: var(--shadow); border: 1.5px solid var(--border);
+    box-shadow: var(--shadow); border: 1.5px solid var(--border);
     display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.15s;
   }
   .route-list-card:active { transform: scale(0.99); }
@@ -707,6 +707,29 @@
   .route-list-empty { text-align: center; padding: 48px 20px; color: var(--text-muted); }
   .route-list-empty svg { width: 48px; height: 48px; margin: 0 auto 14px; display: block; opacity: 0.2; }
   .route-list-empty p { font-size: 0.9rem; line-height: 1.6; }
+
+  /* ── Route filter chips ── */
+  .route-filter-bar { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  .route-filter-bar::-webkit-scrollbar { display: none; }
+  .route-filter-chip {
+    flex-shrink: 0; padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+    background: white; font-family: "Barlow Condensed", sans-serif; font-size: 0.8rem;
+    font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted);
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .route-filter-chip.active { background: var(--brand); border-color: var(--brand); color: white; box-shadow: 0 3px 10px rgba(0,75,142,0.25); }
+  .route-filter-chip:active { transform: scale(0.96); }
+
+  /* ── Route list row with bin ── */
+  .route-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .route-row .route-list-card { flex: 1; margin-bottom: 0; }
+  .route-delete-btn {
+    flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; border: 1.5px solid #fcd4d4;
+    background: #fff5f5; color: var(--error); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+  }
+  .route-delete-btn:active { background: var(--error); color: white; transform: scale(0.93); }
+  .route-delete-btn svg { width: 17px; height: 17px; pointer-events: none; }
 
   /* ══ ROUTE EDITOR OVERLAY ══ */
   #routeEditorOverlay {
@@ -796,6 +819,8 @@
     .route-finish-btn:hover:not(:disabled) { background: var(--brand-dark); }
     .route-edit-btn:hover       { border-color: var(--brand); color: var(--brand); }
     .route-list-card:hover      { border-color: rgba(0,75,142,0.3); box-shadow: 0 6px 28px rgba(0,75,142,0.14); transform: translateY(-1px); }
+    .route-filter-chip:not(.active):hover { border-color: var(--brand); color: var(--brand); background: rgba(0,75,142,0.04); }
+    .route-delete-btn:hover     { background: var(--error); color: white; border-color: var(--error); }
     .new-route-btn:hover        { background: var(--brand-dark); }
     .stop-drag-remove:hover     { background: rgba(224,60,60,0.1); color: var(--error); }
     .route-customer-option:hover { background: rgba(0,75,142,0.06); }
@@ -1207,6 +1232,12 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       New Route
     </button>
+    <div class="route-filter-bar">
+      <button class="route-filter-chip active" onclick="setRouteFilter('all')" id="rfChip-all">All</button>
+      <button class="route-filter-chip" onclick="setRouteFilter('draft')" id="rfChip-draft">Drafts</button>
+      <button class="route-filter-chip" onclick="setRouteFilter('active')" id="rfChip-active">Active</button>
+      <button class="route-filter-chip" onclick="setRouteFilter('completed')" id="rfChip-completed">Completed</button>
+    </div>
     <div id="routeListContainer"></div>
   </div>
 
@@ -2889,6 +2920,7 @@ function renderLineChart(records) {
 let allRoutes       = [];
 let editingRoute    = null;
 let editorStops     = [];
+let routeFilter     = 'all';
 let activeRouteData = null;
 let dragSrcIndex    = null;
 
@@ -3065,6 +3097,11 @@ async function finishRoute(id) {
   } catch(e) { alert('Could not finish route: ' + e.message); }
 }
 
+function setRouteFilter(f) {
+  routeFilter = f;
+  renderRouteList();
+}
+
 // ── Route list view ───────────────────────────────────────────────────────────
 async function loadRouteList() {
   const c = document.getElementById('routeListContainer');
@@ -3077,30 +3114,85 @@ async function loadRouteList() {
   }
 }
 
+async function deleteRoute(id) {
+  const route = allRoutes.find(r => r.id === id);
+  const label = route ? (route.route_name || formatRouteDate(route.route_date)) : 'this route';
+  if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+  // Fade row out immediately
+  const row = document.querySelector(`.route-row[data-id="${id}"]`);
+  if (row) { row.style.transition = 'opacity 0.2s'; row.style.opacity = '0'; }
+  try {
+    const res = await sbRequest(`/rest/v1/routes?id=eq.${id}`, { method: 'DELETE' });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `Delete failed (${res.status})`); }
+    allRoutes = allRoutes.filter(r => r.id !== id);
+    renderRouteList();
+  } catch(e) {
+    if (row) row.style.opacity = '1';
+    alert('Could not delete route: ' + e.message);
+  }
+}
+
+function canDeleteRoute(r) {
+  // Drafts: always deletable
+  if (r.status === 'draft') return true;
+  // Active but never started (started_at is null): deletable
+  if (r.status === 'active' && !r.started_at) return true;
+  return false;
+}
+
 function renderRouteList() {
   const c = document.getElementById('routeListContainer');
+
+  // Sync chip UI to current filter state
+  document.querySelectorAll('.route-filter-chip').forEach(el => el.classList.remove('active'));
+  const activeChip = document.getElementById('rfChip-' + routeFilter);
+  if (activeChip) activeChip.classList.add('active');
+
+  // Apply filter
+  const filtered = routeFilter === 'all'
+    ? allRoutes
+    : allRoutes.filter(r => r.status === routeFilter);
+
   if (!allRoutes.length) {
     c.innerHTML = `<div class="route-list-empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
       <p>No routes yet.<br>Tap <strong>New Route</strong> to create one.</p></div>`;
     return;
   }
-  c.innerHTML = allRoutes.map(r => {
-    const stops = Array.isArray(r.stops) ? r.stops : [];
-    const name  = r.route_name || formatRouteDate(r.route_date);
-    const meta  = `${formatRouteDate(r.route_date)} · ${stops.length} stop${stops.length !== 1 ? 's' : ''}`;
-    const icon  = r.status === 'active'
+
+  if (!filtered.length) {
+    const label = routeFilter === 'all' ? '' : routeFilter;
+    c.innerHTML = `<div class="route-list-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
+      <p>No ${label} routes found.</p></div>`;
+    return;
+  }
+
+  const binSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+
+  c.innerHTML = filtered.map(r => {
+    const stops   = Array.isArray(r.stops) ? r.stops : [];
+    const name    = r.route_name || formatRouteDate(r.route_date);
+    const meta    = `${formatRouteDate(r.route_date)} · ${stops.length} stop${stops.length !== 1 ? 's' : ''}`;
+    const icon    = r.status === 'active'
       ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
       : r.status === 'completed'
       ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>'
       : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>';
-    return `<div class="route-list-card" onclick="openRouteEditor('${r.id}')">
-      <div class="route-list-icon ${r.status}">${icon}</div>
-      <div class="route-list-info">
-        <div class="route-list-name">${escHtml(name)}</div>
-        <div class="route-list-meta">${escHtml(meta)}</div>
+    const deletable = canDeleteRoute(r);
+    const binBtn    = deletable
+      ? `<button class="route-delete-btn" onclick="event.stopPropagation();deleteRoute('${r.id}')" title="Delete route">${binSvg}</button>`
+      : '';
+    return `<div class="route-row" data-id="${r.id}">
+      <div class="route-list-card" onclick="openRouteEditor('${r.id}')">
+        <div class="route-list-icon ${r.status}">${icon}</div>
+        <div class="route-list-info">
+          <div class="route-list-name">${escHtml(name)}</div>
+          <div class="route-list-meta">${escHtml(meta)}</div>
+        </div>
+        <span class="route-list-badge ${r.status}">${r.status.charAt(0).toUpperCase()+r.status.slice(1)}</span>
       </div>
-      <span class="route-list-badge ${r.status}">${r.status.charAt(0).toUpperCase()+r.status.slice(1)}</span>
+      ${binBtn}
     </div>`;
   }).join('');
 }
