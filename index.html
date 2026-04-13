@@ -910,6 +910,9 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
         <span class="route-pill-badge" id="routePillBadge"></span>
       </button>
+      <button class="history-pill" id="driverHistoryPill" onclick="showDriverHistory()" title="My Deliveries" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
       <button class="logout-pill" onclick="logoutDriver()" title="Log Out" id="logoutBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
@@ -1161,11 +1164,11 @@
   <!-- HISTORY VIEW -->
   <div id="historyView">
     <div class="history-header">
-      <button class="back-btn" onclick="showForm()">
+      <button class="back-btn" onclick="historyBack()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         Back
       </button>
-      <div class="history-title">History</div>
+      <div class="history-title" id="historyViewTitle">History</div>
       <div class="history-count" id="historyCount"></div>
       <button class="map-pill disabled" id="mapPill" onclick="openMapView()" title="View route map">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
@@ -1287,9 +1290,9 @@
   <!-- DETAIL VIEW -->
   <div id="detailView">
     <div class="detail-header">
-      <button class="back-btn" onclick="showHistory()">
+      <button class="back-btn" onclick="returnToHistory()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-        History
+        <span id="detailBackLabel">History</span>
       </button>
       <div class="detail-title">Delivery Detail</div>
     </div>
@@ -1477,13 +1480,43 @@ function showForm() {
   document.getElementById('routeView').classList.remove('show');
   window.scrollTo(0,0);
 }
-function showHistory() {
+function showDriverHistory() {
+  historyMode = 'driver';
+  activeDriverFilter = null;
+  // Reset date filters so loadHistory re-initialises them
+  document.getElementById('filterDateFrom').value = '';
+  document.getElementById('filterDateTo').value   = '';
+  document.getElementById('filterSearch').value   = '';
   document.getElementById('driverLoginScreen').classList.add('hidden');
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('successScreen').classList.remove('show');
   document.getElementById('historyView').classList.add('show');
   document.getElementById('detailView').classList.remove('show');
   document.getElementById('analyticsView').classList.remove('show');
+  // Update UI for driver mode
+  document.getElementById('historyViewTitle').textContent = 'My Deliveries';
+  document.getElementById('filterSearch').placeholder = 'Search by customer...';
+  document.getElementById('driverChips').style.display = 'none';
+  window.scrollTo(0,0);
+  loadHistory();
+}
+
+function showHistory() {
+  historyMode = 'admin';
+  activeDriverFilter = null;
+  document.getElementById('filterSearch').value = '';
+  document.getElementById('filterDateFrom').value = '';
+  document.getElementById('filterDateTo').value   = '';
+  document.getElementById('driverLoginScreen').classList.add('hidden');
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('successScreen').classList.remove('show');
+  document.getElementById('historyView').classList.add('show');
+  document.getElementById('detailView').classList.remove('show');
+  document.getElementById('analyticsView').classList.remove('show');
+  // Reset UI for admin mode
+  document.getElementById('historyViewTitle').textContent = 'History';
+  document.getElementById('filterSearch').placeholder = 'Search customer or driver...';
+  document.getElementById('driverChips').style.display = '';
   window.scrollTo(0,0);
   loadHistory();
 }
@@ -1500,7 +1533,15 @@ function showAnalytics() {
 function showDetail(record) {
   document.getElementById('historyView').classList.remove('show');
   document.getElementById('detailView').classList.add('show');
+  document.getElementById('detailBackLabel').textContent = historyMode === 'driver' ? 'My Deliveries' : 'History';
   renderDetail(record);
+  window.scrollTo(0,0);
+}
+
+function returnToHistory() {
+  // Return to history preserving mode and filters — no reset
+  document.getElementById('detailView').classList.remove('show');
+  document.getElementById('historyView').classList.add('show');
   window.scrollTo(0,0);
 }
 
@@ -1615,6 +1656,7 @@ function showAppAsDriver(name) {
   document.getElementById('driverWelcomeName').textContent = name;
   document.getElementById('formSection').style.display = 'block';
   document.getElementById('routePill').style.display = 'flex';
+  document.getElementById('driverHistoryPill').style.display = 'flex';
   updateSteps();
   loadActiveRoute();
 }
@@ -1627,6 +1669,8 @@ function logoutDriver() {
   loginPinEntry     = '';
   loginGoBack();
   document.getElementById('driverLoginScreen').classList.remove('hidden');
+  document.getElementById('driverHistoryPill').style.display = 'none';
+  document.getElementById('routePill').style.display = 'none';
 }
 
 // ── CUSTOMER SEARCH ───────────────────────────────────────
@@ -1829,17 +1873,28 @@ async function insertRecord(record) {
   if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `Database insert failed (${res.status})`); }
 }
 async function fetchRecords() {
-  const res = await sbRequest(`/rest/v1/${config.table}?order=delivery_datetime.desc&limit=500`, {
+  // In driver mode, lock the query to the logged-in driver server-side
+  const driverFilter = historyMode === 'driver' && loggedInDriver
+    ? `&driver_name=eq.${encodeURIComponent(loggedInDriver)}`
+    : '';
+  const res = await sbRequest(`/rest/v1/${config.table}?order=delivery_datetime.desc&limit=500${driverFilter}`, {
     headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': '0-499' }
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || `Failed to load history (${res.status})`);
   }
-  const data = await res.json();
-  console.log('Supabase response status:', res.status);
-  console.log('Records returned:', data);
-  return data;
+  return await res.json();
+}
+
+function historyBack() {
+  // In driver mode always go back to form; in admin mode go to login if no driver
+  if (historyMode === 'driver' || loggedInDriver) {
+    showForm();
+  } else {
+    document.getElementById('historyView').classList.remove('show');
+    document.getElementById('driverLoginScreen').classList.remove('hidden');
+  }
 }
 
 // ── LOCATION ──────────────────────────────────────────────
@@ -2101,6 +2156,7 @@ function resetForm() {
 // ── HISTORY ───────────────────────────────────────────────
 let allRecords = [];
 let activeDriverFilter = null;
+let historyMode = 'admin'; // 'admin' | 'driver'
 
 function todayStr() {
   const now = new Date();
@@ -2136,9 +2192,14 @@ async function loadHistory() {
 }
 
 function buildDriverChips() {
-  // Build driver list dynamically from returned records
-  const drivers = [...new Set(allRecords.map(r => r.driver_name).filter(Boolean))].sort();
   const wrap = document.getElementById('driverChips');
+  // In driver mode the chip bar is hidden entirely — only one driver's data is shown
+  if (historyMode === 'driver') {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = '';
+  const drivers = [...new Set(allRecords.map(r => r.driver_name).filter(Boolean))].sort();
   wrap.innerHTML = ['All', ...drivers].map(d =>
     `<button class="driver-chip${(d === 'All' && !activeDriverFilter) || d === activeDriverFilter ? ' active' : ''}" onclick="filterByDriver('${escHtml(d)}')">${escHtml(d)}</button>`
   ).join('');
@@ -2158,7 +2219,8 @@ function applyFilters() {
   const filtered = allRecords.filter(r => {
     const matchSearch = !search ||
       (r.customer_name||'').toLowerCase().includes(search) ||
-      (r.driver_name||'').toLowerCase().includes(search);
+      // In driver mode all records already belong to this driver — skip driver name search
+      (historyMode === 'admin' && (r.driver_name||'').toLowerCase().includes(search));
     const recDate    = r.delivery_datetime ? r.delivery_datetime.slice(0,10) : '';
     const matchFrom  = !dateFrom || recDate >= dateFrom;
     const matchTo    = !dateTo   || recDate <= dateTo;
@@ -2228,16 +2290,17 @@ let leafletMap = null;
 let leafletMarkers = [];
 
 function updateMapPill() {
-  // Enable map pill only if single driver selected AND single day range
   const pill = document.getElementById('mapPill');
   if (!pill) return;
   const fromVal = document.getElementById('filterDateFrom').value;
   const toVal   = document.getElementById('filterDateTo').value;
   const singleDay    = fromVal && toVal && fromVal === toVal;
-  const singleDriver = !!activeDriverFilter;
+  // In driver mode the driver is always locked to loggedInDriver — no chip selection needed
+  const singleDriver = historyMode === 'driver' ? !!loggedInDriver : !!activeDriverFilter;
+  const driverLabel  = historyMode === 'driver' ? loggedInDriver : activeDriverFilter;
   if (singleDay && singleDriver) {
     pill.classList.remove('disabled');
-    pill.title = `View ${activeDriverFilter}'s route for ${fromVal}`;
+    pill.title = `View ${driverLabel}'s route for ${fromVal}`;
   } else {
     pill.classList.add('disabled');
     if (!singleDriver && !singleDay) pill.title = 'Select a single driver and single day to view route map';
@@ -2250,37 +2313,35 @@ function openMapView() {
   const pill = document.getElementById('mapPill');
   if (pill.classList.contains('disabled')) return;
 
-  const fromVal = document.getElementById('filterDateFrom').value;
-  // Get filtered records for the current single-driver / single-day view
-  const search   = document.getElementById('filterSearch').value.trim().toLowerCase();
+  const fromVal     = document.getElementById('filterDateFrom').value;
+  const search      = document.getElementById('filterSearch').value.trim().toLowerCase();
+  // In driver mode, the effective driver filter is the logged-in driver
+  const effectiveDriver = historyMode === 'driver' ? loggedInDriver : activeDriverFilter;
+
   const filtered = allRecords.filter(r => {
     const matchSearch = !search ||
       (r.customer_name||'').toLowerCase().includes(search) ||
-      (r.driver_name||'').toLowerCase().includes(search);
+      (historyMode === 'admin' && (r.driver_name||'').toLowerCase().includes(search));
     const recDate    = r.delivery_datetime ? r.delivery_datetime.slice(0,10) : '';
     const matchFrom  = !fromVal || recDate >= fromVal;
     const matchTo    = !fromVal || recDate <= fromVal;
-    const matchDriver = !activeDriverFilter || (r.driver_name||'') === activeDriverFilter;
+    const matchDriver = !effectiveDriver || (r.driver_name||'') === effectiveDriver;
     return matchSearch && matchFrom && matchTo && matchDriver;
   });
 
-  // Sort chronologically
   const sorted = [...filtered].sort((a,b) => new Date(a.delivery_datetime) - new Date(b.delivery_datetime));
-
-  // Check for GPS data
   const withGps    = sorted.filter(r => r.latitude && r.longitude);
   const missingGps = sorted.length - withGps.length;
 
   document.getElementById('mapNoGpsWarning').style.display = missingGps > 0 ? 'flex' : 'none';
   document.getElementById('mapOverlayTitle').textContent =
-    `${activeDriverFilter} · ${new Date(fromVal + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })}`;
+    `${effectiveDriver} · ${new Date(fromVal + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })}`;
   document.getElementById('mapInfoText').textContent =
     `${withGps.length} drop${withGps.length !== 1 ? 's' : ''} with GPS · tap a marker for details`;
 
   document.getElementById('mapOverlay').classList.add('open');
   window.scrollTo(0,0);
 
-  // Slight delay so overlay is visible before map init
   setTimeout(() => initLeafletMap(withGps, sorted), 80);
 }
 
