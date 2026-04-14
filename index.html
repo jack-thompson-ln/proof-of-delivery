@@ -4099,11 +4099,16 @@ function handleAddressPickerOverlayClick(e) {
   if (e.target === document.getElementById('addressPickerOverlay')) closeAddressPicker();
 }
 
-// ── Nearest-Neighbour Route Optimiser ────────────────────────────────────────
+// ── Route Optimiser: Nearest-Neighbour + 2-opt ───────────────────────────────
 /**
- * Sorts stops into the shortest order using nearest-neighbour heuristic.
- * Starts from the depot, always picks the nearest unvisited stop next.
- * Stops without GPS coordinates are appended at the end in their original order.
+ * Optimises stop order using nearest-neighbour (seeding) followed by 2-opt
+ * improvement passes. 2-opt repeatedly un-crosses route segments until no
+ * improvement is found, producing significantly better routes than greedy
+ * nearest-neighbour alone.
+ *
+ * The depot is used as the fixed start point. Stops without GPS coordinates
+ * are appended at the end in their original order (unchanged).
+ *
  * @returns {{ stops: Array, reorderedCount: number }}
  */
 function optimiseRouteStops(stops, depotLat, depotLng) {
@@ -4113,14 +4118,15 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
   const withoutCoords = stops.filter(s => !(s.lat && s.lng));
 
   if (withCoords.length <= 1) {
-    // Not enough GPS stops to optimise — return as-is
     return { stops: [...stops], reorderedCount: 0 };
   }
 
-  // Snapshot original order for comparison
+  // Snapshot original customer order for comparison at the end
   const originalOrder = withCoords.map(s => s.customer);
 
-  // Run nearest-neighbour from depot
+  // ── Phase 1: Nearest-neighbour seed ──────────────────────────────────────
+  // Produces a reasonable starting route by always visiting the closest
+  // unvisited stop next, starting from the depot.
   const unvisited = [...withCoords];
   const route     = [];
   let curLat = depotLat;
@@ -4138,7 +4144,52 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
     curLng = chosen.lng;
   }
 
-  // Count how many moved position
+  // ── Phase 2: 2-opt improvement ───────────────────────────────────────────
+  // Repeatedly try reversing every sub-segment [i..k] of the route.
+  // If reversing produces a shorter total distance, keep it.
+  // The depot is treated as a fixed anchor at both ends (open route —
+  // we minimise depot→first + inter-stop + last→depot total distance).
+  //
+  // Runs until a full pass finds no improvement (convergence).
+
+  function routeDistance(r) {
+    // Depot → first stop
+    let d = haversineKm(depotLat, depotLng, r[0].lat, r[0].lng);
+    // Inter-stop legs
+    for (let i = 0; i < r.length - 1; i++) {
+      d += haversineKm(r[i].lat, r[i].lng, r[i+1].lat, r[i+1].lng);
+    }
+    // Last stop → depot (important: avoids routes that end far from base)
+    d += haversineKm(r[r.length-1].lat, r[r.length-1].lng, depotLat, depotLng);
+    return d;
+  }
+
+  let improved = true;
+  let bestDist = routeDistance(route);
+
+  while (improved) {
+    improved = false;
+    for (let i = 0; i < route.length - 1; i++) {
+      for (let k = i + 1; k < route.length; k++) {
+        // Reverse the sub-segment between i and k (inclusive)
+        const newRoute = [
+          ...route.slice(0, i),
+          ...route.slice(i, k + 1).reverse(),
+          ...route.slice(k + 1)
+        ];
+        const newDist = routeDistance(newRoute);
+        if (newDist < bestDist - 0.001) { // 1-metre threshold avoids float noise
+          route.splice(0, route.length, ...newRoute);
+          bestDist = newDist;
+          improved = true;
+        }
+      }
+    }
+  }
+
+  // ── Count genuinely reordered stops ──────────────────────────────────────
+  // Compare against the original driver-entered order.
+  // Report the number of stops that ended up in a different position.
   const newOrder = route.map(s => s.customer);
   let reorderedCount = 0;
   for (let i = 0; i < originalOrder.length; i++) {
