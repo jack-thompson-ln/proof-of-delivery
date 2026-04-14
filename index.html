@@ -952,6 +952,199 @@
     #addressPickerOverlay { align-items: center; }
     .address-picker-sheet { border-radius: 20px; max-height: 80vh; }
   }
+
+  /* ══ ADDRESS MANAGER ══ */
+  .address-pill {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.18);
+    border: 1.5px solid rgba(255,255,255,0.35);
+    border-radius: 10px; padding: 8px;
+    color: white; cursor: pointer;
+    transition: all 0.15s ease;
+    width: 36px; height: 36px; flex-shrink: 0;
+  }
+  .address-pill:active { background: rgba(255,255,255,0.3); transform: scale(0.96); }
+  .address-pill svg { width: 17px; height: 17px; }
+
+  #addressManagerOverlay {
+    display: none; position: fixed; inset: 0; z-index: 550;
+    background: var(--off-white); flex-direction: column;
+  }
+  #addressManagerOverlay.open { display: flex; }
+
+  .am-header {
+    background: var(--brand); padding: 14px 16px; display: flex;
+    align-items: center; gap: 12px; flex-shrink: 0;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+  }
+  .am-back {
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.35);
+    border-radius: 10px; width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; cursor: pointer; flex-shrink: 0; touch-action: manipulation;
+  }
+  .am-back svg { width: 18px; height: 18px; }
+  .am-back:active { background: rgba(255,255,255,0.3); }
+  .am-header-titles { flex: 1; }
+  .am-header-title {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 1.15rem;
+    font-weight: 800; color: white; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.1;
+  }
+  .am-header-sub { font-size: 0.62rem; color: rgba(255,255,255,0.65); letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .am-body { flex: 1; overflow-y: auto; padding: 20px 16px 40px; max-width: 600px; margin: 0 auto; width: 100%; }
+
+  .am-search-wrap { position: relative; margin-bottom: 20px; }
+  .am-search {
+    width: 100%; padding: 12px 44px 12px 16px;
+    border: 2px solid var(--border); border-radius: 12px;
+    font-family: 'Barlow', sans-serif; font-size: 0.95rem; background: white;
+    color: var(--text); outline: none; transition: border-color 0.15s;
+  }
+  .am-search:focus { border-color: var(--brand); }
+  .am-search-icon {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); pointer-events: none;
+  }
+  .am-search-icon svg { width: 18px; height: 18px; display: block; }
+
+  .am-customer-results { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .am-customer-row {
+    background: white; border: 2px solid var(--border); border-radius: 12px;
+    padding: 12px 16px; cursor: pointer; display: flex; align-items: center;
+    gap: 12px; transition: all 0.15s; touch-action: manipulation;
+  }
+  .am-customer-row:active, .am-customer-row.selected { border-color: var(--brand); background: rgba(0,75,142,0.04); }
+  .am-customer-code {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 0.85rem;
+    color: var(--brand); background: rgba(0,75,142,0.08); border-radius: 6px;
+    padding: 3px 7px; flex-shrink: 0;
+  }
+  .am-customer-name { font-size: 0.9rem; font-weight: 500; color: var(--text); flex: 1; }
+  .am-customer-addr-count { font-size: 0.75rem; color: var(--text-muted); flex-shrink: 0; }
+
+  .am-empty { text-align: center; padding: 32px 20px; color: var(--text-muted); font-size: 0.9rem; }
+  .am-empty svg { width: 40px; height: 40px; margin: 0 auto 12px; display: block; opacity: 0.3; }
+
+  /* Address list panel (shown after customer selected) */
+  .am-addr-section { animation: fadeIn 0.2s ease; }
+  .am-addr-section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; gap: 12px;
+  }
+  .am-selected-customer {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1rem;
+    color: var(--brand);
+  }
+  .am-selected-sub { font-size: 0.75rem; color: var(--text-muted); }
+  .am-add-btn {
+    background: var(--brand); color: white; border: none; border-radius: 10px;
+    padding: 9px 14px; font-family: 'Barlow Condensed', sans-serif; font-size: 0.85rem;
+    font-weight: 700; letter-spacing: 0.03em; cursor: pointer; display: flex; align-items: center;
+    gap: 6px; flex-shrink: 0; touch-action: manipulation; transition: background 0.15s;
+  }
+  .am-add-btn:active { background: var(--brand-dark); }
+  .am-add-btn svg { width: 15px; height: 15px; }
+
+  .am-addr-list { display: flex; flex-direction: column; gap: 10px; }
+  .am-addr-card {
+    background: white; border: 2px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .am-addr-card-top { display: flex; align-items: flex-start; gap: 10px; }
+  .am-addr-label {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1rem;
+    color: var(--text); flex: 1;
+  }
+  .am-addr-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .am-addr-edit-btn, .am-addr-del-btn {
+    width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    touch-action: manipulation; transition: all 0.15s; background: white;
+  }
+  .am-addr-edit-btn svg, .am-addr-del-btn svg { width: 14px; height: 14px; }
+  .am-addr-edit-btn { color: var(--brand); }
+  .am-addr-edit-btn:active { background: rgba(0,75,142,0.08); border-color: var(--brand); }
+  .am-addr-del-btn { color: var(--error); }
+  .am-addr-del-btn:active { background: rgba(224,60,60,0.08); border-color: var(--error); }
+  .am-addr-line { font-size: 0.85rem; color: var(--text); }
+  .am-addr-postcode { font-size: 0.8rem; color: var(--text-muted); }
+  .am-addr-coords {
+    font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px;
+  }
+  .am-addr-coords svg { width: 11px; height: 11px; flex-shrink: 0; }
+  .am-addr-no-coords {
+    font-size: 0.72rem; color: #f59e0b; display: flex; align-items: center; gap: 4px;
+  }
+  .am-addr-no-coords svg { width: 11px; height: 11px; flex-shrink: 0; }
+
+  /* Address form drawer */
+  #amFormOverlay {
+    display: none; position: fixed; inset: 0; z-index: 610;
+    background: rgba(0,20,50,0.6); backdrop-filter: blur(4px);
+    align-items: flex-end; justify-content: center;
+  }
+  #amFormOverlay.open { display: flex; }
+  .am-form-sheet {
+    background: white; border-radius: 20px 20px 0 0; width: 100%; max-width: 560px;
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.2); animation: slideUp 0.25s ease;
+    max-height: 92vh; overflow-y: auto; padding: 20px 20px 32px;
+  }
+  .am-form-title {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1.1rem;
+    color: var(--brand); margin-bottom: 4px;
+  }
+  .am-form-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 20px; }
+  .am-form-group { margin-bottom: 14px; }
+  .am-form-label {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--brand); display: block; margin-bottom: 5px;
+  }
+  .am-form-input {
+    width: 100%; padding: 10px 14px; border: 2px solid var(--border); border-radius: 10px;
+    font-family: 'Barlow', sans-serif; font-size: 0.9rem; color: var(--text);
+    background: white; outline: none; transition: border-color 0.15s;
+  }
+  .am-form-input:focus { border-color: var(--brand); }
+  .am-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .am-geocode-btn {
+    width: 100%; padding: 10px; background: rgba(0,75,142,0.07);
+    border: 1.5px dashed var(--brand); border-radius: 10px;
+    color: var(--brand); font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.03em;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    gap: 8px; margin-bottom: 16px; touch-action: manipulation; transition: background 0.15s;
+  }
+  .am-geocode-btn:active { background: rgba(0,75,142,0.14); }
+  .am-geocode-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .am-geocode-result {
+    background: rgba(0,184,107,0.08); border: 1.5px solid var(--success);
+    border-radius: 10px; padding: 10px 14px; font-size: 0.82rem; color: var(--text);
+    margin-bottom: 14px; display: none;
+  }
+  .am-geocode-result.show { display: block; }
+  .am-geocode-result strong { color: var(--success); display: block; font-size: 0.72rem; margin-bottom: 3px; letter-spacing: 0.05em; }
+  .am-form-actions { display: flex; gap: 10px; margin-top: 6px; }
+  .am-form-cancel {
+    flex: 1; padding: 12px; border: 2px solid var(--border); border-radius: 12px;
+    background: white; color: var(--text); font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.95rem; font-weight: 700; cursor: pointer; touch-action: manipulation;
+  }
+  .am-form-save {
+    flex: 2; padding: 12px; background: var(--brand); color: white; border: none;
+    border-radius: 12px; font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.95rem; font-weight: 800; letter-spacing: 0.04em; cursor: pointer;
+    touch-action: manipulation; transition: background 0.15s;
+  }
+  .am-form-save:active { background: var(--brand-dark); }
+  .am-form-save:disabled { opacity: 0.5; pointer-events: none; }
+  .am-form-err { font-size: 0.8rem; color: var(--error); margin-top: 8px; text-align: center; display: none; }
+  .am-form-err.show { display: block; }
+
+  @media (min-width: 700px) {
+    #amFormOverlay { align-items: center; }
+    .am-form-sheet { border-radius: 20px; }
+  }
 </style>
 </head>
 <body>
@@ -975,6 +1168,9 @@
     <button class="history-pill" onclick="openPinModal('history')" title="History">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       <span class="history-pill-badge" id="historyBadge"></span>
+    </button>
+    <button class="address-pill" onclick="openPinModal('addresses')" title="Address Management">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     </button>
   </div>
   <div class="login-box">
@@ -1408,6 +1604,87 @@
     </div>
   </div>
 
+  <!-- ADDRESS MANAGER OVERLAY -->
+  <div id="addressManagerOverlay">
+    <div class="am-header">
+      <button class="am-back" onclick="closeAddressManager()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="am-header-titles">
+        <div class="am-header-title">Address Manager</div>
+        <div class="am-header-sub">Customer delivery addresses</div>
+      </div>
+    </div>
+    <div class="am-body">
+      <div class="am-search-wrap">
+        <input type="text" class="am-search" id="amSearch" placeholder="Search customer name or code…" oninput="amSearchInput()" autocomplete="off" autocorrect="off" spellcheck="false">
+        <div class="am-search-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+      </div>
+      <div id="amCustomerResults" class="am-customer-results"></div>
+      <div id="amAddrSection" class="am-addr-section" style="display:none;">
+        <div class="am-addr-section-header">
+          <div>
+            <div class="am-selected-customer" id="amSelectedCustomerName"></div>
+            <div class="am-selected-sub" id="amSelectedCustomerSub"></div>
+          </div>
+          <button class="am-add-btn" onclick="openAmForm(null)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Address
+          </button>
+        </div>
+        <div class="am-addr-list" id="amAddrList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADDRESS FORM SHEET -->
+  <div id="amFormOverlay" onclick="handleAmFormOverlayClick(event)">
+    <div class="am-form-sheet">
+      <div class="am-form-title" id="amFormTitle">Add Address</div>
+      <div class="am-form-sub" id="amFormSub">Enter the delivery address details</div>
+      <div class="am-form-group">
+        <label class="am-form-label">Label <span style="opacity:0.5;font-weight:400">(e.g. Head Office, Warehouse)</span></label>
+        <input type="text" class="am-form-input" id="amFieldLabel" placeholder="Main Entrance" autocomplete="off">
+      </div>
+      <div class="am-form-group">
+        <label class="am-form-label">Address Line</label>
+        <input type="text" class="am-form-input" id="amFieldAddress" placeholder="12 High Street" autocomplete="off">
+      </div>
+      <div class="am-form-row">
+        <div class="am-form-group" style="margin-bottom:0;">
+          <label class="am-form-label">Postcode</label>
+          <input type="text" class="am-form-input" id="amFieldPostcode" placeholder="LN1 1AA" autocomplete="off" style="text-transform:uppercase;">
+        </div>
+        <div class="am-form-group" style="margin-bottom:0;"></div>
+      </div>
+      <button class="am-geocode-btn" onclick="amGeocode()" id="amGeocodeBtn" style="margin-top:14px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z" opacity="0.3"/><path d="M12 8v4l3 3"/></svg>
+        Geocode Address → Get Coordinates
+      </button>
+      <div class="am-geocode-result" id="amGeocodeResult">
+        <strong>✓ COORDINATES FOUND</strong>
+        <span id="amGeocodeResultText"></span>
+      </div>
+      <div class="am-form-row">
+        <div class="am-form-group" style="margin-bottom:0;">
+          <label class="am-form-label">Latitude <span style="opacity:0.5;font-weight:400">(auto or manual)</span></label>
+          <input type="number" class="am-form-input" id="amFieldLat" placeholder="53.2307" step="any" autocomplete="off">
+        </div>
+        <div class="am-form-group" style="margin-bottom:0;">
+          <label class="am-form-label">Longitude</label>
+          <input type="number" class="am-form-input" id="amFieldLng" placeholder="-0.5390" step="any" autocomplete="off">
+        </div>
+      </div>
+      <div class="am-form-err" id="amFormErr"></div>
+      <div class="am-form-actions" style="margin-top:18px;">
+        <button class="am-form-cancel" onclick="closeAmForm()">Cancel</button>
+        <button class="am-form-save" id="amFormSave" onclick="amSaveAddress()">Save Address</button>
+      </div>
+    </div>
+  </div>
+
   <!-- DETAIL VIEW -->
   <div id="detailView">
     <div class="detail-header">
@@ -1563,12 +1840,14 @@ function openPinModal(dest = 'history') {
   const titles = {
     config:    'Configuration',
     analytics: 'Analytics',
-    history:   'History'
+    history:   'History',
+    addresses: 'Address Manager'
   };
   const descs = {
     config:    'Enter the admin PIN to access configuration',
     analytics: 'Enter the admin PIN to view analytics',
-    history:   'Enter the admin PIN to view delivery history'
+    history:   'Enter the admin PIN to view delivery history',
+    addresses: 'Enter the admin PIN to manage customer addresses'
   };
   document.getElementById('pinModalTitle').textContent = titles[dest] || 'Admin Access';
   document.getElementById('pinModalDesc').textContent  = descs[dest]  || 'Enter the admin PIN';
@@ -1601,6 +1880,7 @@ function checkPin() {
     closePinModal();
     if (pinDestination === 'analytics') showAnalytics();
     else if (pinDestination === 'config') toggleConfig();
+    else if (pinDestination === 'addresses') showAddressManager();
     else showHistory();
   } else {
     for (let i = 0; i < 4; i++) document.getElementById('pd'+i).classList.add('error');
@@ -4216,6 +4496,352 @@ function showOptimiseToast(message) {
   void toast.offsetWidth; // force reflow to restart animation
   toast.classList.add('show');
   _toastTimeout = setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+// ══ ADDRESS MANAGER ══════════════════════════════════════════════════════════
+
+let amSelectedCustomer = null; // full name string e.g. "A137 - MICHAEL GOMEZ"
+let amEditingAddressId = null; // null = adding new, string = editing existing
+let amGeocodeCoords   = null; // { lat, lng } from last geocode
+
+function showAddressManager() {
+  // Hide login screen if visible
+  document.getElementById('driverLoginScreen').classList.add('hidden');
+  document.getElementById('addressManagerOverlay').classList.add('open');
+  // Reset to search state
+  amSelectedCustomer = null;
+  document.getElementById('amSearch').value = '';
+  document.getElementById('amCustomerResults').innerHTML = '';
+  document.getElementById('amAddrSection').style.display = 'none';
+  document.getElementById('amSearch').focus();
+}
+
+function closeAddressManager() {
+  document.getElementById('addressManagerOverlay').classList.remove('open');
+  // Restore login screen if no driver is logged in
+  if (!loggedInDriver) {
+    document.getElementById('driverLoginScreen').classList.remove('hidden');
+  }
+}
+
+// ── Customer Search ──────────────────────────────────────────────────────────
+
+let amSearchTimer = null;
+function amSearchInput() {
+  clearTimeout(amSearchTimer);
+  amSearchTimer = setTimeout(amRunSearch, 280);
+}
+
+async function amRunSearch() {
+  const query = document.getElementById('amSearch').value.trim().toLowerCase();
+  const resultsEl = document.getElementById('amCustomerResults');
+  const addrSection = document.getElementById('amAddrSection');
+
+  if (query.length < 2) {
+    resultsEl.innerHTML = `<div class="am-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Type at least 2 characters to search customers</div>`;
+    addrSection.style.display = 'none';
+    return;
+  }
+
+  resultsEl.innerHTML = `<div class="am-empty" style="padding:20px 0;">Searching…</div>`;
+
+  try {
+    // Search customers table by name (case-insensitive contains)
+    const res = await sbRequest(
+      `/rest/v1/customers?name=ilike.*${encodeURIComponent(query)}*&active=eq.true&order=name.asc&limit=20`,
+      { headers: { 'Accept': 'application/json' } }
+    );
+    if (!res.ok) throw new Error('Search failed');
+    const customers = await res.json();
+
+    if (customers.length === 0) {
+      resultsEl.innerHTML = `<div class="am-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>No customers found for "<strong>${escHtml(query)}</strong>"</div>`;
+      return;
+    }
+
+    // Fetch address counts for these customers in one batch
+    const codes = customers.map(c => extractCustomerCode(c.name)).filter(Boolean);
+    const addrGroups = await fetchAddressesForCodes(codes);
+
+    resultsEl.innerHTML = customers.map(c => {
+      const code = extractCustomerCode(c.name);
+      const fullName = c.name.includes(' - ') ? c.name.split(' - ').slice(1).join(' - ').trim() : c.name;
+      const addrCount = (addrGroups[code] || []).length;
+      const addrLabel = addrCount === 0 ? 'No addresses' : addrCount === 1 ? '1 address' : `${addrCount} addresses`;
+      return `<div class="am-customer-row" onclick="amSelectCustomer('${escHtml(c.name).replace(/'/g,"\\'")}')">
+        <div class="am-customer-code">${escHtml(code || '?')}</div>
+        <div class="am-customer-name">${escHtml(fullName)}</div>
+        <div class="am-customer-addr-count">${addrLabel}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    resultsEl.innerHTML = `<div class="am-empty" style="color:var(--error);">Search error — check connection</div>`;
+  }
+}
+
+// ── Select customer & show their addresses ───────────────────────────────────
+
+async function amSelectCustomer(fullName) {
+  amSelectedCustomer = fullName;
+  const code = extractCustomerCode(fullName);
+  const displayName = fullName.includes(' - ') ? fullName.split(' - ').slice(1).join(' - ').trim() : fullName;
+
+  document.getElementById('amSelectedCustomerName').textContent = `${code} — ${displayName}`;
+  document.getElementById('amSelectedCustomerSub').textContent = 'Loading addresses…';
+  document.getElementById('amAddrList').innerHTML = '';
+  document.getElementById('amAddrSection').style.display = 'block';
+  document.getElementById('amCustomerResults').innerHTML = '';
+
+  // Highlight selected row (clear the search so list is gone and addr section is the focus)
+  await amLoadAddresses();
+}
+
+async function amLoadAddresses() {
+  if (!amSelectedCustomer) return;
+  const code = extractCustomerCode(amSelectedCustomer);
+  const listEl = document.getElementById('amAddrList');
+  const subEl  = document.getElementById('amSelectedCustomerSub');
+
+  listEl.innerHTML = '<div class="am-empty" style="padding:16px 0;">Loading…</div>';
+
+  try {
+    // Always fetch fresh from Supabase (bypass cache for manager)
+    const res = await sbRequest(
+      `/rest/v1/customer_addresses?customer_code=eq.${encodeURIComponent(code)}&select=id,customer_code,label,address_line,postcode,lat,lng&order=label.asc`,
+      { headers: { 'Accept': 'application/json' } }
+    );
+    if (!res.ok) throw new Error('Fetch failed');
+    const addresses = await res.json();
+
+    // Update session cache too
+    addressCache[code] = addresses;
+
+    subEl.textContent = addresses.length === 0 ? 'No addresses on file' :
+      addresses.length === 1 ? '1 address on file' : `${addresses.length} addresses on file`;
+
+    if (addresses.length === 0) {
+      listEl.innerHTML = `<div class="am-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>No delivery addresses yet — tap Add Address to create one</div>`;
+      return;
+    }
+
+    listEl.innerHTML = addresses.map((a, i) => {
+      const hasCoords = a.lat != null && a.lng != null;
+      const coordsHtml = hasCoords
+        ? `<div class="am-addr-coords"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 1 1 0 20A10 10 0 0 1 12 2z" opacity="0.3"/></svg>${a.lat.toFixed(5)}, ${a.lng.toFixed(5)}</div>`
+        : `<div class="am-addr-no-coords"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>No coordinates — route optimisation won't apply</div>`;
+      return `<div class="am-addr-card" id="amAddrCard_${escHtml(a.id)}">
+        <div class="am-addr-card-top">
+          <div class="am-addr-label">${escHtml(a.label || 'Unnamed')}</div>
+          <div class="am-addr-actions">
+            <button class="am-addr-edit-btn" onclick="openAmForm('${escHtml(a.id)}')" title="Edit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="am-addr-del-btn" onclick="amDeleteAddress('${escHtml(a.id)}', '${escHtml(a.label || 'Unnamed')}')" title="Delete">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </div>
+        </div>
+        ${a.address_line ? `<div class="am-addr-line">${escHtml(a.address_line)}</div>` : ''}
+        ${a.postcode ? `<div class="am-addr-postcode">${escHtml(a.postcode)}</div>` : ''}
+        ${coordsHtml}
+      </div>`;
+    }).join('');
+
+    // Store addresses array on window for edit lookups
+    window._amAddresses = addresses;
+
+  } catch(e) {
+    listEl.innerHTML = `<div class="am-empty" style="color:var(--error);">Failed to load addresses</div>`;
+  }
+}
+
+// ── Address Form (Add / Edit) ────────────────────────────────────────────────
+
+function openAmForm(addressId) {
+  amEditingAddressId = addressId;
+  amGeocodeCoords = null;
+
+  document.getElementById('amGeocodeResult').classList.remove('show');
+  document.getElementById('amFormErr').classList.remove('show');
+
+  if (addressId === null) {
+    // Adding new
+    document.getElementById('amFormTitle').textContent = 'Add Address';
+    document.getElementById('amFormSub').textContent = amSelectedCustomer
+      ? `New delivery address for ${extractCustomerCode(amSelectedCustomer)}`
+      : 'New delivery address';
+    document.getElementById('amFieldLabel').value   = '';
+    document.getElementById('amFieldAddress').value = '';
+    document.getElementById('amFieldPostcode').value = '';
+    document.getElementById('amFieldLat').value = '';
+    document.getElementById('amFieldLng').value = '';
+  } else {
+    // Editing existing
+    const addr = (window._amAddresses || []).find(a => a.id === addressId);
+    if (!addr) return;
+    document.getElementById('amFormTitle').textContent = 'Edit Address';
+    document.getElementById('amFormSub').textContent = `Editing: ${addr.label || 'Unnamed'}`;
+    document.getElementById('amFieldLabel').value   = addr.label || '';
+    document.getElementById('amFieldAddress').value = addr.address_line || '';
+    document.getElementById('amFieldPostcode').value = addr.postcode || '';
+    document.getElementById('amFieldLat').value = addr.lat != null ? addr.lat : '';
+    document.getElementById('amFieldLng').value = addr.lng != null ? addr.lng : '';
+    if (addr.lat != null && addr.lng != null) {
+      amGeocodeCoords = { lat: addr.lat, lng: addr.lng };
+    }
+  }
+
+  document.getElementById('amFormSave').disabled = false;
+  document.getElementById('amFormOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('amFieldLabel').focus(), 100);
+}
+
+function closeAmForm() {
+  document.getElementById('amFormOverlay').classList.remove('open');
+  amEditingAddressId = null;
+  amGeocodeCoords = null;
+}
+
+function handleAmFormOverlayClick(e) {
+  if (e.target === document.getElementById('amFormOverlay')) closeAmForm();
+}
+
+// ── Geocoding ────────────────────────────────────────────────────────────────
+
+async function amGeocode() {
+  const addressLine = document.getElementById('amFieldAddress').value.trim();
+  const postcode    = document.getElementById('amFieldPostcode').value.trim();
+  const query       = [addressLine, postcode, 'UK'].filter(Boolean).join(', ');
+
+  if (!addressLine && !postcode) {
+    amShowFormErr('Enter an address line or postcode to geocode');
+    return;
+  }
+
+  const btn = document.getElementById('amGeocodeBtn');
+  btn.textContent = 'Searching…';
+  btn.disabled = true;
+  document.getElementById('amGeocodeResult').classList.remove('show');
+  document.getElementById('amFormErr').classList.remove('show');
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': 'FMF-POD-App/1.0' } });
+    const results = await res.json();
+
+    if (!results || results.length === 0) {
+      amShowFormErr('No location found — try a more specific address or enter coordinates manually');
+    } else {
+      const r = results[0];
+      amGeocodeCoords = { lat: parseFloat(r.lat), lng: parseFloat(r.lon) };
+      document.getElementById('amFieldLat').value = amGeocodeCoords.lat.toFixed(6);
+      document.getElementById('amFieldLng').value = amGeocodeCoords.lng.toFixed(6);
+      document.getElementById('amGeocodeResultText').textContent = r.display_name;
+      document.getElementById('amGeocodeResult').classList.add('show');
+    }
+  } catch(e) {
+    amShowFormErr('Geocode failed — check your connection');
+  } finally {
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z" opacity="0.3"/><path d="M12 8v4l3 3"/></svg>Geocode Address → Get Coordinates`;
+    btn.disabled = false;
+  }
+}
+
+// ── Save Address ─────────────────────────────────────────────────────────────
+
+async function amSaveAddress() {
+  const label   = document.getElementById('amFieldLabel').value.trim();
+  const addrLine = document.getElementById('amFieldAddress').value.trim();
+  const postcode = document.getElementById('amFieldPostcode').value.trim().toUpperCase();
+  const latVal   = document.getElementById('amFieldLat').value.trim();
+  const lngVal   = document.getElementById('amFieldLng').value.trim();
+
+  document.getElementById('amFormErr').classList.remove('show');
+
+  if (!label) { amShowFormErr('Please enter a label for this address'); return; }
+  if (!addrLine && !postcode) { amShowFormErr('Please enter an address line or postcode'); return; }
+
+  const lat = latVal !== '' ? parseFloat(latVal) : null;
+  const lng = lngVal !== '' ? parseFloat(lngVal) : null;
+  if (latVal !== '' && isNaN(lat)) { amShowFormErr('Latitude must be a valid number'); return; }
+  if (lngVal !== '' && isNaN(lng)) { amShowFormErr('Longitude must be a valid number'); return; }
+
+  const code = extractCustomerCode(amSelectedCustomer);
+  if (!code) { amShowFormErr('No customer selected'); return; }
+
+  const btn = document.getElementById('amFormSave');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const payload = {
+    customer_code: code,
+    label:         label,
+    address_line:  addrLine || null,
+    postcode:      postcode || null,
+    lat:           lat,
+    lng:           lng
+  };
+
+  try {
+    let res;
+    if (amEditingAddressId === null) {
+      // INSERT
+      res = await sbRequest('/rest/v1/customer_addresses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      // UPDATE
+      res = await sbRequest(`/rest/v1/customer_addresses?id=eq.${amEditingAddressId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(payload)
+      });
+    }
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || 'Save failed');
+    }
+
+    closeAmForm();
+    await amLoadAddresses(); // Refresh the list
+
+  } catch(e) {
+    amShowFormErr('Save failed — ' + (e.message || 'check your connection'));
+    btn.disabled = false;
+    btn.textContent = 'Save Address';
+  }
+}
+
+// ── Delete Address ───────────────────────────────────────────────────────────
+
+async function amDeleteAddress(id, label) {
+  if (!confirm(`Delete address "${label}"?\n\nThis cannot be undone.`)) return;
+
+  const card = document.getElementById(`amAddrCard_${id}`);
+  if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none'; }
+
+  try {
+    const res = await sbRequest(`/rest/v1/customer_addresses?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'Prefer': 'return=minimal' }
+    });
+    if (!res.ok) throw new Error('Delete failed');
+    await amLoadAddresses();
+  } catch(e) {
+    if (card) { card.style.opacity = ''; card.style.pointerEvents = ''; }
+    alert('Delete failed — check your connection');
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function amShowFormErr(msg) {
+  const el = document.getElementById('amFormErr');
+  el.textContent = msg;
+  el.classList.add('show');
 }
 
 // ── HELPERS ───────────────────────────────────────────────
