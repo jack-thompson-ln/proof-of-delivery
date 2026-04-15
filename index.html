@@ -4711,7 +4711,6 @@ function handleAmFormOverlayClick(e) {
 async function amGeocode() {
   const addressLine = document.getElementById('amFieldAddress').value.trim();
   const postcode    = document.getElementById('amFieldPostcode').value.trim();
-  const query       = [addressLine, postcode, 'UK'].filter(Boolean).join(', ');
 
   if (!addressLine && !postcode) {
     amShowFormErr('Enter an address line or postcode to geocode');
@@ -4724,19 +4723,38 @@ async function amGeocode() {
   document.getElementById('amGeocodeResult').classList.remove('show');
   document.getElementById('amFormErr').classList.remove('show');
 
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
-    const res = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': 'FMF-POD-App/1.0' } });
-    const results = await res.json();
+  const headers = { 'Accept': 'application/json', 'User-Agent': 'FMF-POD-App/1.0' };
 
-    if (!results || results.length === 0) {
+  try {
+    let found = null;
+
+    // ── Strategy 1: postcode-only search (most reliable for UK addresses) ──
+    // Searching by postcode alone avoids Nominatim matching generic terms like
+    // "Unit 1C" to completely unrelated places. countrycodes=gb keeps it in GB.
+    if (postcode) {
+      const pcUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gb&q=${encodeURIComponent(postcode + ', UK')}`;
+      const pcRes = await fetch(pcUrl, { headers });
+      const pcData = await pcRes.json();
+      if (pcData && pcData.length > 0) found = pcData[0];
+    }
+
+    // ── Strategy 2: full address fallback (postcode missing or not found) ──
+    // Still restricted to GB via countrycodes=gb to prevent overseas matches.
+    if (!found) {
+      const fullQuery = [addressLine, postcode, 'UK'].filter(Boolean).join(', ');
+      const fullUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gb&q=${encodeURIComponent(fullQuery)}`;
+      const fullRes = await fetch(fullUrl, { headers });
+      const fullData = await fullRes.json();
+      if (fullData && fullData.length > 0) found = fullData[0];
+    }
+
+    if (!found) {
       amShowFormErr('No location found — try a more specific address or enter coordinates manually');
     } else {
-      const r = results[0];
-      amGeocodeCoords = { lat: parseFloat(r.lat), lng: parseFloat(r.lon) };
+      amGeocodeCoords = { lat: parseFloat(found.lat), lng: parseFloat(found.lon) };
       document.getElementById('amFieldLat').value = amGeocodeCoords.lat.toFixed(6);
       document.getElementById('amFieldLng').value = amGeocodeCoords.lng.toFixed(6);
-      document.getElementById('amGeocodeResultText').textContent = r.display_name;
+      document.getElementById('amGeocodeResultText').textContent = found.display_name;
       document.getElementById('amGeocodeResult').classList.add('show');
     }
   } catch(e) {
