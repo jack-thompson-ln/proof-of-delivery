@@ -965,13 +965,14 @@
 
  /* ── Final destination field ───────────────────────────────────────────── */
   .final-dest-search-wrap { position: relative; display: flex; align-items: center; gap: 8px; }
-  .final-dest-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; flex-shrink: 0; }
+  .final-dest-search-icon { position: absolute; left: 11px; top: 50%; margin-top: -7px; width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; flex-shrink: 0; }
   .final-dest-input {
-    flex: 1; width: 100%; padding: 11px 14px; padding-left: 34px; border: 2px solid var(--border); border-radius: 10px;
+    flex: 1; width: 100%; padding: 11px 14px; border: 2px solid var(--border); border-radius: 10px;
     font-family: "Barlow", sans-serif; font-size: 0.92rem; font-weight: 500; color: var(--text);
     background: var(--off-white); outline: none; -webkit-appearance: none; transition: border-color 0.2s;
     box-sizing: border-box;
   }
+  .final-dest-search-wrap .final-dest-input { padding-left: 34px; }
   .final-dest-input:focus { border-color: var(--brand); background: white; box-shadow: 0 0 0 3px rgba(0,75,142,0.1); }
   .final-dest-reset {
     background: none; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 10px;
@@ -3630,7 +3631,7 @@ async function loadActiveRoute() {
 }
 
 function renderActiveRouteCard(route, deliveredCustomers) {
-  const stops     = Array.isArray(route.stops) ? route.stops : [];
+  const stops     = Array.isArray(route.stops) ? route.stops.filter(s => !s.__final_dest) : [];
   const isActive  = route.status === 'active';
   const isDraft   = route.status === 'draft';
   const delivSet  = new Set(deliveredCustomers.map(n => n.toLowerCase()));
@@ -3848,7 +3849,7 @@ function openRouteEditor(routeId) {
     document.getElementById('routeEditorTitle').textContent = editingRoute.route_name || 'Edit Route';
     document.getElementById('routeEditorName').value  = editingRoute.route_name || '';
     document.getElementById('routeEditorDate').value  = editingRoute.route_date  || todayStr();
-    editorStops = Array.isArray(editingRoute.stops) ? editingRoute.stops.map(s => ({...s})) : [];
+    editorStops = Array.isArray(editingRoute.stops) ? editingRoute.stops.filter(s => !s.__final_dest).map(s => ({...s})) : [];
   } else {
     document.getElementById('routeEditorTitle').textContent = 'New Route';
     document.getElementById('routeEditorName').value  = '';
@@ -3876,7 +3877,9 @@ function openRouteEditor(routeId) {
   } else {
     // Editing existing route — restore previously saved final dest if any,
     // otherwise default to depot
-    const saved = editingRoute.final_dest;
+    // Read final_dest from the sentinel entry in stops
+    const sentinel = Array.isArray(editingRoute.stops) ? editingRoute.stops.find(s => s.__final_dest) : null;
+    const saved = sentinel || null;
     if (saved && saved.lat && saved.lng) {
       document.getElementById('finalDestLabel').value = saved.label || DEPOT_LABEL;
       document.getElementById('finalDestLat').value   = saved.lat;
@@ -3906,20 +3909,21 @@ function openRoutePreview() {
 
   // Find the saved route — use editingRoute if available, otherwise most recent
   const route = editingRoute || allRoutes[0];
-  if (!route || !route.stops || !route.stops.length) {
+  const delivStops = Array.isArray(route.stops) ? route.stops.filter(s => !s.__final_dest) : [];
+  if (!delivStops.length) {
     alert('No stops to preview. Save the route first.');
     return;
   }
 
-  const stopsWithCoords    = route.stops.filter(s => s.lat && s.lng);
-  const stopsWithoutCoords = route.stops.filter(s => !(s.lat && s.lng));
+  const stopsWithCoords    = delivStops.filter(s => s.lat && s.lng);
+  const stopsWithoutCoords = delivStops.filter(s => !(s.lat && s.lng));
 
   document.getElementById('routePreviewTitle').textContent =
     route.route_name || 'Route Preview';
   document.getElementById('routePreviewSub').textContent =
-    `${route.stops.length} stop${route.stops.length !== 1 ? 's' : ''}`;
+    `${delivStops.length} stop${delivStops.length !== 1 ? 's' : ''}`;
   document.getElementById('routePreviewInfoText').textContent =
-    `${stopsWithCoords.length} stop${stopsWithCoords.length !== 1 ? 's' : ''} with coordinates · tap a marker for details`;
+    `${stopsWithCoords.length} of ${(allDelivStops||stopsWithCoords).length} stop${(allDelivStops||stopsWithCoords).length !== 1 ? 's' : ''} mapped · tap a marker for details`;
 
   const noCoords = document.getElementById('routePreviewNoCoords');
   if (stopsWithoutCoords.length > 0) {
@@ -3931,7 +3935,7 @@ function openRoutePreview() {
   document.getElementById('routePreviewOverlay').classList.add('open');
   window.scrollTo(0, 0);
 
-  setTimeout(() => initRoutePreviewMap(route, stopsWithCoords), 80);
+  setTimeout(() => initRoutePreviewMap(route, stopsWithCoords, delivStops), 80);
 }
 
 function closeRoutePreview() {
@@ -3946,7 +3950,7 @@ function handleRoutePreviewOverlayClick(e) {
   if (e.target === document.getElementById('routePreviewOverlay')) closeRoutePreview();
 }
 
-function initRoutePreviewMap(route, stopsWithCoords) {
+function initRoutePreviewMap(route, stopsWithCoords, allDelivStops) {
   const container = document.getElementById('routePreviewContainer');
 
   if (routePreviewMap) {
@@ -4104,12 +4108,6 @@ function closeFinalDestDropdown() {
   if (dd) dd.classList.remove('open');
 }
 
-function selectFinalDestByIndex(i) {
-  const o = window._finalDestOptions && window._finalDestOptions[i];
-  if (!o) return;
-  selectFinalDestAddress(o.label, o.addressLine, o.postcode, o.lat, o.lng);
-}
-
 function selectFinalDestAddress(label, addressLine, postcode, lat, lng) {
   document.getElementById('finalDestLabel').value = label;
   document.getElementById('finalDestLat').value   = lat || '';
@@ -4181,14 +4179,19 @@ async function runFinalDestSearch() {
       return;
     }
 
-    window._finalDestOptions = options;
     dd.innerHTML = options.map((o, i) => {
       const sub = [o.addressLine, o.postcode].filter(Boolean).join(', ');
       const hasCoords = o.lat && o.lng;
       const gpsBadge = hasCoords
-        ? `<span style="font-size:0.65rem;color:var(--success);font-weight:700;margin-left:5px;">&#x1F4CD; GPS</span>`
+        ? `<span style="font-size:0.65rem;color:var(--success);font-weight:700;margin-left:5px;">📍 GPS</span>`
         : `<span style="font-size:0.65rem;color:var(--error);font-weight:700;margin-left:5px;">No GPS</span>`;
-      return `<div class="final-dest-option" ontouchend="selectFinalDestByIndex(${i});event.preventDefault();" onclick="selectFinalDestByIndex(${i})">
+      return `<div class="final-dest-option" onclick="selectFinalDestAddress(
+        ${JSON.stringify(o.label)},
+        ${JSON.stringify(o.addressLine)},
+        ${JSON.stringify(o.postcode)},
+        ${o.lat || 'null'},
+        ${o.lng || 'null'}
+      )">
         <div class="final-dest-option-label">${escHtml(o.label)}${gpsBadge}</div>
         ${sub ? `<div class="final-dest-option-sub">${escHtml(sub)}</div>` : ''}
       </div>`;
@@ -4201,9 +4204,8 @@ async function runFinalDestSearch() {
   }
 }
 
-// Close dropdown when clicking outside — use mousedown so it doesn't
-// race with the ontouchend on the option and swallow the selection
-document.addEventListener('mousedown', e => {
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
   const wrap = document.querySelector('.final-dest-search-wrap');
   if (wrap && !wrap.contains(e.target)) closeFinalDestDropdown();
 });
@@ -4221,14 +4223,19 @@ async function _persistRoute(doOptimise) {
   if (!date)               { alert('Please select a date for this route.'); return; }
   if (!editorStops.length) { alert('Please add at least one stop.'); return; }
 
-  const finalDest = getFinalDest();
+  const finalDest = getFinalDest() || { label: DEPOT_LABEL, lat: DEPOT_LAT, lng: DEPOT_LNG };
+  // Store final_dest as a sentinel entry in stops (avoids needing a schema change).
+  // Strip any previous sentinel first, then append the current one.
+  const stopsWithDest = [
+    ...editorStops.filter(s => !s.__final_dest),
+    { __final_dest: true, label: finalDest.label, lat: finalDest.lat, lng: finalDest.lng }
+  ];
   const payload = {
     driver_name: loggedInDriver,
     route_name:  name || null,
     route_date:  date,
-    stops:       editorStops,
-    status:      editingRoute ? editingRoute.status : 'draft',
-    final_dest:  finalDest || { label: DEPOT_LABEL, lat: DEPOT_LAT, lng: DEPOT_LNG }
+    stops:       stopsWithDest,
+    status:      editingRoute ? editingRoute.status : 'draft'
   };
   if (editingRoute) payload.id = editingRoute.id;
 
@@ -4250,15 +4257,21 @@ async function _persistRoute(doOptimise) {
     }
 
     if (doOptimise) {
+      const deliveryStops = editorStops.filter(s => !s.__final_dest);
       const { stops: optimisedStops, reorderedCount } = optimiseRouteStops(
-        editorStops,
+        deliveryStops,
         config.depotLat,
         config.depotLng,
         finalDest
       );
+      // Re-append sentinel so final_dest is preserved after optimisation
+      const optimisedWithDest = [
+        ...optimisedStops.filter(s => !s.__final_dest),
+        { __final_dest: true, label: finalDest.label, lat: finalDest.lat, lng: finalDest.lng }
+      ];
       if (reorderedCount > 0) {
         try {
-          const patched = await patchRoute(saved.id, { stops: optimisedStops });
+          const patched = await patchRoute(saved.id, { stops: optimisedWithDest });
           const routeIdx = allRoutes.findIndex(r => r.id === saved.id);
           if (routeIdx >= 0) allRoutes[routeIdx] = patched;
         } catch(e) {
