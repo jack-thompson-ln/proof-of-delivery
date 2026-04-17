@@ -965,14 +965,13 @@
 
  /* ── Final destination field ───────────────────────────────────────────── */
   .final-dest-search-wrap { position: relative; display: flex; align-items: center; gap: 8px; }
-  .final-dest-search-icon { position: absolute; left: 11px; top: 13px; width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; flex-shrink: 0; }
+  .final-dest-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; flex-shrink: 0; }
   .final-dest-input {
-    flex: 1; width: 100%; padding: 11px 14px; border: 2px solid var(--border); border-radius: 10px;
+    flex: 1; width: 100%; padding: 11px 14px; padding-left: 34px; border: 2px solid var(--border); border-radius: 10px;
     font-family: "Barlow", sans-serif; font-size: 0.92rem; font-weight: 500; color: var(--text);
     background: var(--off-white); outline: none; -webkit-appearance: none; transition: border-color 0.2s;
     box-sizing: border-box;
   }
-  .final-dest-search-wrap .final-dest-input { padding-left: 34px; }
   .final-dest-input:focus { border-color: var(--brand); background: white; box-shadow: 0 0 0 3px rgba(0,75,142,0.1); }
   .final-dest-reset {
     background: none; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 10px;
@@ -982,22 +981,21 @@
   }
   .final-dest-reset:active { border-color: var(--brand); color: var(--brand); }
   .final-dest-dropdown {
-    position: absolute; top: calc(100% + 5px); left: 0; right: 48px; z-index: 410;
+    position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 400;
     background: white; border: 2px solid var(--brand); border-radius: 12px;
-    box-shadow: 0 8px 30px rgba(0,75,142,0.18); max-height: 240px; overflow-y: auto; display: none;
+    box-shadow: 0 8px 30px rgba(0,75,142,0.18); max-height: 220px; overflow-y: auto; display: none;
   }
   .final-dest-dropdown.open { display: block; animation: slideUp 0.15s ease; }
   .final-dest-option {
-    padding: 12px 15px; font-size: 0.88rem; font-weight: 500; color: var(--text);
+    padding: 11px 15px; font-size: 0.88rem; font-weight: 500; color: var(--text);
     cursor: pointer; border-bottom: 1px solid var(--off-white); transition: background 0.1s;
-    -webkit-tap-highlight-color: rgba(0,75,142,0.1);
   }
   .final-dest-option:last-child { border-bottom: none; }
-  .final-dest-option:active { background: rgba(0,75,142,0.1); }
+  .final-dest-option:active { background: rgba(0,75,142,0.06); }
   .final-dest-option-label { font-weight: 700; font-size: 0.88rem; color: var(--text); }
   .final-dest-option-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
   .final-dest-coords-row { display: flex; gap: 6px; margin-top: 6px; }
-  .final-dest-coord-input { padding-left: 14px; font-size: 0.82rem; }
+  .final-dest-coord-input { padding-left: 14px !important; font-size: 0.82rem !important; }
   .final-dest-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
   .final-dest-hint.has-address { color: var(--success); font-weight: 600; }
 
@@ -1702,9 +1700,9 @@
             <button class="final-dest-reset" onclick="resetFinalDest()" title="Reset to Lincoln Depot">Reset</button>
             <div class="final-dest-dropdown" id="finalDestDropdown"></div>
           </div>
-          <div class="final-dest-coords-row" id="finalDestCoordsRow">
-            <input class="final-dest-input final-dest-coord-input" type="number" id="finalDestLat" placeholder="Latitude" step="any" oninput="onFinalDestCoordsManual()">
-            <input class="final-dest-input final-dest-coord-input" type="number" id="finalDestLng" placeholder="Longitude" step="any" oninput="onFinalDestCoordsManual()">
+          <div class="final-dest-coords-row" id="finalDestCoordsRow" style="display:none;">
+            <input type="hidden" id="finalDestLat">
+            <input type="hidden" id="finalDestLng">
           </div>
           <div class="final-dest-hint" id="finalDestHint">Defaults to Lincoln Depot. Search saved addresses to pick a driver home address, or enter coordinates manually.</div>
         </div>
@@ -3845,7 +3843,7 @@ function formatRouteDate(dateStr) {
 
 // ── Route editor ─────────────────────────────────────────────────────────────
 function openRouteEditor(routeId) {
-  editingRoute = routeId ? (allRoutes.find(r => r.id === routeId) || null) : null;
+  editingRoute = routeId ? (allRoutes.find(r => r.id === routeId) || (activeRouteData && activeRouteData.id === routeId ? activeRouteData : null)) : null;
   if (editingRoute) {
     document.getElementById('routeEditorTitle').textContent = editingRoute.route_name || 'Edit Route';
     document.getElementById('routeEditorName').value  = editingRoute.route_name || '';
@@ -3872,8 +3870,23 @@ function openRouteEditor(routeId) {
     }
   }
 
-  // Initialise final destination field
-  initFinalDest();
+  // Initialise final destination field — reset to depot only for new routes
+  if (!editingRoute) {
+    initFinalDest();
+  } else {
+    // Editing existing route — restore previously saved final dest if any,
+    // otherwise default to depot
+    const saved = editingRoute.final_dest;
+    if (saved && saved.lat && saved.lng) {
+      document.getElementById('finalDestLabel').value = saved.label || DEPOT_LABEL;
+      document.getElementById('finalDestLat').value   = saved.lat;
+      document.getElementById('finalDestLng').value   = saved.lng;
+      setFinalDestHint(saved.label || DEPOT_LABEL, true);
+      closeFinalDestDropdown();
+    } else {
+      initFinalDest();
+    }
+  }
 
   document.getElementById('routeEditorOverlay').classList.add('open');
 }
@@ -4091,12 +4104,6 @@ function closeFinalDestDropdown() {
   if (dd) dd.classList.remove('open');
 }
 
-function selectFinalDestByIndex(i) {
-  const o = window._finalDestOptions && window._finalDestOptions[i];
-  if (!o) return;
-  selectFinalDestAddress(o.label, o.addressLine, o.postcode, o.lat, o.lng);
-}
-
 function selectFinalDestAddress(label, addressLine, postcode, lat, lng) {
   document.getElementById('finalDestLabel').value = label;
   document.getElementById('finalDestLat').value   = lat || '';
@@ -4168,14 +4175,19 @@ async function runFinalDestSearch() {
       return;
     }
 
-    window._finalDestOptions = options;
     dd.innerHTML = options.map((o, i) => {
       const sub = [o.addressLine, o.postcode].filter(Boolean).join(', ');
       const hasCoords = o.lat && o.lng;
       const gpsBadge = hasCoords
-        ? `<span style="font-size:0.65rem;color:var(--success);font-weight:700;margin-left:5px;">&#x1F4CD; GPS</span>`
+        ? `<span style="font-size:0.65rem;color:var(--success);font-weight:700;margin-left:5px;">📍 GPS</span>`
         : `<span style="font-size:0.65rem;color:var(--error);font-weight:700;margin-left:5px;">No GPS</span>`;
-      return `<div class="final-dest-option" onclick="selectFinalDestByIndex(${i})">
+      return `<div class="final-dest-option" onclick="selectFinalDestAddress(
+        ${JSON.stringify(o.label)},
+        ${JSON.stringify(o.addressLine)},
+        ${JSON.stringify(o.postcode)},
+        ${o.lat || 'null'},
+        ${o.lng || 'null'}
+      )">
         <div class="final-dest-option-label">${escHtml(o.label)}${gpsBadge}</div>
         ${sub ? `<div class="final-dest-option-sub">${escHtml(sub)}</div>` : ''}
       </div>`;
@@ -4207,12 +4219,14 @@ async function _persistRoute(doOptimise) {
   if (!date)               { alert('Please select a date for this route.'); return; }
   if (!editorStops.length) { alert('Please add at least one stop.'); return; }
 
+  const finalDest = getFinalDest();
   const payload = {
     driver_name: loggedInDriver,
     route_name:  name || null,
     route_date:  date,
     stops:       editorStops,
-    status:      editingRoute ? editingRoute.status : 'draft'
+    status:      editingRoute ? editingRoute.status : 'draft',
+    final_dest:  finalDest || { label: DEPOT_LABEL, lat: DEPOT_LAT, lng: DEPOT_LNG }
   };
   if (editingRoute) payload.id = editingRoute.id;
 
@@ -4234,7 +4248,6 @@ async function _persistRoute(doOptimise) {
     }
 
     if (doOptimise) {
-      const finalDest = getFinalDest();
       const { stops: optimisedStops, reorderedCount } = optimiseRouteStops(
         editorStops,
         config.depotLat,
