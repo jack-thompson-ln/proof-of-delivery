@@ -789,11 +789,29 @@
   .route-editor-close svg { width: 17px; height: 17px; }
   .route-editor-save {
     display: flex; align-items: center; justify-content: center; gap: 5px;
-    background: white; border: none; border-radius: 10px;
-    padding: 8px 14px; color: var(--brand); cursor: pointer;
-    font-family: "Barlow Condensed", sans-serif; font-size: 0.85rem; font-weight: 800;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.35); border-radius: 10px;
+    padding: 8px 13px; color: white; cursor: pointer;
+    font-family: "Barlow Condensed", sans-serif; font-size: 0.82rem; font-weight: 800;
     letter-spacing: 0.05em; text-transform: uppercase; transition: all 0.15s; flex-shrink: 0;
   }
+  .route-editor-save svg { width: 15px; height: 15px; }
+  .route-editor-optimise {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    background: white; border: none; border-radius: 10px;
+    padding: 8px 13px; color: var(--brand); cursor: pointer;
+    font-family: "Barlow Condensed", sans-serif; font-size: 0.82rem; font-weight: 800;
+    letter-spacing: 0.05em; text-transform: uppercase; transition: all 0.15s; flex-shrink: 0;
+  }
+  .route-editor-optimise svg { width: 15px; height: 15px; }
+  .route-map-pill {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.35);
+    border-radius: 10px; width: 36px; height: 36px; color: white; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .route-map-pill svg { width: 17px; height: 17px; }
+  .route-map-pill.disabled { opacity: 0.35; cursor: not-allowed; }
+  .route-editor-actions { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
   .route-editor-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
   .route-editor-section { background: white; border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
   .route-editor-section-label { font-family: "Barlow Condensed", sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
@@ -861,8 +879,10 @@
     .new-route-btn:hover        { background: var(--brand-dark); }
     .stop-drag-remove:hover     { background: rgba(224,60,60,0.1); color: var(--error); }
     .route-customer-option:hover { background: rgba(0,75,142,0.06); }
-    .route-editor-close:hover   { background: rgba(255,255,255,0.28); }
-    .route-editor-save:hover    { background: rgba(255,255,255,0.9); }
+    .route-editor-close:hover    { background: rgba(255,255,255,0.28); }
+    .route-editor-save:hover     { background: rgba(255,255,255,0.32); }
+    .route-editor-optimise:hover { background: rgba(255,255,255,0.9); }
+    .route-map-pill:hover:not(.disabled) { background: rgba(255,255,255,0.28); }
   }
   @media (min-width: 700px) {
     #routeEditorOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
@@ -942,6 +962,66 @@
   }
   .optimise-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
   .optimise-toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* ── Final destination field ───────────────────────────────────────────── */
+  .final-dest-row { display: flex; align-items: flex-start; gap: 8px; }
+  .final-dest-inputs { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .final-dest-input {
+    width: 100%; padding: 11px 14px; border: 2px solid var(--border); border-radius: 10px;
+    font-family: "Barlow", sans-serif; font-size: 0.95rem; font-weight: 500; color: var(--text);
+    background: var(--off-white); outline: none; -webkit-appearance: none; transition: border-color 0.2s;
+    box-sizing: border-box;
+  }
+  .final-dest-input:focus { border-color: var(--brand); background: white; box-shadow: 0 0 0 3px rgba(0,75,142,0.1); }
+  .final-dest-coords-row { display: flex; gap: 6px; }
+  .final-dest-coords-row .final-dest-input { font-size: 0.82rem; }
+  .final-dest-reset {
+    background: none; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 10px;
+    color: var(--text-muted); font-family: "Barlow Condensed", sans-serif; font-size: 0.72rem;
+    font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+    white-space: nowrap; transition: all 0.15s; flex-shrink: 0; margin-top: 2px;
+  }
+  .final-dest-reset:active { border-color: var(--brand); color: var(--brand); }
+  .final-dest-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+  /* ── Route preview map overlay ─────────────────────────────────────────── */
+  #routePreviewOverlay {
+    display: none; position: fixed; inset: 0; z-index: 380;
+    flex-direction: column; background: white;
+  }
+  #routePreviewOverlay.open { display: flex; animation: slideUp 0.25s ease; }
+  .route-preview-panel { display: flex; flex-direction: column; width: 100%; height: 100%; }
+  .route-preview-header {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    background: var(--brand); color: white; flex-shrink: 0;
+  }
+  .route-preview-close {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.35);
+    border-radius: 10px; width: 36px; height: 36px; color: white; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .route-preview-close svg { width: 17px; height: 17px; }
+  .route-preview-title { font-family: "Barlow Condensed", sans-serif; font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .route-preview-sub { font-size: 0.72rem; font-weight: 600; opacity: 0.75; font-family: "Barlow", sans-serif; }
+  #routePreviewContainer { flex: 1; min-height: 0; }
+  .route-preview-info {
+    display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+    background: var(--off-white); border-top: 1px solid var(--border);
+    font-size: 0.8rem; color: var(--text-muted); flex-shrink: 0;
+  }
+  .route-preview-info svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .route-preview-no-coords {
+    display: none; align-items: center; gap: 8px; padding: 10px 16px;
+    background: #fff8e1; border-bottom: 1px solid #ffe082;
+    font-size: 0.8rem; color: #7a6000; flex-shrink: 0;
+  }
+  .route-preview-no-coords.show { display: flex; }
+  .route-preview-no-coords svg { width: 14px; height: 14px; flex-shrink: 0; }
+  @media (min-width: 700px) {
+    #routePreviewOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
+    #routePreviewOverlay .route-preview-panel { max-width: 560px; height: 90vh; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.35); }
+  }
 
   @media (hover: hover) and (pointer: fine) {
     .address-picker-option:hover { border-color: var(--brand); background: rgba(0,75,142,0.06); transform: translateY(-1px); }
@@ -1549,7 +1629,7 @@
     <div id="routeListContainer"></div>
   </div>
 
-  <!-- ROUTE EDITOR OVERLAY -->
+ <!-- ROUTE EDITOR OVERLAY -->
   <div id="routeEditorOverlay">
     <div class="route-editor-panel">
       <div class="route-editor-header">
@@ -1557,10 +1637,19 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div class="route-editor-title" id="routeEditorTitle">New Route</div>
-        <button class="route-editor-save" onclick="saveRoute()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Save
-        </button>
+        <div class="route-editor-actions">
+          <button class="route-map-pill disabled" id="routeMapPill" onclick="openRoutePreview()" title="Save route first to preview map">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+          </button>
+          <button class="route-editor-save" id="routeEditorSaveBtn" onclick="saveRoute()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Save
+          </button>
+          <button class="route-editor-optimise" id="routeEditorOptimiseBtn" onclick="optimiseAndSaveRoute()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            Optimise
+          </button>
+        </div>
       </div>
       <div class="route-editor-body">
         <div class="route-editor-section">
@@ -1588,10 +1677,47 @@
             <div class="route-stops-empty-msg">No stops added yet. Search for customers above.</div>
           </div>
         </div>
+        <div class="route-editor-section">
+          <div class="route-editor-section-label">Final Destination</div>
+          <div class="final-dest-row">
+            <div class="final-dest-inputs">
+              <input class="final-dest-input" type="text" id="finalDestLabel" placeholder="e.g. Lincoln Depot" maxlength="80">
+              <div class="final-dest-coords-row">
+                <input class="final-dest-input" type="number" id="finalDestLat" placeholder="Latitude" step="any">
+                <input class="final-dest-input" type="number" id="finalDestLng" placeholder="Longitude" step="any">
+              </div>
+              <div class="final-dest-hint">The optimiser will always place this location last. Defaults to Lincoln Depot.</div>
+            </div>
+            <button class="final-dest-reset" onclick="resetFinalDest()" title="Reset to Lincoln Depot">Reset</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
+  <!-- ROUTE PREVIEW MAP OVERLAY -->
+  <div id="routePreviewOverlay" onclick="handleRoutePreviewOverlayClick(event)">
+    <div class="route-preview-panel">
+      <div class="route-preview-header">
+        <button class="route-preview-close" onclick="closeRoutePreview()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="route-preview-title" id="routePreviewTitle">Route Preview</div>
+        <div class="route-preview-sub" id="routePreviewSub"></div>
+      </div>
+      <div class="route-preview-no-coords" id="routePreviewNoCoords">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Some stops have no address coordinates and won't appear on the map.
+      </div>
+      <div id="routePreviewContainer"></div>
+      <div class="route-preview-info">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span id="routePreviewInfoText">Numbered markers show stop order. Tap a marker for details.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADDRESS PICKER OVERLAY -->
   <!-- ADDRESS PICKER OVERLAY -->
   <div id="addressPickerOverlay" onclick="handleAddressPickerOverlayClick(event)">
     <div class="address-picker-sheet">
@@ -3717,6 +3843,21 @@ function openRouteEditor(routeId) {
   document.getElementById('rcSearch').value = '';
   document.getElementById('rcDropdown').classList.remove('open');
   renderEditorStops();
+ // Reset map pill — only active once route has been saved
+  const mapPill = document.getElementById('routeMapPill');
+  if (mapPill) {
+    if (editingRoute && editingRoute.id) {
+      mapPill.classList.remove('disabled');
+      mapPill.title = 'Preview route on map';
+    } else {
+      mapPill.classList.add('disabled');
+      mapPill.title = 'Save route first to preview map';
+    }
+  }
+
+  // Initialise final destination field
+  initFinalDest();
+
   document.getElementById('routeEditorOverlay').classList.add('open');
 }
 
@@ -3725,11 +3866,200 @@ function closeRouteEditor() {
   document.getElementById('rcDropdown').classList.remove('open');
 }
 
-async function saveRoute() {
+// ── Route Preview Map ─────────────────────────────────────────────────────────
+
+let routePreviewMap = null;
+
+function openRoutePreview() {
+  const pill = document.getElementById('routeMapPill');
+  if (pill && pill.classList.contains('disabled')) return;
+
+  // Find the saved route — use editingRoute if available, otherwise most recent
+  const route = editingRoute || allRoutes[0];
+  if (!route || !route.stops || !route.stops.length) {
+    alert('No stops to preview. Save the route first.');
+    return;
+  }
+
+  const stopsWithCoords    = route.stops.filter(s => s.lat && s.lng);
+  const stopsWithoutCoords = route.stops.filter(s => !(s.lat && s.lng));
+
+  document.getElementById('routePreviewTitle').textContent =
+    route.route_name || 'Route Preview';
+  document.getElementById('routePreviewSub').textContent =
+    `${route.stops.length} stop${route.stops.length !== 1 ? 's' : ''}`;
+  document.getElementById('routePreviewInfoText').textContent =
+    `${stopsWithCoords.length} stop${stopsWithCoords.length !== 1 ? 's' : ''} with coordinates · tap a marker for details`;
+
+  const noCoords = document.getElementById('routePreviewNoCoords');
+  if (stopsWithoutCoords.length > 0) {
+    noCoords.classList.add('show');
+  } else {
+    noCoords.classList.remove('show');
+  }
+
+  document.getElementById('routePreviewOverlay').classList.add('open');
+  window.scrollTo(0, 0);
+
+  setTimeout(() => initRoutePreviewMap(route, stopsWithCoords), 80);
+}
+
+function closeRoutePreview() {
+  document.getElementById('routePreviewOverlay').classList.remove('open');
+  if (routePreviewMap) {
+    routePreviewMap.remove();
+    routePreviewMap = null;
+  }
+}
+
+function handleRoutePreviewOverlayClick(e) {
+  if (e.target === document.getElementById('routePreviewOverlay')) closeRoutePreview();
+}
+
+function initRoutePreviewMap(route, stopsWithCoords) {
+  const container = document.getElementById('routePreviewContainer');
+
+  if (routePreviewMap) {
+    routePreviewMap.remove();
+    routePreviewMap = null;
+  }
+
+  if (stopsWithCoords.length === 0) {
+    container.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;padding:40px;color:var(--text-muted);text-align:center;gap:14px;">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.25;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <p style="font-size:0.9rem;">No stops have address coordinates yet.<br>Add addresses via the Address Manager.</p>
+    </div>`;
+    return;
+  }
+
+  routePreviewMap = L.map('routePreviewContainer', { zoomControl: true, attributionControl: true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  }).addTo(routePreviewMap);
+
+  const coords = [];
+
+  // Depot start marker
+  const depotIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:30px;height:30px;border-radius:50%;
+      background:#00b86b;border:2.5px solid white;
+      box-shadow:0 2px 8px rgba(0,0,0,0.35);
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Barlow Condensed',sans-serif;font-size:0.65rem;font-weight:800;
+      color:white;text-align:center;line-height:1.1;
+    ">START</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    popupAnchor: [0, -18]
+  });
+  L.marker([config.depotLat, config.depotLng], { icon: depotIcon })
+    .addTo(routePreviewMap)
+    .bindPopup(`<div style="font-family:'Barlow',sans-serif;font-size:0.9rem;font-weight:700;color:#0d1b2a;">Lincoln Depot<br><span style="font-size:0.75rem;font-weight:400;color:#5a7a9a;">Start point</span></div>`);
+  coords.push([config.depotLat, config.depotLng]);
+
+  // Stop markers
+  stopsWithCoords.forEach((stop, idx) => {
+    const stopNum = idx + 1;
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:30px;height:30px;border-radius:50% 50% 50% 0;
+        background:#004b8e;border:2.5px solid white;
+        box-shadow:0 2px 8px rgba(0,0,0,0.35);
+        display:flex;align-items:center;justify-content:center;
+        font-family:'Barlow Condensed',sans-serif;font-size:0.8rem;font-weight:800;
+        color:white;transform:rotate(-45deg);
+      "><span style="transform:rotate(45deg)">${stopNum}</span></div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 30],
+      popupAnchor: [0, -32]
+    });
+    const latLng = [stop.lat, stop.lng];
+    coords.push(latLng);
+    L.marker(latLng, { icon })
+      .addTo(routePreviewMap)
+      .bindPopup(`
+        <div style="font-family:'Barlow',sans-serif;min-width:160px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#5a7a9a;margin-bottom:4px;">Stop ${stopNum}</div>
+          <div style="font-size:0.95rem;font-weight:700;color:#0d1b2a;margin-bottom:4px;">${stop.customer || '—'}</div>
+          ${stop.address_line ? `<div style="font-size:0.75rem;color:#5a7a9a;line-height:1.4;">${stop.address_line}${stop.postcode ? ', ' + stop.postcode : ''}</div>` : ''}
+          ${stop.docNumber ? `<div style="font-size:0.75rem;color:#5a7a9a;margin-top:4px;">Doc: ${stop.docNumber}</div>` : ''}
+        </div>
+      `, { maxWidth: 240 });
+  });
+
+  // Final destination marker
+  const finalDest = getFinalDest();
+  if (finalDest) {
+    const endIcon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:30px;height:30px;border-radius:50%;
+        background:#e03c3c;border:2.5px solid white;
+        box-shadow:0 2px 8px rgba(0,0,0,0.35);
+        display:flex;align-items:center;justify-content:center;
+        font-family:'Barlow Condensed',sans-serif;font-size:0.65rem;font-weight:800;
+        color:white;text-align:center;line-height:1.1;
+      ">END</div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      popupAnchor: [0, -18]
+    });
+    L.marker([finalDest.lat, finalDest.lng], { icon: endIcon })
+      .addTo(routePreviewMap)
+      .bindPopup(`<div style="font-family:'Barlow',sans-serif;font-size:0.9rem;font-weight:700;color:#0d1b2a;">${finalDest.label}<br><span style="font-size:0.75rem;font-weight:400;color:#5a7a9a;">Final destination</span></div>`);
+    coords.push([finalDest.lat, finalDest.lng]);
+  }
+
+  // Dashed route polyline
+  if (coords.length > 1) {
+    L.polyline(coords, {
+      color: '#0099ff', weight: 2.5, opacity: 0.7,
+      dashArray: '8, 8', dashOffset: '0'
+    }).addTo(routePreviewMap);
+  }
+
+  const bounds = L.latLngBounds(coords);
+  routePreviewMap.fitBounds(bounds, { padding: [40, 40] });
+}
+
+const DEPOT_LABEL = 'Lincoln Depot';
+const DEPOT_LAT   = config.depotLat;
+const DEPOT_LNG   = config.depotLng;
+
+function initFinalDest() {
+  document.getElementById('finalDestLabel').value = DEPOT_LABEL;
+  document.getElementById('finalDestLat').value   = DEPOT_LAT;
+  document.getElementById('finalDestLng').value   = DEPOT_LNG;
+}
+
+function resetFinalDest() {
+  initFinalDest();
+}
+
+function getFinalDest() {
+  const label = document.getElementById('finalDestLabel').value.trim() || DEPOT_LABEL;
+  const lat   = parseFloat(document.getElementById('finalDestLat').value);
+  const lng   = parseFloat(document.getElementById('finalDestLng').value);
+  if (isNaN(lat) || isNaN(lng)) return null;
+  return { label, lat, lng };
+}
+
+function enableRouteMapPill() {
+  const pill = document.getElementById('routeMapPill');
+  if (!pill) return;
+  pill.classList.remove('disabled');
+  pill.title = 'Preview route on map';
+}
+
+async function _persistRoute(doOptimise) {
   const name = document.getElementById('routeEditorName').value.trim();
   const date = document.getElementById('routeEditorDate').value;
-  if (!date)                { alert('Please select a date for this route.'); return; }
-  if (!editorStops.length)  { alert('Please add at least one stop.'); return; }
+  if (!date)               { alert('Please select a date for this route.'); return; }
+  if (!editorStops.length) { alert('Please add at least one stop.'); return; }
 
   const payload = {
     driver_name: loggedInDriver,
@@ -3740,10 +4070,14 @@ async function saveRoute() {
   };
   if (editingRoute) payload.id = editingRoute.id;
 
-  const btn = document.querySelector('.route-editor-save');
-  const origHTML = btn.innerHTML;
-  btn.innerHTML = 'Saving...';
-  btn.disabled  = true;
+  const saveBtn = document.getElementById('routeEditorSaveBtn');
+  const optBtn  = document.getElementById('routeEditorOptimiseBtn');
+  const activeBtn = doOptimise ? optBtn : saveBtn;
+  const origHTML  = activeBtn.innerHTML;
+  activeBtn.innerHTML = doOptimise ? 'Optimising...' : 'Saving...';
+  saveBtn.disabled = true;
+  optBtn.disabled  = true;
+
   try {
     const saved = await upsertRoute(payload);
     if (editingRoute) {
@@ -3753,42 +4087,54 @@ async function saveRoute() {
       allRoutes.unshift(saved);
     }
 
-    // ── Auto-optimise stop order using nearest-neighbour ──────
-    const { stops: optimisedStops, reorderedCount } = optimiseRouteStops(
-      editorStops,
-      config.depotLat,
-      config.depotLng
-    );
-
-    if (reorderedCount > 0) {
-      // Stops were reordered — patch the route with the optimised order
-      try {
-        const patched = await patchRoute(saved.id, { stops: optimisedStops });
-        const routeIdx = allRoutes.findIndex(r => r.id === saved.id);
-        if (routeIdx >= 0) allRoutes[routeIdx] = patched;
-      } catch(e) {
-        console.warn('Could not save optimised route order:', e.message);
+    if (doOptimise) {
+      const finalDest = getFinalDest();
+      const { stops: optimisedStops, reorderedCount } = optimiseRouteStops(
+        editorStops,
+        config.depotLat,
+        config.depotLng,
+        finalDest
+      );
+      if (reorderedCount > 0) {
+        try {
+          const patched = await patchRoute(saved.id, { stops: optimisedStops });
+          const routeIdx = allRoutes.findIndex(r => r.id === saved.id);
+          if (routeIdx >= 0) allRoutes[routeIdx] = patched;
+        } catch(e) {
+          console.warn('Could not save optimised route order:', e.message);
+        }
       }
+      if (reorderedCount > 0) {
+        showOptimiseToast(`Route optimised — ${reorderedCount} stop${reorderedCount !== 1 ? 's' : ''} reordered`);
+      } else if (editorStops.some(s => s.lat)) {
+        showOptimiseToast('Route saved — already in optimal order ✓');
+      } else {
+        showOptimiseToast('Route saved — no coordinates to optimise');
+      }
+    } else {
+      showOptimiseToast('Route saved');
     }
 
+    enableRouteMapPill();
     closeRouteEditor();
     renderRouteList();
     await loadActiveRoute();
 
-    // Show result toast
-    if (reorderedCount > 0) {
-      showOptimiseToast(`Route optimised — ${reorderedCount} stop${reorderedCount !== 1 ? 's' : ''} reordered`);
-    } else if (editorStops.some(s => s.lat)) {
-      showOptimiseToast('Route saved — already in optimal order ✓');
-    } else {
-      showOptimiseToast('Route saved');
-    }
   } catch(e) {
     alert('Could not save route: ' + e.message);
   } finally {
-    btn.innerHTML = origHTML;
-    btn.disabled  = false;
+    activeBtn.innerHTML = origHTML;
+    saveBtn.disabled = false;
+    optBtn.disabled  = false;
   }
+}
+
+async function saveRoute() {
+  await _persistRoute(false);
+}
+
+async function optimiseAndSaveRoute() {
+  await _persistRoute(true);
 }
 
 // ── Editor stops ─────────────────────────────────────────────────────────────
@@ -4391,11 +4737,20 @@ function handleAddressPickerOverlayClick(e) {
  *
  * @returns {{ stops: Array, reorderedCount: number }}
  */
-function optimiseRouteStops(stops, depotLat, depotLng) {
+function optimiseRouteStops(stops, depotLat, depotLng, finalDest) {
   if (!stops || stops.length <= 1) return { stops: [...(stops || [])], reorderedCount: 0 };
 
-  const withCoords    = stops.filter(s => s.lat && s.lng);
-  const withoutCoords = stops.filter(s => !(s.lat && s.lng));
+  // If a valid finalDest is provided, separate it from the optimisable stops.
+  // It will always be appended last after optimisation.
+  let finalDestStop = null;
+  let stopsToOptimise = stops;
+
+  if (finalDest && finalDest.lat && finalDest.lng) {
+    stopsToOptimise = stops; // all delivery stops are optimised freely
+  }
+
+  const withCoords    = stopsToOptimise.filter(s => s.lat && s.lng);
+  const withoutCoords = stopsToOptimise.filter(s => !(s.lat && s.lng));
 
   if (withCoords.length <= 1) {
     return { stops: [...stops], reorderedCount: 0 };
@@ -4404,9 +4759,12 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
   // Snapshot original customer order for comparison at the end
   const originalOrder = withCoords.map(s => s.customer);
 
+  // Determine the effective return point for distance calculations.
+  // If a finalDest is given, optimise towards it; otherwise return to depot.
+  const returnLat = (finalDest && finalDest.lat) ? finalDest.lat : depotLat;
+  const returnLng = (finalDest && finalDest.lng) ? finalDest.lng : depotLng;
+
   // ── Phase 1: Nearest-neighbour seed ──────────────────────────────────────
-  // Produces a reasonable starting route by always visiting the closest
-  // unvisited stop next, starting from the depot.
   const unvisited = [...withCoords];
   const route     = [];
   let curLat = depotLat;
@@ -4425,22 +4783,16 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
   }
 
   // ── Phase 2: 2-opt improvement ───────────────────────────────────────────
-  // Repeatedly try reversing every sub-segment [i..k] of the route.
-  // If reversing produces a shorter total distance, keep it.
-  // The depot is treated as a fixed anchor at both ends (open route —
-  // we minimise depot→first + inter-stop + last→depot total distance).
-  //
-  // Runs until a full pass finds no improvement (convergence).
+  // Uses returnLat/returnLng as the fixed end anchor so the algorithm
+  // accounts for the final leg to the destination when scoring routes.
 
   function routeDistance(r) {
-    // Depot → first stop
     let d = haversineKm(depotLat, depotLng, r[0].lat, r[0].lng);
-    // Inter-stop legs
     for (let i = 0; i < r.length - 1; i++) {
       d += haversineKm(r[i].lat, r[i].lng, r[i+1].lat, r[i+1].lng);
     }
-    // Last stop → depot (important: avoids routes that end far from base)
-    d += haversineKm(r[r.length-1].lat, r[r.length-1].lng, depotLat, depotLng);
+    // Final leg: last delivery stop → final destination (or depot if none set)
+    d += haversineKm(r[r.length-1].lat, r[r.length-1].lng, returnLat, returnLng);
     return d;
   }
 
@@ -4451,14 +4803,13 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
     improved = false;
     for (let i = 0; i < route.length - 1; i++) {
       for (let k = i + 1; k < route.length; k++) {
-        // Reverse the sub-segment between i and k (inclusive)
         const newRoute = [
           ...route.slice(0, i),
           ...route.slice(i, k + 1).reverse(),
           ...route.slice(k + 1)
         ];
         const newDist = routeDistance(newRoute);
-        if (newDist < bestDist - 0.001) { // 1-metre threshold avoids float noise
+        if (newDist < bestDist - 0.001) {
           route.splice(0, route.length, ...newRoute);
           bestDist = newDist;
           improved = true;
@@ -4468,8 +4819,6 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
   }
 
   // ── Count genuinely reordered stops ──────────────────────────────────────
-  // Compare against the original driver-entered order.
-  // Report the number of stops that ended up in a different position.
   const newOrder = route.map(s => s.customer);
   let reorderedCount = 0;
   for (let i = 0; i < originalOrder.length; i++) {
@@ -4478,7 +4827,6 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
 
   return { stops: [...route, ...withoutCoords], reorderedCount };
 }
-
 // ── Optimise Toast notification ───────────────────────────────────────────────
 let _toastTimeout = null;
 
