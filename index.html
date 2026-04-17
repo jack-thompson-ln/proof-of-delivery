@@ -3877,7 +3877,6 @@ function openRouteEditor(routeId) {
   } else {
     // Editing existing route — restore previously saved final dest if any,
     // otherwise default to depot
-    // Read final_dest from the sentinel entry in stops
     const sentinel = Array.isArray(editingRoute.stops) ? editingRoute.stops.find(s => s.__final_dest) : null;
     const saved = sentinel || null;
     if (saved && saved.lat && saved.lng) {
@@ -3923,7 +3922,7 @@ function openRoutePreview() {
   document.getElementById('routePreviewSub').textContent =
     `${delivStops.length} stop${delivStops.length !== 1 ? 's' : ''}`;
   document.getElementById('routePreviewInfoText').textContent =
-    `${stopsWithCoords.length} of ${(allDelivStops||stopsWithCoords).length} stop${(allDelivStops||stopsWithCoords).length !== 1 ? 's' : ''} mapped · tap a marker for details`;
+    `${stopsWithCoords.length} stop${stopsWithCoords.length !== 1 ? 's' : ''} with coordinates · tap a marker for details`;
 
   const noCoords = document.getElementById('routePreviewNoCoords');
   if (stopsWithoutCoords.length > 0) {
@@ -3935,7 +3934,7 @@ function openRoutePreview() {
   document.getElementById('routePreviewOverlay').classList.add('open');
   window.scrollTo(0, 0);
 
-  setTimeout(() => initRoutePreviewMap(route, stopsWithCoords, delivStops), 80);
+  setTimeout(() => initRoutePreviewMap(route, stopsWithCoords), 80);
 }
 
 function closeRoutePreview() {
@@ -3950,7 +3949,7 @@ function handleRoutePreviewOverlayClick(e) {
   if (e.target === document.getElementById('routePreviewOverlay')) closeRoutePreview();
 }
 
-function initRoutePreviewMap(route, stopsWithCoords, allDelivStops) {
+function initRoutePreviewMap(route, stopsWithCoords) {
   const container = document.getElementById('routePreviewContainer');
 
   if (routePreviewMap) {
@@ -4108,6 +4107,12 @@ function closeFinalDestDropdown() {
   if (dd) dd.classList.remove('open');
 }
 
+function selectFinalDestByIndex(i) {
+  const o = window._finalDestOptions && window._finalDestOptions[i];
+  if (!o) return;
+  selectFinalDestAddress(o.label, o.addressLine, o.postcode, o.lat, o.lng);
+}
+
 function selectFinalDestAddress(label, addressLine, postcode, lat, lng) {
   document.getElementById('finalDestLabel').value = label;
   document.getElementById('finalDestLat').value   = lat || '';
@@ -4179,19 +4184,14 @@ async function runFinalDestSearch() {
       return;
     }
 
+    window._finalDestOptions = options;
     dd.innerHTML = options.map((o, i) => {
       const sub = [o.addressLine, o.postcode].filter(Boolean).join(', ');
       const hasCoords = o.lat && o.lng;
       const gpsBadge = hasCoords
-        ? `<span style="font-size:0.65rem;color:var(--success);font-weight:700;margin-left:5px;">📍 GPS</span>`
+        ? `<span style="font-size:0.65rem;color:var(--success);font-weight:700;margin-left:5px;">&#x1F4CD; GPS</span>`
         : `<span style="font-size:0.65rem;color:var(--error);font-weight:700;margin-left:5px;">No GPS</span>`;
-      return `<div class="final-dest-option" onclick="selectFinalDestAddress(
-        ${JSON.stringify(o.label)},
-        ${JSON.stringify(o.addressLine)},
-        ${JSON.stringify(o.postcode)},
-        ${o.lat || 'null'},
-        ${o.lng || 'null'}
-      )">
+      return `<div class="final-dest-option" ontouchend="selectFinalDestByIndex(${i});event.preventDefault();" onclick="selectFinalDestByIndex(${i})">
         <div class="final-dest-option-label">${escHtml(o.label)}${gpsBadge}</div>
         ${sub ? `<div class="final-dest-option-sub">${escHtml(sub)}</div>` : ''}
       </div>`;
@@ -4204,8 +4204,9 @@ async function runFinalDestSearch() {
   }
 }
 
-// Close dropdown when clicking outside
-document.addEventListener('click', e => {
+// Close dropdown when clicking outside — mousedown fires before touchend
+// so it won't race with and swallow the option tap
+document.addEventListener('mousedown', e => {
   const wrap = document.querySelector('.final-dest-search-wrap');
   if (wrap && !wrap.contains(e.target)) closeFinalDestDropdown();
 });
@@ -4223,9 +4224,8 @@ async function _persistRoute(doOptimise) {
   if (!date)               { alert('Please select a date for this route.'); return; }
   if (!editorStops.length) { alert('Please add at least one stop.'); return; }
 
-  const finalDest = getFinalDest() || { label: DEPOT_LABEL, lat: DEPOT_LAT, lng: DEPOT_LNG };
-  // Store final_dest as a sentinel entry in stops (avoids needing a schema change).
-  // Strip any previous sentinel first, then append the current one.
+  const finalDest = getFinalDest();
+  // Store final_dest as a sentinel entry inside stops (no schema change needed)
   const stopsWithDest = [
     ...editorStops.filter(s => !s.__final_dest),
     { __final_dest: true, label: finalDest.label, lat: finalDest.lat, lng: finalDest.lng }
@@ -4264,7 +4264,6 @@ async function _persistRoute(doOptimise) {
         config.depotLng,
         finalDest
       );
-      // Re-append sentinel so final_dest is preserved after optimisation
       const optimisedWithDest = [
         ...optimisedStops.filter(s => !s.__final_dest),
         { __final_dest: true, label: finalDest.label, lat: finalDest.lat, lng: finalDest.lng }
