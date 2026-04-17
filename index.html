@@ -573,21 +573,22 @@
   }
 
   /* ══ DESKTOP / TABLET RESPONSIVE ══
-     Mobile-first: all base styles target phones.
-     700px+ = tablet / small laptop — content widens, chrome breathes.
-     1100px+ = full desktop — two-column layout with sidebar-style driver panel.
+     Mobile-first: all base styles are for phones.
+     700px+  = tablet/small laptop  — content widens, overlays float.
+     1100px+ = desktop              — full-width shell, content fills viewport.
+     1400px+ = wide desktop         — even more breathing room.
   */
 
   @media (min-width: 700px) {
     body { background: #e0e8f2; }
 
-    /* Header spans full width; inner content capped and centred */
-    .header-inner { max-width: 1400px; margin: 0 auto; padding: 14px 32px; }
+    /* Header: inner content centred with comfortable padding */
+    .header-inner { max-width: 1600px; margin: 0 auto; padding: 14px 32px; }
 
-    /* Main content — wider on tablet */
-    main { max-width: 760px; padding: 28px 28px 60px; }
+    /* Main: wider column, centred */
+    main { max-width: 820px; padding: 28px 28px 60px; }
 
-    /* Login screen */
+    /* Login */
     #driverLoginScreen { padding: 40px 32px; }
     .login-box { max-width: 400px; padding: 32px 28px; }
     .driver-login-grid { grid-template-columns: repeat(4, 1fr); }
@@ -595,7 +596,7 @@
     /* Cards */
     .card { padding: 24px; }
 
-    /* Filter bar date row */
+    /* Filter inputs */
     .filter-row input[type="date"] { font-size: 0.88rem; padding: 11px 12px; }
 
     /* Record cards */
@@ -605,10 +606,20 @@
     /* Analytics charts */
     .chart-wrap { max-width: 400px; }
 
-    /* Detail view photo */
+    /* Detail photo */
     .detail-photo-wrap img { max-height: 420px; object-fit: cover; }
 
-    /* Map overlay — centred floating panel */
+    /* Sync bar */
+    .sync-bar { padding: 8px 32px; }
+
+    /* Step labels */
+    .step-label { font-size: 0.65rem; }
+
+    /* Stat cards */
+    .stat-card { padding: 20px 16px; }
+    .stat-card-value { font-size: 1.6rem; }
+
+    /* Map overlay — floating centred panel */
     #mapOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
     #mapOverlay .map-panel {
       width: 100%; max-width: 960px; height: 85vh;
@@ -621,53 +632,28 @@
     .map-no-gps { margin: 12px 16px 0; }
     .map-info-bar { border-radius: 0; }
 
-    /* Sync bar */
-    .sync-bar { padding: 8px 32px; }
-
-    /* Step labels */
-    .step-label { font-size: 0.65rem; }
+    /* Route editor overlay — centred floating panel */
+    #routeEditorOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
+    .route-editor-panel { max-width: 680px; height: 90vh; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.35); background: var(--off-white); }
   }
 
   @media (min-width: 1100px) {
-    /* Full desktop: app fills the viewport in a centred shell */
-    body { display: flex; flex-direction: column; min-height: 100dvh; }
+    /* Main fills the viewport — no artificial narrow cap */
+    main { max-width: 1100px; padding: 32px 40px 60px; }
 
-    main {
-      max-width: 1400px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 32px 40px 60px;
-      /* Two-column grid: form/content left, wider on very large screens */
-      display: grid;
-      grid-template-columns: 1fr 340px;
-      grid-template-rows: auto;
-      column-gap: 28px;
-      align-items: start;
-    }
+    /* Route editor gets more room on big screens */
+    .route-editor-panel { max-width: 860px; }
 
-    /* All direct children of main that aren't the sidebar column
-       flow into the left column by default */
-    main > * { grid-column: 1; }
-
-    /* Route active card and driver welcome stay full-width (left col) */
-    .route-active-card { grid-column: 1; }
-
-    /* Steps indicator stays left */
-    .steps { grid-column: 1; }
-
-    /* Analytics stat cards — more comfortable padding */
-    .stat-card { padding: 20px 16px; }
-    .stat-card-value { font-size: 1.7rem; }
-
-    /* Charts — wider on desktop */
+    /* Charts wider */
     .chart-wrap { max-width: 480px; }
 
-    /* Record cards — slightly more breathing room */
-    .record-card { padding: 16px; }
+    /* Record cards — a touch more padding */
+    .record-card { padding: 16px 20px; }
   }
 
   @media (min-width: 1400px) {
-    main { grid-template-columns: 1fr 380px; column-gap: 32px; }
+    main { max-width: 1340px; padding: 36px 48px 60px; }
+    .route-editor-panel { max-width: 980px; }
   }
 
   /* ══ ROUTE PILL (header) ══ */
@@ -946,11 +932,6 @@
     .route-editor-optimise:hover { background: rgba(255,255,255,0.9); }
     .route-map-pill:hover:not(.disabled) { background: rgba(255,255,255,0.28); }
   }
-  @media (min-width: 700px) {
-    #routeEditorOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
-    .route-editor-panel { max-width: 560px; height: 90vh; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.35); background: var(--off-white); }
-  }
-
   /* ══ ADDRESS PICKER OVERLAY ══ */
   #addressPickerOverlay {
     display: none; position: fixed; inset: 0; z-index: 410;
@@ -1098,7 +1079,7 @@
   .route-preview-no-coords svg { width: 14px; height: 14px; flex-shrink: 0; }
   @media (min-width: 700px) {
     #routePreviewOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
-    #routePreviewOverlay .route-preview-panel { max-width: 560px; height: 90vh; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.35); }
+    #routePreviewOverlay .route-preview-panel { max-width: 960px; height: 90vh; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.35); }
   }
 
   @media (hover: hover) and (pointer: fine) {
