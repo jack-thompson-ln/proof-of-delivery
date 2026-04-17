@@ -963,26 +963,41 @@
   .optimise-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
   .optimise-toast svg { width: 16px; height: 16px; flex-shrink: 0; }
 
-  /* ── Final destination field ───────────────────────────────────────────── */
-  .final-dest-row { display: flex; align-items: flex-start; gap: 8px; }
-  .final-dest-inputs { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+ /* ── Final destination field ───────────────────────────────────────────── */
+  .final-dest-search-wrap { position: relative; display: flex; align-items: center; gap: 8px; }
+  .final-dest-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; flex-shrink: 0; }
   .final-dest-input {
-    width: 100%; padding: 11px 14px; border: 2px solid var(--border); border-radius: 10px;
-    font-family: "Barlow", sans-serif; font-size: 0.95rem; font-weight: 500; color: var(--text);
+    flex: 1; width: 100%; padding: 11px 14px; padding-left: 34px; border: 2px solid var(--border); border-radius: 10px;
+    font-family: "Barlow", sans-serif; font-size: 0.92rem; font-weight: 500; color: var(--text);
     background: var(--off-white); outline: none; -webkit-appearance: none; transition: border-color 0.2s;
     box-sizing: border-box;
   }
   .final-dest-input:focus { border-color: var(--brand); background: white; box-shadow: 0 0 0 3px rgba(0,75,142,0.1); }
-  .final-dest-coords-row { display: flex; gap: 6px; }
-  .final-dest-coords-row .final-dest-input { font-size: 0.82rem; }
   .final-dest-reset {
     background: none; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 10px;
     color: var(--text-muted); font-family: "Barlow Condensed", sans-serif; font-size: 0.72rem;
     font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
-    white-space: nowrap; transition: all 0.15s; flex-shrink: 0; margin-top: 2px;
+    white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
   }
   .final-dest-reset:active { border-color: var(--brand); color: var(--brand); }
-  .final-dest-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+  .final-dest-dropdown {
+    position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 400;
+    background: white; border: 2px solid var(--brand); border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,75,142,0.18); max-height: 220px; overflow-y: auto; display: none;
+  }
+  .final-dest-dropdown.open { display: block; animation: slideUp 0.15s ease; }
+  .final-dest-option {
+    padding: 11px 15px; font-size: 0.88rem; font-weight: 500; color: var(--text);
+    cursor: pointer; border-bottom: 1px solid var(--off-white); transition: background 0.1s;
+  }
+  .final-dest-option:last-child { border-bottom: none; }
+  .final-dest-option:active { background: rgba(0,75,142,0.06); }
+  .final-dest-option-label { font-weight: 700; font-size: 0.88rem; color: var(--text); }
+  .final-dest-option-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+  .final-dest-coords-row { display: flex; gap: 6px; margin-top: 6px; }
+  .final-dest-coord-input { padding-left: 14px !important; font-size: 0.82rem !important; }
+  .final-dest-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
+  .final-dest-hint.has-address { color: var(--success); font-weight: 600; }
 
   /* ── Route preview map overlay ─────────────────────────────────────────── */
   #routePreviewOverlay {
@@ -1677,19 +1692,19 @@
             <div class="route-stops-empty-msg">No stops added yet. Search for customers above.</div>
           </div>
         </div>
-        <div class="route-editor-section">
+     <div class="route-editor-section">
           <div class="route-editor-section-label">Final Destination</div>
-          <div class="final-dest-row">
-            <div class="final-dest-inputs">
-              <input class="final-dest-input" type="text" id="finalDestLabel" placeholder="e.g. Lincoln Depot" maxlength="80">
-              <div class="final-dest-coords-row">
-                <input class="final-dest-input" type="number" id="finalDestLat" placeholder="Latitude" step="any">
-                <input class="final-dest-input" type="number" id="finalDestLng" placeholder="Longitude" step="any">
-              </div>
-              <div class="final-dest-hint">The optimiser will always place this location last. Defaults to Lincoln Depot.</div>
-            </div>
+          <div class="final-dest-search-wrap">
+            <svg class="final-dest-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="final-dest-input" type="text" id="finalDestLabel" placeholder="Search saved addresses or type a label…" maxlength="80" oninput="onFinalDestSearch()" onfocus="onFinalDestFocus()" autocomplete="off">
             <button class="final-dest-reset" onclick="resetFinalDest()" title="Reset to Lincoln Depot">Reset</button>
+            <div class="final-dest-dropdown" id="finalDestDropdown"></div>
           </div>
+          <div class="final-dest-coords-row" id="finalDestCoordsRow">
+            <input class="final-dest-input final-dest-coord-input" type="number" id="finalDestLat" placeholder="Latitude" step="any" oninput="onFinalDestCoordsManual()">
+            <input class="final-dest-input final-dest-coord-input" type="number" id="finalDestLng" placeholder="Longitude" step="any" oninput="onFinalDestCoordsManual()">
+          </div>
+          <div class="final-dest-hint" id="finalDestHint">Defaults to Lincoln Depot. Search saved addresses to pick a driver home address, or enter coordinates manually.</div>
         </div>
       </div>
     </div>
@@ -4034,6 +4049,8 @@ function initFinalDest() {
   document.getElementById('finalDestLabel').value = DEPOT_LABEL;
   document.getElementById('finalDestLat').value   = DEPOT_LAT;
   document.getElementById('finalDestLng').value   = DEPOT_LNG;
+  setFinalDestHint(DEPOT_LABEL, true);
+  closeFinalDestDropdown();
 }
 
 function resetFinalDest() {
@@ -4047,6 +4064,132 @@ function getFinalDest() {
   if (isNaN(lat) || isNaN(lng)) return null;
   return { label, lat, lng };
 }
+
+function setFinalDestHint(label, hasCoords) {
+  const hint = document.getElementById('finalDestHint');
+  if (!hint) return;
+  if (hasCoords) {
+    hint.textContent = `✓ ${label}`;
+    hint.className = 'final-dest-hint has-address';
+  } else {
+    hint.textContent = 'No coordinates found for this address — optimiser will ignore it.';
+    hint.className = 'final-dest-hint';
+  }
+}
+
+function onFinalDestCoordsManual() {
+  const lat = parseFloat(document.getElementById('finalDestLat').value);
+  const lng = parseFloat(document.getElementById('finalDestLng').value);
+  const label = document.getElementById('finalDestLabel').value.trim() || 'Custom location';
+  setFinalDestHint(label, !isNaN(lat) && !isNaN(lng));
+}
+
+function closeFinalDestDropdown() {
+  const dd = document.getElementById('finalDestDropdown');
+  if (dd) dd.classList.remove('open');
+}
+
+function selectFinalDestAddress(label, addressLine, postcode, lat, lng) {
+  document.getElementById('finalDestLabel').value = label;
+  document.getElementById('finalDestLat').value   = lat || '';
+  document.getElementById('finalDestLng').value   = lng || '';
+  const hasCoords = lat && lng;
+  const display = [label, addressLine, postcode].filter(Boolean).join(' · ');
+  setFinalDestHint(display, hasCoords);
+  closeFinalDestDropdown();
+}
+
+let _finalDestSearchTimer = null;
+
+function onFinalDestSearch() {
+  clearTimeout(_finalDestSearchTimer);
+  _finalDestSearchTimer = setTimeout(runFinalDestSearch, 260);
+}
+
+function onFinalDestFocus() {
+  const val = document.getElementById('finalDestLabel').value.trim();
+  if (val.length >= 2) runFinalDestSearch();
+}
+
+async function runFinalDestSearch() {
+  const query = document.getElementById('finalDestLabel').value.trim().toLowerCase();
+  const dd = document.getElementById('finalDestDropdown');
+  if (!dd) return;
+
+  // Always show depot as first option
+  const depotMatch = !query || DEPOT_LABEL.toLowerCase().includes(query);
+
+  if (query.length < 2 && !depotMatch) {
+    closeFinalDestDropdown();
+    return;
+  }
+
+  try {
+    // Search customer_addresses by label, address_line or postcode
+    const encoded = encodeURIComponent(query);
+    const res = await sbRequest(
+      `/rest/v1/customer_addresses?or=(label.ilike.*${encoded}*,address_line.ilike.*${encoded}*,postcode.ilike.*${encoded}*)&select=label,address_line,postcode,lat,lng&order=label.asc&limit=20`,
+      { headers: { 'Accept': 'application/json' } }
+    );
+    const rows = res.ok ? await res.json() : [];
+
+    const options = [];
+
+    if (depotMatch || query.length < 2) {
+      options.push({
+        label: DEPOT_LABEL,
+        addressLine: 'Lincoln',
+        postcode: '',
+        lat: DEPOT_LAT,
+        lng: DEPOT_LNG
+      });
+    }
+
+    rows.forEach(r => {
+      options.push({
+        label: r.label || r.address_line || r.postcode || 'Saved address',
+        addressLine: r.address_line || '',
+        postcode: r.postcode || '',
+        lat: r.lat,
+        lng: r.lng
+      });
+    });
+
+    if (options.length === 0) {
+      closeFinalDestDropdown();
+      return;
+    }
+
+    dd.innerHTML = options.map((o, i) => {
+      const sub = [o.addressLine, o.postcode].filter(Boolean).join(', ');
+      const hasCoords = o.lat && o.lng;
+      const gpsBadge = hasCoords
+        ? `<span style="font-size:0.65rem;color:var(--success);font-weight:700;margin-left:5px;">📍 GPS</span>`
+        : `<span style="font-size:0.65rem;color:var(--error);font-weight:700;margin-left:5px;">No GPS</span>`;
+      return `<div class="final-dest-option" onclick="selectFinalDestAddress(
+        ${JSON.stringify(o.label)},
+        ${JSON.stringify(o.addressLine)},
+        ${JSON.stringify(o.postcode)},
+        ${o.lat || 'null'},
+        ${o.lng || 'null'}
+      )">
+        <div class="final-dest-option-label">${escHtml(o.label)}${gpsBadge}</div>
+        ${sub ? `<div class="final-dest-option-sub">${escHtml(sub)}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    dd.classList.add('open');
+  } catch(e) {
+    console.warn('Final dest search error:', e.message);
+    closeFinalDestDropdown();
+  }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  const wrap = document.querySelector('.final-dest-search-wrap');
+  if (wrap && !wrap.contains(e.target)) closeFinalDestDropdown();
+});
 
 function enableRouteMapPill() {
   const pill = document.getElementById('routeMapPill');
