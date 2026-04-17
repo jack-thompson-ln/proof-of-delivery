@@ -5414,13 +5414,15 @@ async function ovLoad() {
   try {
     // ── 1. Fetch all active drivers ──────────────────────────────────────
     const driversRes = await sbRequest('/rest/v1/drivers?select=name,pin&active=eq.true&order=name.asc');
+    if (!driversRes.ok) throw new Error(`Drivers fetch failed (${driversRes.status})`);
     const driversRaw = await driversRes.json();
 
     // ── 2. Fetch today's routes ──────────────────────────────────────────
     const todayISO = new Date().toISOString().slice(0, 10);
     const routesRes = await sbRequest(
-      `/rest/v1/routes?select=id,name,route_name,status,created_by,stops,started_at,completed_at,route_date&route_date=eq.${todayISO}&order=created_at.asc`
+      `/rest/v1/routes?select=id,driver_name,route_name,status,stops,route_date&route_date=eq.${todayISO}&order=created_at.asc`
     );
+    if (!routesRes.ok) throw new Error(`Routes fetch failed (${routesRes.status})`);
     const routesRaw = await routesRes.json();
 
     // ── 3. Fetch today's deliveries ─────────────────────────────────────
@@ -5429,6 +5431,7 @@ async function ovLoad() {
     const delivRes = await sbRequest(
       `/rest/v1/deliveries?select=driver_name,customer_name,delivery_datetime&delivery_datetime=gte.${fromISO}&delivery_datetime=lte.${toISO}&order=delivery_datetime.asc`
     );
+    if (!delivRes.ok) throw new Error(`Deliveries fetch failed (${delivRes.status})`);
     const delivRaw = await delivRes.json();
 
     // ── 4. Build per-driver data ─────────────────────────────────────────
@@ -5436,9 +5439,9 @@ async function ovLoad() {
       const name  = driver.name;
       const color = ovColorForDriver(name);
 
-      // Find this driver's route for today (match by created_by or route owner)
+      // Match route by driver_name
       const route = routesRaw.find(r =>
-        (r.created_by || '').toLowerCase() === name.toLowerCase()
+        (r.driver_name || '').toLowerCase() === name.toLowerCase()
       ) || null;
 
       // Deliveries this driver has made today
@@ -5464,7 +5467,7 @@ async function ovLoad() {
 
       if (route) {
         status    = route.status || 'draft';
-        routeName = route.route_name || route.name || null;
+        routeName = route.route_name || null;
         const rawStops = Array.isArray(route.stops)
           ? route.stops.filter(s => !s.__final_dest)
           : [];
@@ -5504,8 +5507,8 @@ async function ovLoad() {
     }, 60000);
 
   } catch(e) {
-    document.getElementById('ovRefreshText').textContent = 'Failed to load — check connection';
-    console.warn('Overview load error:', e);
+    console.error('Overview load error:', e);
+    document.getElementById('ovRefreshText').textContent = `Error: ${e.message || 'check connection'} — tap Refresh to retry`;
   } finally {
     const b = document.getElementById('ovRefreshBtn');
     if (b) { b.classList.remove('spinning'); b.disabled = false; }
