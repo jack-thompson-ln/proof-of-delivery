@@ -403,6 +403,43 @@
   .login-title { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 800; color: white; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
   .login-sub { font-size: 0.8rem; color: rgba(255,255,255,0.65); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 24px; }
   .login-admin-pills { display: flex; gap: 8px; justify-content: center; margin-bottom: 24px; }
+
+  /* ── COG MENU ── */
+  .login-cog-wrap { position: relative; display: inline-flex; justify-content: center; margin-bottom: 24px; }
+  .login-cog-btn {
+    width: 40px; height: 40px; border-radius: 12px;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4);
+    color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; touch-action: manipulation;
+  }
+  .login-cog-btn:active { background: rgba(255,255,255,0.3); transform: scale(0.94); }
+  .login-cog-btn svg { width: 18px; height: 18px; transition: transform 0.3s ease; }
+  .login-cog-btn.open svg { transform: rotate(60deg); }
+  .cog-menu {
+    position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(10px);
+    background: white; border-radius: 14px; padding: 6px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.22); border: 1.5px solid var(--border);
+    min-width: 200px; opacity: 0; pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 600;
+  }
+  .cog-menu.open {
+    opacity: 1; pointer-events: all;
+    transform: translateX(-50%) translateY(0);
+  }
+  .cog-menu-item {
+    display: flex; align-items: center; gap: 11px; padding: 10px 14px; border-radius: 10px;
+    font-family: 'Barlow', sans-serif; font-size: 0.88rem; font-weight: 600; color: var(--text);
+    cursor: pointer; transition: background 0.12s; border: none; background: none; width: 100%;
+    text-align: left; touch-action: manipulation;
+  }
+  .cog-menu-item:active { background: rgba(0,75,142,0.07); }
+  .cog-menu-item svg { width: 16px; height: 16px; color: var(--brand); flex-shrink: 0; }
+  .cog-menu-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+  @media (hover: hover) and (pointer: fine) {
+    .login-cog-btn:hover { background: rgba(255,255,255,0.3); }
+    .cog-menu-item:hover { background: rgba(0,75,142,0.06); }
+  }
   .login-box { background: white; border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
   .login-step-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 10px; }
   .driver-login-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
@@ -1309,20 +1346,30 @@
   </div>
   <div class="login-title">FMF POD</div>
   <div class="login-sub">Delivery Confirmation</div>
-  <div class="login-admin-pills">
-    <button class="config-pill" onclick="openPinModal('config')" title="Configuration">
+  <div class="login-cog-wrap">
+    <button class="login-cog-btn" id="loginCogBtn" onclick="toggleCogMenu(event)" title="Admin">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
     </button>
-    <button class="analytics-pill" onclick="openPinModal('analytics')" title="Analytics">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-    </button>
-    <button class="history-pill" onclick="openPinModal('history')" title="History">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <span class="history-pill-badge" id="historyBadge"></span>
-    </button>
-    <button class="address-pill" onclick="openPinModal('addresses')" title="Address Management">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-    </button>
+    <div class="cog-menu" id="cogMenu">
+      <button class="cog-menu-item" onclick="cogOpen('history')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        History
+        <span class="history-pill-badge" id="historyBadge" style="margin-left:auto;"></span>
+      </button>
+      <button class="cog-menu-item" onclick="cogOpen('analytics')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Analytics
+      </button>
+      <button class="cog-menu-item" onclick="cogOpen('addresses')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Address Manager
+      </button>
+      <div class="cog-menu-divider"></div>
+      <button class="cog-menu-item" onclick="cogOpen('config')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Configuration
+      </button>
+    </div>
   </div>
   <div class="login-box">
     <div id="loginStep1">
@@ -2042,6 +2089,29 @@ updateClock();
 let pinEntry = '';
 let pinDestination = 'history';
 
+// ── COG MENU ──────────────────────────────────────────────
+function toggleCogMenu(e) {
+  e.stopPropagation();
+  const btn  = document.getElementById('loginCogBtn');
+  const menu = document.getElementById('cogMenu');
+  const isOpen = menu.classList.contains('open');
+  btn.classList.toggle('open', !isOpen);
+  menu.classList.toggle('open', !isOpen);
+}
+
+function cogOpen(dest) {
+  // Close the menu first, then open the PIN modal
+  document.getElementById('loginCogBtn').classList.remove('open');
+  document.getElementById('cogMenu').classList.remove('open');
+  openPinModal(dest);
+}
+
+// Close cog menu when tapping elsewhere
+document.addEventListener('click', () => {
+  document.getElementById('loginCogBtn')?.classList.remove('open');
+  document.getElementById('cogMenu')?.classList.remove('open');
+});
+
 function openPinModal(dest = 'history') {
   pinDestination = dest;
   pinEntry = '';
@@ -2308,6 +2378,8 @@ function logoutDriver() {
   document.getElementById('driverHistoryPill').style.display = 'none';
   document.getElementById('routePill').style.display = 'none';
   document.getElementById('headerDriverChip').style.display = 'none';
+  // Re-fetch drivers so the grid is always fresh on return to login
+  initDriverLogin();
 }
 
 // ── CUSTOMER SEARCH ───────────────────────────────────────
