@@ -1329,6 +1329,104 @@
   .am-form-err { font-size: 0.8rem; color: var(--error); margin-top: 8px; text-align: center; display: none; }
   .am-form-err.show { display: block; }
 
+  /* ══ OVERVIEW VIEW ══ */
+  #overviewView { display: none; }
+  #overviewView.show { display: block; animation: slideUp 0.3s ease; }
+  .ov-wrap { padding: 20px 16px 60px; max-width: 1400px; margin: 0 auto; }
+
+  /* Summary strip */
+  .ov-summary-strip { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 20px; }
+  @media (min-width: 480px) { .ov-summary-strip { grid-template-columns: repeat(4,1fr); } }
+  .ov-summary-card { background: white; border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); border: 1.5px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+  .ov-summary-val { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 800; color: var(--brand); line-height: 1; }
+  .ov-summary-val.green { color: var(--success); }
+  .ov-summary-val.amber { color: var(--warning); }
+  .ov-summary-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .ov-summary-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+
+  /* Refresh bar */
+  .ov-refresh-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 20px; background: white; border-radius: var(--radius); border: 1.5px solid var(--border); box-shadow: var(--shadow); }
+  .ov-refresh-bar svg { width: 15px; height: 15px; color: var(--brand); flex-shrink: 0; }
+  .ov-refresh-text { flex: 1; font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+  .ov-refresh-btn { background: var(--brand); color: white; border: none; border-radius: 8px; padding: 7px 14px; font-family: 'Barlow Condensed', sans-serif; font-size: 0.82rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.15s; flex-shrink: 0; }
+  .ov-refresh-btn:active { background: var(--brand-dark); transform: scale(0.97); }
+  .ov-refresh-btn svg { width: 13px; height: 13px; }
+  .ov-refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+
+  /* Filter chips */
+  .ov-filter-row { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .ov-filter-chip { background: white; border: 2px solid var(--border); border-radius: 20px; padding: 6px 14px; font-family: 'Barlow', sans-serif; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; white-space: nowrap; touch-action: manipulation; }
+  .ov-filter-chip.active { background: var(--brand); border-color: var(--brand); color: white; }
+  .ov-filter-chip:active { transform: scale(0.96); }
+
+  /* Section label */
+  .ov-section-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .ov-section-label-right { font-family: 'Barlow', sans-serif; font-weight: 400; font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0; text-transform: none; }
+
+  /* Driver grid */
+  .ov-driver-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 700px)  { .ov-driver-grid { grid-template-columns: repeat(2,1fr); } }
+  @media (min-width: 1100px) { .ov-driver-grid { grid-template-columns: repeat(3,1fr); } }
+
+  /* Driver card */
+  .ov-driver-card { background: white; border-radius: var(--radius); border: 1.5px solid var(--border); box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; transition: all 0.2s; }
+  .ov-driver-card-header { padding: 14px 16px 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1.5px solid var(--border); }
+  .ov-driver-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 1.15rem; font-weight: 800; color: white; flex-shrink: 0; }
+  .ov-driver-info { flex: 1; min-width: 0; }
+  .ov-driver-name { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text); line-height: 1.1; }
+  .ov-driver-route { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ov-status-badge { font-family: 'Barlow Condensed', sans-serif; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 9px; border-radius: 6px; flex-shrink: 0; }
+  .ov-status-badge.active    { background: rgba(0,184,107,0.12); color: var(--success); border: 1.5px solid rgba(0,184,107,0.3); }
+  .ov-status-badge.draft     { background: rgba(0,75,142,0.08);  color: var(--brand);   border: 1.5px solid rgba(0,75,142,0.2); }
+  .ov-status-badge.completed { background: rgba(90,122,154,0.1); color: var(--text-muted); border: 1.5px solid var(--border); }
+  .ov-status-badge.no-route  { background: rgba(240,165,0,0.1);  color: var(--warning); border: 1.5px solid rgba(240,165,0,0.3); }
+
+  /* Progress */
+  .ov-driver-progress { padding: 12px 16px 10px; }
+  .ov-progress-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+  .ov-progress-meta-left { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+  .ov-progress-meta-right { font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 800; color: var(--brand); }
+  .ov-progress-track { height: 8px; background: var(--off-white); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .ov-progress-fill { height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+
+  /* Stops */
+  .ov-stops-section { padding: 0 16px 14px; flex: 1; }
+  .ov-stops-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ov-stops-col-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+  .ov-stops-col-label.done-label { color: var(--success); }
+  .ov-stops-col-label.todo-label { color: var(--text-muted); }
+  .ov-stop-item { display: flex; align-items: flex-start; gap: 7px; padding: 6px 8px; border-radius: 8px; margin-bottom: 4px; font-size: 0.78rem; font-weight: 500; line-height: 1.3; }
+  .ov-stop-item:last-child { margin-bottom: 0; }
+  .ov-stop-item.done { background: rgba(0,184,107,0.06); color: var(--text-muted); text-decoration: line-through; }
+  .ov-stop-item.next { background: rgba(0,75,142,0.07); color: var(--brand); font-weight: 700; border: 1.5px solid rgba(0,75,142,0.15); }
+  .ov-stop-item.todo { background: var(--off-white); color: var(--text); }
+  .ov-stop-num { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 0.65rem; font-weight: 800; flex-shrink: 0; margin-top: 1px; }
+  .ov-stop-num.done { background: var(--success); color: white; }
+  .ov-stop-num.next { background: var(--brand); color: white; }
+  .ov-stop-num.todo { background: var(--border); color: var(--text-muted); }
+  .ov-stop-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Footer */
+  .ov-driver-footer { padding: 9px 16px; border-top: 1.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--off-white); }
+  .ov-driver-footer-left { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+  .ov-driver-footer-left svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+  /* No route */
+  .ov-no-route-body { padding: 20px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; line-height: 1.6; flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .ov-no-route-body svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.4; }
+
+  /* Expand */
+  .ov-expand-btn { background: none; border: none; color: var(--brand); font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; padding: 0 16px 12px; display: flex; align-items: center; gap: 5px; touch-action: manipulation; }
+  .ov-expand-btn svg { width: 13px; height: 13px; transition: transform 0.2s; }
+  .ov-expand-btn.open svg { transform: rotate(180deg); }
+
+  /* Hover */
+  @media (hover: hover) and (pointer: fine) {
+    .ov-filter-chip:hover:not(.active) { border-color: var(--brand); color: var(--brand); }
+    .ov-driver-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,75,142,0.16); border-color: rgba(0,75,142,0.25); }
+    .ov-refresh-btn:hover { background: var(--brand-dark); }
+  }
+
   @media (min-width: 700px) {
     #amFormOverlay { align-items: center; }
     .am-form-sheet { border-radius: 20px; }
@@ -1351,6 +1449,11 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
     </button>
     <div class="cog-menu" id="cogMenu">
+      <button class="cog-menu-item" onclick="cogOpen('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Overview
+      </button>
+      <div class="cog-menu-divider"></div>
       <button class="cog-menu-item" onclick="cogOpen('history')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         History
@@ -2045,6 +2148,53 @@
     </div>
   </div>
 
+  <!-- OVERVIEW VIEW -->
+  <div id="overviewView">
+    <div class="ov-wrap">
+
+      <!-- Header row -->
+      <div class="history-header">
+        <button class="back-btn" onclick="showForm()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
+        <div class="history-title">Overview</div>
+        <div class="history-count" id="ovDriverCount"></div>
+      </div>
+
+      <!-- Summary strip -->
+      <div class="ov-summary-strip" id="ovSummaryStrip"></div>
+
+      <!-- Refresh bar -->
+      <div class="ov-refresh-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="ov-refresh-text" id="ovRefreshText">Loading…</span>
+        <button class="ov-refresh-btn" id="ovRefreshBtn" onclick="ovDoRefresh()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Refresh
+        </button>
+      </div>
+
+      <!-- Filter chips -->
+      <div class="ov-filter-row">
+        <button class="ov-filter-chip active" onclick="ovSetFilter('all')"       id="ovfc-all">All Drivers</button>
+        <button class="ov-filter-chip"        onclick="ovSetFilter('active')"    id="ovfc-active">Active</button>
+        <button class="ov-filter-chip"        onclick="ovSetFilter('completed')" id="ovfc-completed">Completed</button>
+        <button class="ov-filter-chip"        onclick="ovSetFilter('no-route')"  id="ovfc-no-route">No Route</button>
+      </div>
+
+      <!-- Section label -->
+      <div class="ov-section-label">
+        Driver Routes
+        <span class="ov-section-label-right" id="ovRouteCount"></span>
+      </div>
+
+      <!-- Driver grid -->
+      <div class="ov-driver-grid" id="ovDriverGrid"></div>
+
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -2121,13 +2271,15 @@ function openPinModal(dest = 'history') {
     config:    'Configuration',
     analytics: 'Analytics',
     history:   'History',
-    addresses: 'Address Manager'
+    addresses: 'Address Manager',
+    overview:  'Overview'
   };
   const descs = {
     config:    'Enter the admin PIN to access configuration',
     analytics: 'Enter the admin PIN to view analytics',
     history:   'Enter the admin PIN to view delivery history',
-    addresses: 'Enter the admin PIN to manage customer addresses'
+    addresses: 'Enter the admin PIN to manage customer addresses',
+    overview:  'Enter the admin PIN to view the driver overview'
   };
   document.getElementById('pinModalTitle').textContent = titles[dest] || 'Admin Access';
   document.getElementById('pinModalDesc').textContent  = descs[dest]  || 'Enter the admin PIN';
@@ -2161,6 +2313,7 @@ function checkPin() {
     if (pinDestination === 'analytics') showAnalytics();
     else if (pinDestination === 'config') toggleConfig();
     else if (pinDestination === 'addresses') showAddressManager();
+    else if (pinDestination === 'overview') showOverview();
     else showHistory();
   } else {
     for (let i = 0; i < 4; i++) document.getElementById('pd'+i).classList.add('error');
@@ -2181,6 +2334,7 @@ function showForm() {
   document.getElementById('detailView').classList.remove('show');
   document.getElementById('analyticsView').classList.remove('show');
   document.getElementById('routeView').classList.remove('show');
+  document.getElementById('overviewView').classList.remove('show');
   window.scrollTo(0,0);
 }
 function showDriverHistory() {
@@ -5222,6 +5376,320 @@ function closeAddressManager() {
   if (!loggedInDriver) {
     document.getElementById('driverLoginScreen').classList.remove('hidden');
   }
+}
+
+// ══ OVERVIEW ══════════════════════════════════════════════════════════════
+
+function showOverview() {
+  document.getElementById('driverLoginScreen').classList.add('hidden');
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('successScreen').classList.remove('show');
+  document.getElementById('historyView').classList.remove('show');
+  document.getElementById('detailView').classList.remove('show');
+  document.getElementById('analyticsView').classList.remove('show');
+  document.getElementById('routeView').classList.remove('show');
+  document.getElementById('overviewView').classList.add('show');
+  window.scrollTo(0,0);
+  ovLoad();
+}
+
+// Driver colour palette — consistent per name
+const OV_COLORS = ['#004b8e','#e03c3c','#00b86b','#f0a500','#8b5cf6','#0099ff','#e8590c','#5a7a9a'];
+function ovColorForDriver(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return OV_COLORS[h % OV_COLORS.length];
+}
+
+let ovAllDriverData   = []; // [{ name, color, route, status, lastDelivery, stops:[{name,done,time}] }]
+let ovCurrentFilter   = 'all';
+let ovExpandedDrivers = new Set();
+let ovRefreshTimer    = null;
+
+async function ovLoad() {
+  const btn = document.getElementById('ovRefreshBtn');
+  if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
+  document.getElementById('ovRefreshText').textContent = 'Loading…';
+
+  try {
+    // ── 1. Fetch all active drivers ──────────────────────────────────────
+    const driversRes = await sbRequest('/rest/v1/drivers?select=name,pin&active=eq.true&order=name.asc');
+    const driversRaw = await driversRes.json();
+
+    // ── 2. Fetch today's routes ──────────────────────────────────────────
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const routesRes = await sbRequest(
+      `/rest/v1/routes?select=id,name,route_name,status,created_by,stops,started_at,completed_at,route_date&route_date=eq.${todayISO}&order=created_at.asc`
+    );
+    const routesRaw = await routesRes.json();
+
+    // ── 3. Fetch today's deliveries ─────────────────────────────────────
+    const fromISO = todayISO + 'T00:00:00.000Z';
+    const toISO   = todayISO + 'T23:59:59.999Z';
+    const delivRes = await sbRequest(
+      `/rest/v1/deliveries?select=driver_name,customer_name,delivery_datetime&delivery_datetime=gte.${fromISO}&delivery_datetime=lte.${toISO}&order=delivery_datetime.asc`
+    );
+    const delivRaw = await delivRes.json();
+
+    // ── 4. Build per-driver data ─────────────────────────────────────────
+    ovAllDriverData = driversRaw.map(driver => {
+      const name  = driver.name;
+      const color = ovColorForDriver(name);
+
+      // Find this driver's route for today (match by created_by or route owner)
+      const route = routesRaw.find(r =>
+        (r.created_by || '').toLowerCase() === name.toLowerCase()
+      ) || null;
+
+      // Deliveries this driver has made today
+      const myDeliveries = delivRaw.filter(d =>
+        (d.driver_name || '').toLowerCase() === name.toLowerCase()
+      );
+      const deliveredNames = new Set(
+        myDeliveries.map(d => (d.customer_name || '').toLowerCase())
+      );
+
+      // Last delivery time
+      const lastDel = myDeliveries.length > 0
+        ? myDeliveries[myDeliveries.length - 1]
+        : null;
+      const lastDelivery = lastDel
+        ? new Date(lastDel.delivery_datetime).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
+        : null;
+
+      // Build stop list from route
+      let status = 'no-route';
+      let stops  = [];
+      let routeName = null;
+
+      if (route) {
+        status    = route.status || 'draft';
+        routeName = route.route_name || route.name || null;
+        const rawStops = Array.isArray(route.stops)
+          ? route.stops.filter(s => !s.__final_dest)
+          : [];
+
+        stops = rawStops.map(s => {
+          const custName = s.customer || '';
+          const done = deliveredNames.has(custName.toLowerCase());
+          // Find the time from deliveries
+          const matchDel = myDeliveries.find(d =>
+            (d.customer_name || '').toLowerCase() === custName.toLowerCase()
+          );
+          const time = matchDel
+            ? new Date(matchDel.delivery_datetime).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
+            : null;
+          return { name: custName, done, time };
+        });
+
+        // If all stops done but status still active, mark completed
+        if (stops.length > 0 && stops.every(s => s.done) && status === 'active') {
+          status = 'completed';
+        }
+      }
+
+      return { name, color, route: routeName, status, lastDelivery, stops };
+    });
+
+    // ── 5. Render ────────────────────────────────────────────────────────
+    ovRenderAll();
+
+    const now = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    document.getElementById('ovRefreshText').textContent = `Updated ${now} — refreshes every 60s`;
+
+    // Auto-refresh every 60s while overview is visible
+    clearTimeout(ovRefreshTimer);
+    ovRefreshTimer = setTimeout(() => {
+      if (document.getElementById('overviewView').classList.contains('show')) ovLoad();
+    }, 60000);
+
+  } catch(e) {
+    document.getElementById('ovRefreshText').textContent = 'Failed to load — check connection';
+    console.warn('Overview load error:', e);
+  } finally {
+    const b = document.getElementById('ovRefreshBtn');
+    if (b) { b.classList.remove('spinning'); b.disabled = false; }
+  }
+}
+
+function ovDoRefresh() {
+  clearTimeout(ovRefreshTimer);
+  ovLoad();
+}
+
+function ovRenderAll() {
+  ovRenderSummary();
+  ovRenderGrid();
+}
+
+function ovRenderSummary() {
+  const totalDelivered = ovAllDriverData.reduce((s, d) => s + d.stops.filter(st => st.done).length, 0);
+  const totalRemaining = ovAllDriverData.reduce((s, d) => s + d.stops.filter(st => !st.done).length, 0);
+  const activeCount    = ovAllDriverData.filter(d => d.status === 'active').length;
+  const completedCount = ovAllDriverData.filter(d => d.status === 'completed').length;
+  const totalStops     = totalDelivered + totalRemaining;
+  const pct            = totalStops > 0 ? Math.round((totalDelivered / totalStops) * 100) : 0;
+
+  document.getElementById('ovSummaryStrip').innerHTML = `
+    <div class="ov-summary-card">
+      <div class="ov-summary-val">${totalDelivered}</div>
+      <div class="ov-summary-label">Delivered</div>
+      <div class="ov-summary-sub">${pct}% of ${totalStops} stops</div>
+    </div>
+    <div class="ov-summary-card">
+      <div class="ov-summary-val">${totalRemaining}</div>
+      <div class="ov-summary-label">Remaining</div>
+      <div class="ov-summary-sub">across all routes</div>
+    </div>
+    <div class="ov-summary-card">
+      <div class="ov-summary-val green">${activeCount}</div>
+      <div class="ov-summary-label">Active Routes</div>
+      <div class="ov-summary-sub">drivers on the road</div>
+    </div>
+    <div class="ov-summary-card">
+      <div class="ov-summary-val amber">${completedCount}</div>
+      <div class="ov-summary-label">Completed</div>
+      <div class="ov-summary-sub">all stops done</div>
+    </div>`;
+}
+
+function ovRenderGrid() {
+  const filtered = ovCurrentFilter === 'all'
+    ? ovAllDriverData
+    : ovAllDriverData.filter(d => d.status === ovCurrentFilter);
+
+  document.getElementById('ovDriverCount').textContent  = `${ovAllDriverData.length}`;
+  document.getElementById('ovRouteCount').textContent   = `${filtered.length} driver${filtered.length !== 1 ? 's' : ''}`;
+
+  const grid = document.getElementById('ovDriverGrid');
+  grid.innerHTML = '';
+  filtered.forEach((driver, idx) => {
+    const card = ovBuildCard(driver);
+    card.style.animation = `slideUp 0.3s ease ${idx * 0.04}s both`;
+    grid.appendChild(card);
+  });
+}
+
+function ovBuildCard(driver) {
+  const done      = driver.stops.filter(s => s.done).length;
+  const total     = driver.stops.length;
+  const remaining = total - done;
+  const pct       = total > 0 ? Math.round((done / total) * 100) : 0;
+  const nextIdx   = driver.stops.findIndex(s => !s.done);
+  const isExp     = ovExpandedDrivers.has(driver.name);
+
+  const badgeMap = { active:'Active', completed:'Complete', draft:'Draft', 'no-route':'No Route' };
+  const progColor = driver.status === 'completed' ? 'var(--success)' : driver.color;
+
+  const doneStops    = driver.stops.filter(s => s.done);
+  const todoStops    = driver.stops.filter(s => !s.done);
+  const maxVis       = 4;
+  const doneVisible  = isExp ? doneStops : doneStops.slice(0, maxVis);
+  const todoVisible  = isExp ? todoStops : todoStops.slice(0, maxVis);
+  const doneOverflow = doneStops.length - maxVis;
+  const todoOverflow = todoStops.length - maxVis;
+
+  const stopHTML = (stop, type) => {
+    const globalIdx = driver.stops.indexOf(stop);
+    const isNext    = type === 'todo' && globalIdx === nextIdx;
+    const cls       = type === 'done' ? 'done' : (isNext ? 'next' : 'todo');
+    const numInner  = type === 'done'
+      ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+      : (globalIdx + 1);
+    const shortName = stop.name.replace(/^[A-Z]\d+\s-\s/, '');
+    return `<div class="ov-stop-item ${cls}">
+      <div class="ov-stop-num ${cls}">${numInner}</div>
+      <div class="ov-stop-name" title="${escHtml(stop.name)}">${escHtml(shortName)}</div>
+      ${type === 'done' && stop.time ? `<div style="font-size:0.65rem;color:var(--text-muted);flex-shrink:0;font-weight:600;">${stop.time}</div>` : ''}
+    </div>`;
+  };
+
+  const needsExpand = (doneStops.length > maxVis || todoStops.length > maxVis) && total > 0;
+
+  let stopsBody = '';
+  if (driver.status === 'no-route') {
+    stopsBody = `<div class="ov-no-route-body">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      No route assigned for today
+    </div>`;
+  } else if (total === 0) {
+    stopsBody = `<div class="ov-no-route-body">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Route draft — no stops added yet
+    </div>`;
+  } else {
+    stopsBody = `
+      <div class="ov-stops-section">
+        <div class="ov-stops-cols">
+          <div>
+            <div class="ov-stops-col-label done-label">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              Done (${done})
+            </div>
+            ${doneVisible.map(s => stopHTML(s, 'done')).join('')}
+            ${!isExp && doneOverflow > 0 ? `<div style="font-size:0.7rem;color:var(--text-muted);padding:4px 8px;font-weight:600;">+${doneOverflow} more…</div>` : ''}
+          </div>
+          <div>
+            <div class="ov-stops-col-label todo-label">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              To Go (${remaining})
+            </div>
+            ${todoVisible.map(s => stopHTML(s, 'todo')).join('')}
+            ${!isExp && todoOverflow > 0 ? `<div style="font-size:0.7rem;color:var(--text-muted);padding:4px 8px;font-weight:600;">+${todoOverflow} more…</div>` : ''}
+          </div>
+        </div>
+      </div>
+      ${needsExpand ? `
+        <button class="ov-expand-btn ${isExp ? 'open' : ''}" onclick="ovToggleExpand('${driver.name.replace(/'/g,"\\'")}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          ${isExp ? 'Show less' : `Show all ${total} stops`}
+        </button>` : ''}`;
+  }
+
+  const footerLeft = driver.lastDelivery
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Last delivery ${driver.lastDelivery}`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>No deliveries yet`;
+
+  const card = document.createElement('div');
+  card.className = 'ov-driver-card';
+  card.innerHTML = `
+    <div class="ov-driver-card-header">
+      <div class="ov-driver-avatar" style="background:${driver.color};">${escHtml(driver.name[0])}</div>
+      <div class="ov-driver-info">
+        <div class="ov-driver-name">${escHtml(driver.name)}</div>
+        <div class="ov-driver-route">${driver.route ? escHtml(driver.route) : 'No route today'}</div>
+      </div>
+      <span class="ov-status-badge ${driver.status}">${badgeMap[driver.status] || driver.status}</span>
+    </div>
+    ${total > 0 ? `
+    <div class="ov-driver-progress">
+      <div class="ov-progress-meta">
+        <span class="ov-progress-meta-left">${done} of ${total} stops delivered</span>
+        <span class="ov-progress-meta-right" style="color:${progColor};">${pct}%</span>
+      </div>
+      <div class="ov-progress-track">
+        <div class="ov-progress-fill" style="width:${pct}%;background:${progColor};"></div>
+      </div>
+    </div>` : ''}
+    ${stopsBody}
+    <div class="ov-driver-footer">
+      <div class="ov-driver-footer-left">${footerLeft}</div>
+      <div style="font-size:0.72rem;color:${driver.color};font-weight:700;font-family:'Barlow Condensed',sans-serif;">${pct > 0 ? pct + '% done' : driver.status === 'draft' ? 'Not started' : '—'}</div>
+    </div>`;
+  return card;
+}
+
+function ovSetFilter(f) {
+  ovCurrentFilter = f;
+  document.querySelectorAll('.ov-filter-chip').forEach(el => el.classList.remove('active'));
+  document.getElementById('ovfc-' + f).classList.add('active');
+  ovRenderGrid();
+}
+
+function ovToggleExpand(name) {
+  if (ovExpandedDrivers.has(name)) ovExpandedDrivers.delete(name);
+  else ovExpandedDrivers.add(name);
+  ovRenderGrid();
 }
 
 // ── Customer Search ──────────────────────────────────────────────────────────
