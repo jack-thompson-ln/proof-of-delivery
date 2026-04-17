@@ -727,6 +727,18 @@
   .route-stop-item.delivered .route-stop-name { color: var(--text-muted); text-decoration: line-through; }
   .route-stop-tick  { width: 18px; height: 18px; color: var(--success); flex-shrink: 0; }
   .route-stop-arrow { width: 16px; height: 16px; color: var(--brand);   flex-shrink: 0; }
+  .route-card-map-btn {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4);
+    border-radius: 8px; width: 32px; height: 32px; color: white; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0; touch-action: manipulation;
+  }
+  .route-card-map-btn:active { background: rgba(255,255,255,0.32); transform: scale(0.93); }
+  .route-card-map-btn svg { width: 15px; height: 15px; }
+  .route-card-map-btn.disabled { opacity: 0.35; pointer-events: none; }
+  @media (hover: hover) and (pointer: fine) {
+    .route-card-map-btn:hover { background: rgba(255,255,255,0.3); }
+  }
   .route-active-actions { padding: 0 14px 14px; display: flex; gap: 8px; }
   .route-start-btn {
     flex: 1; padding: 11px; background: var(--success); color: white; border: none;
@@ -1484,6 +1496,9 @@
           <div class="route-active-title" id="routeCardTitle">Today's Route</div>
           <div class="route-active-meta" id="routeCardMeta">0 stops</div>
         </div>
+        <button class="route-card-map-btn" id="routeCardMapBtn" onclick="openActiveRoutePreview()" title="Preview route map">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+        </button>
         <span class="route-status-badge draft" id="routeCardBadge">Draft</span>
       </div>
       <div class="route-stops-list" id="routeCardStops"></div>
@@ -3695,6 +3710,12 @@ function renderActiveRouteCard(route, deliveredCustomers) {
 
   document.getElementById('routeCardTitle').textContent = route.route_name || formatRouteDate(route.route_date);
   document.getElementById('routeCardMeta').textContent  = `${stops.length} stop${stops.length !== 1 ? 's' : ''}`;
+  const mapBtn = document.getElementById('routeCardMapBtn');
+  if (mapBtn) {
+    const hasCoords = stops.some(s => s.lat && s.lng);
+    mapBtn.classList.toggle('disabled', !hasCoords);
+    mapBtn.title = hasCoords ? 'Preview route map' : 'No coordinates on file for these stops';
+  }
   const badge = document.getElementById('routeCardBadge');
   badge.textContent = route.status.charAt(0).toUpperCase() + route.status.slice(1);
   badge.className   = 'route-status-badge ' + route.status;
@@ -3958,6 +3979,36 @@ function closeRouteEditor() {
 // ── Route Preview Map ─────────────────────────────────────────────────────────
 
 let routePreviewMap = null;
+
+function openActiveRoutePreview() {
+  if (!activeRouteData) return;
+  // Temporarily use activeRouteData as the preview source
+  const prev = editingRoute;
+  editingRoute = activeRouteData;
+  // Remove disabled guard by bypassing pill check — call map init directly
+  const route = activeRouteData;
+  const delivStops = Array.isArray(route.stops) ? route.stops.filter(s => !s.__final_dest) : [];
+  if (!delivStops.length) {
+    editingRoute = prev;
+    alert('No stops on this route to preview.');
+    return;
+  }
+  const stopsWithCoords    = delivStops.filter(s => s.lat && s.lng);
+  const stopsWithoutCoords = delivStops.filter(s => !(s.lat && s.lng));
+
+  document.getElementById('routePreviewTitle').textContent = route.route_name || 'Route Preview';
+  document.getElementById('routePreviewSub').textContent   = `${delivStops.length} stop${delivStops.length !== 1 ? 's' : ''}`;
+  document.getElementById('routePreviewInfoText').textContent =
+    `${stopsWithCoords.length} stop${stopsWithCoords.length !== 1 ? 's' : ''} with coordinates · tap a marker for details`;
+
+  const noCoords = document.getElementById('routePreviewNoCoords');
+  stopsWithoutCoords.length > 0 ? noCoords.classList.add('show') : noCoords.classList.remove('show');
+
+  document.getElementById('routePreviewOverlay').classList.add('open');
+  window.scrollTo(0, 0);
+  setTimeout(() => initRoutePreviewMap(route, stopsWithCoords), 80);
+  editingRoute = prev;
+}
 
 function openRoutePreview() {
   const pill = document.getElementById('routeMapPill');
