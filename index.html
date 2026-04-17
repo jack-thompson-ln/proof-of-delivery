@@ -437,6 +437,34 @@
   .logout-pill:active { background: rgba(255,255,255,0.3); transform: scale(0.96); }
   .logout-pill svg { width: 17px; height: 17px; }
 
+  /* ── HEADER DRIVER CHIP (replaces in-page welcome card) ── */
+  .header-driver-chip {
+    display: none; /* hidden on mobile — welcome card used instead */
+    align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.12);
+    border: 1.5px solid rgba(255,255,255,0.25);
+    border-radius: 10px; padding: 6px 12px 6px 8px;
+    flex-shrink: 0; min-width: 0;
+  }
+  .header-driver-chip-avatar {
+    width: 26px; height: 26px; background: rgba(255,255,255,0.2);
+    border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .header-driver-chip-avatar svg { width: 14px; height: 14px; color: white; }
+  .header-driver-chip-name {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 800;
+    color: white; letter-spacing: 0.03em; white-space: nowrap;
+  }
+  .header-driver-chip-sub {
+    font-size: 0.6rem; color: rgba(255,255,255,0.6); letter-spacing: 0.04em;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  /* Show header chip (and hide in-page welcome) at tablet+ */
+  @media (min-width: 700px) {
+    .header-driver-chip { display: flex; }
+    .driver-welcome { display: none !important; }
+  }
+
   /* Driver welcome strip on form */
   .driver-welcome { display: flex; flex-direction: column; gap: 10px; background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
   .driver-welcome-top { display: flex; align-items: center; gap: 10px; }
@@ -544,40 +572,46 @@
     .photo-zone:hover:not(.has-photo) { border-color: var(--brand); background: rgba(0,75,142,0.03); }
   }
 
-  /* Desktop layout — wider viewport, centred content with breathing room */
+  /* ══ DESKTOP / TABLET RESPONSIVE ══
+     Mobile-first: all base styles target phones.
+     700px+ = tablet / small laptop — content widens, chrome breathes.
+     1100px+ = full desktop — two-column layout with sidebar-style driver panel.
+  */
+
   @media (min-width: 700px) {
-    body { background: #e8eef6; }
+    body { background: #e0e8f2; }
 
-    header { }
-    .header-inner { max-width: 1100px; margin: 0 auto; padding: 14px 32px; }
+    /* Header spans full width; inner content capped and centred */
+    .header-inner { max-width: 1400px; margin: 0 auto; padding: 14px 32px; }
 
-    main { max-width: 680px; padding: 28px 24px 60px; }
+    /* Main content — wider on tablet */
+    main { max-width: 760px; padding: 28px 28px 60px; }
 
-    /* Login screen — side-by-side feel on wide screens */
+    /* Login screen */
     #driverLoginScreen { padding: 40px 32px; }
-    .login-box { max-width: 380px; padding: 32px 28px; }
+    .login-box { max-width: 400px; padding: 32px 28px; }
     .driver-login-grid { grid-template-columns: repeat(4, 1fr); }
 
-    /* Cards more comfortable */
+    /* Cards */
     .card { padding: 24px; }
 
-    /* Filter bar date row — bigger inputs */
+    /* Filter bar date row */
     .filter-row input[type="date"] { font-size: 0.88rem; padding: 11px 12px; }
 
-    /* Record cards — slightly taller thumb on desktop */
+    /* Record cards */
     .record-thumb, .record-thumb-placeholder { width: 64px; height: 64px; }
     .record-customer { font-size: 1.12rem; }
 
-    /* Analytics charts — allow wider doughnuts */
-    .chart-wrap { max-width: 380px; }
+    /* Analytics charts */
+    .chart-wrap { max-width: 400px; }
 
-    /* Detail view photo constrained to sensible size */
+    /* Detail view photo */
     .detail-photo-wrap img { max-height: 420px; object-fit: cover; }
 
-    /* Map overlay — centred panel on desktop, not full bleed */
+    /* Map overlay — centred floating panel */
     #mapOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
     #mapOverlay .map-panel {
-      width: 100%; max-width: 900px; height: 85vh;
+      width: 100%; max-width: 960px; height: 85vh;
       background: var(--off-white); border-radius: 20px;
       overflow: hidden; display: flex; flex-direction: column;
       box-shadow: 0 24px 80px rgba(0,0,0,0.35);
@@ -587,25 +621,53 @@
     .map-no-gps { margin: 12px 16px 0; }
     .map-info-bar { border-radius: 0; }
 
-    /* Sync bar centred text */
+    /* Sync bar */
     .sync-bar { padding: 8px 32px; }
 
-    /* Step labels bigger */
+    /* Step labels */
     .step-label { font-size: 0.65rem; }
   }
 
-  @media (min-width: 900px) {
-    main { max-width: 760px; }
+  @media (min-width: 1100px) {
+    /* Full desktop: app fills the viewport in a centred shell */
+    body { display: flex; flex-direction: column; min-height: 100dvh; }
 
-    /* History — two-column record list on very wide screens */
-    /* (keep single column — content is better readable single col) */
+    main {
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 32px 40px 60px;
+      /* Two-column grid: form/content left, wider on very large screens */
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      grid-template-rows: auto;
+      column-gap: 28px;
+      align-items: start;
+    }
 
-    /* Analytics stat cards — keep 3-column, just give more padding */
+    /* All direct children of main that aren't the sidebar column
+       flow into the left column by default */
+    main > * { grid-column: 1; }
+
+    /* Route active card and driver welcome stay full-width (left col) */
+    .route-active-card { grid-column: 1; }
+
+    /* Steps indicator stays left */
+    .steps { grid-column: 1; }
+
+    /* Analytics stat cards — more comfortable padding */
     .stat-card { padding: 20px 16px; }
-    .stat-card-value { font-size: 1.6rem; }
+    .stat-card-value { font-size: 1.7rem; }
 
-    /* Chart side by side */
-    .chart-wrap { max-width: 440px; }
+    /* Charts — wider on desktop */
+    .chart-wrap { max-width: 480px; }
+
+    /* Record cards — slightly more breathing room */
+    .record-card { padding: 16px; }
+  }
+
+  @media (min-width: 1400px) {
+    main { grid-template-columns: 1fr 380px; column-gap: 32px; }
   }
 
   /* ══ ROUTE PILL (header) ══ */
@@ -1317,6 +1379,16 @@
     <div class="header-titles">
       <div class="header-title">FMF POD</div>
       <div class="header-sub">Delivery Confirmation</div>
+    </div>
+    <!-- Driver chip — shown in header on tablet/desktop when a driver is logged in -->
+    <div class="header-driver-chip" id="headerDriverChip">
+      <div class="header-driver-chip-avatar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      </div>
+      <div>
+        <div class="header-driver-chip-name" id="headerDriverName"></div>
+        <div class="header-driver-chip-sub">Logged in as driver</div>
+      </div>
     </div>
     <div class="header-right">
       <button class="route-pill" id="routePill" onclick="showRouteView()" title="My Routes" style="display:none;">
@@ -2219,6 +2291,9 @@ function checkLoginPin() {
 function showAppAsDriver(name) {
   document.getElementById('driverLoginScreen').classList.add('hidden');
   document.getElementById('driverWelcomeName').textContent = name;
+  // Header driver chip (shown on tablet/desktop)
+  document.getElementById('headerDriverName').textContent = name;
+  document.getElementById('headerDriverChip').style.removeProperty('display');
   document.getElementById('formSection').style.display = 'block';
   document.getElementById('routePill').style.display = 'flex';
   document.getElementById('driverHistoryPill').style.display = 'flex';
@@ -2236,6 +2311,7 @@ function logoutDriver() {
   document.getElementById('driverLoginScreen').classList.remove('hidden');
   document.getElementById('driverHistoryPill').style.display = 'none';
   document.getElementById('routePill').style.display = 'none';
+  document.getElementById('headerDriverChip').style.display = 'none';
 }
 
 // ── CUSTOMER SEARCH ───────────────────────────────────────
