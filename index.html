@@ -4104,6 +4104,12 @@ function closeFinalDestDropdown() {
   if (dd) dd.classList.remove('open');
 }
 
+function selectFinalDestByIndex(i) {
+  const o = window._finalDestOptions && window._finalDestOptions[i];
+  if (!o) return;
+  selectFinalDestAddress(o.label, o.addressLine, o.postcode, o.lat, o.lng);
+}
+
 function selectFinalDestAddress(label, addressLine, postcode, lat, lng) {
   document.getElementById('finalDestLabel').value = label;
   document.getElementById('finalDestLat').value   = lat || '';
@@ -4175,19 +4181,14 @@ async function runFinalDestSearch() {
       return;
     }
 
+    window._finalDestOptions = options;
     dd.innerHTML = options.map((o, i) => {
       const sub = [o.addressLine, o.postcode].filter(Boolean).join(', ');
       const hasCoords = o.lat && o.lng;
       const gpsBadge = hasCoords
-        ? `<span style="font-size:0.65rem;color:var(--success);font-weight:700;margin-left:5px;">📍 GPS</span>`
+        ? `<span style="font-size:0.65rem;color:var(--success);font-weight:700;margin-left:5px;">&#x1F4CD; GPS</span>`
         : `<span style="font-size:0.65rem;color:var(--error);font-weight:700;margin-left:5px;">No GPS</span>`;
-      return `<div class="final-dest-option" onclick="selectFinalDestAddress(
-        ${JSON.stringify(o.label)},
-        ${JSON.stringify(o.addressLine)},
-        ${JSON.stringify(o.postcode)},
-        ${o.lat || 'null'},
-        ${o.lng || 'null'}
-      )">
+      return `<div class="final-dest-option" ontouchend="selectFinalDestByIndex(${i});event.preventDefault();" onclick="selectFinalDestByIndex(${i})">
         <div class="final-dest-option-label">${escHtml(o.label)}${gpsBadge}</div>
         ${sub ? `<div class="final-dest-option-sub">${escHtml(sub)}</div>` : ''}
       </div>`;
@@ -4200,8 +4201,9 @@ async function runFinalDestSearch() {
   }
 }
 
-// Close dropdown when clicking outside
-document.addEventListener('click', e => {
+// Close dropdown when clicking outside — use mousedown so it doesn't
+// race with the ontouchend on the option and swallow the selection
+document.addEventListener('mousedown', e => {
   const wrap = document.querySelector('.final-dest-search-wrap');
   if (wrap && !wrap.contains(e.target)) closeFinalDestDropdown();
 });
