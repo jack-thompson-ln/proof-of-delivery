@@ -1354,19 +1354,27 @@
   .ov-refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
 
   /* Filter chips */
-  .ov-filter-row { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .ov-filter-row { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
   .ov-filter-chip { background: white; border: 2px solid var(--border); border-radius: 20px; padding: 6px 14px; font-family: 'Barlow', sans-serif; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; white-space: nowrap; touch-action: manipulation; }
   .ov-filter-chip.active { background: var(--brand); border-color: var(--brand); color: white; }
   .ov-filter-chip:active { transform: scale(0.96); }
+  .ov-filter-divider { width: 1.5px; height: 22px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+  .ov-toggle-label { display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; user-select: none; }
+  .ov-toggle-track { position: relative; width: 34px; height: 20px; background: var(--border); border-radius: 10px; transition: background 0.2s; flex-shrink: 0; }
+  .ov-toggle-track.on { background: var(--brand); }
+  .ov-toggle-knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: white; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.2); transition: transform 0.2s; }
+  .ov-toggle-track.on .ov-toggle-knob { transform: translateX(14px); }
 
   /* Section label */
   .ov-section-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
   .ov-section-label-right { font-family: 'Barlow', sans-serif; font-weight: 400; font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0; text-transform: none; }
 
   /* Driver grid */
-  .ov-driver-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
-  @media (min-width: 700px)  { .ov-driver-grid { grid-template-columns: repeat(2,1fr); } }
-  @media (min-width: 1100px) { .ov-driver-grid { grid-template-columns: repeat(3,1fr); } }
+  .ov-driver-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 600px)  { .ov-driver-grid { grid-template-columns: repeat(2,1fr); } }
+  @media (min-width: 900px)  { .ov-driver-grid { grid-template-columns: repeat(2,1fr); } }
+  @media (min-width: 1200px) { .ov-driver-grid { grid-template-columns: repeat(3,1fr); } }
+  @media (min-width: 1600px) { .ov-driver-grid { grid-template-columns: repeat(4,1fr); } }
 
   /* Driver card */
   .ov-driver-card { background: white; border-radius: var(--radius); border: 1.5px solid var(--border); box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; transition: all 0.2s; }
@@ -2185,12 +2193,16 @@
         </button>
       </div>
 
-      <!-- Filter chips -->
+      <!-- Filter row -->
       <div class="ov-filter-row">
-        <button class="ov-filter-chip active" onclick="ovSetFilter('all')"       id="ovfc-all">All Drivers</button>
+        <button class="ov-filter-chip active" onclick="ovSetFilter('all')"       id="ovfc-all">All Routes</button>
         <button class="ov-filter-chip"        onclick="ovSetFilter('active')"    id="ovfc-active">Active</button>
         <button class="ov-filter-chip"        onclick="ovSetFilter('completed')" id="ovfc-completed">Completed</button>
-        <button class="ov-filter-chip"        onclick="ovSetFilter('no-route')"  id="ovfc-no-route">No Route</button>
+        <div class="ov-filter-divider"></div>
+        <label class="ov-toggle-label" onclick="ovToggleNoRoute()">
+          <div class="ov-toggle-track" id="ovNoRouteTrack"><div class="ov-toggle-knob"></div></div>
+          Show unassigned
+        </label>
       </div>
 
       <!-- Section label -->
@@ -5411,8 +5423,9 @@ function ovColorForDriver(name) {
   return OV_COLORS[h % OV_COLORS.length];
 }
 
-let ovAllDriverData   = []; // [{ name, color, route, status, lastDelivery, stops:[{name,done,time}] }]
-let ovCurrentFilter   = 'all';
+let ovAllDriverData   = [];
+let ovCurrentFilter   = 'all';  // 'all' | 'active' | 'completed'
+let ovShowNoRoute     = false;   // toggle: show drivers with no routes
 let ovExpandedDrivers = new Set();
 let ovRefreshTimer    = null;
 
@@ -5583,12 +5596,18 @@ function ovRenderSummary() {
 }
 
 function ovRenderGrid() {
-  const filtered = ovCurrentFilter === 'all'
-    ? ovAllDriverData
-    : ovAllDriverData.filter(d => d.status === ovCurrentFilter);
+  // Filter by route-level status, not driver-level status
+  let filtered = ovAllDriverData.filter(driver => {
+    if (driver.routes.length === 0) return ovShowNoRoute; // respect toggle
 
-  document.getElementById('ovDriverCount').textContent  = `${ovAllDriverData.length}`;
-  document.getElementById('ovRouteCount').textContent   = `${filtered.length} driver${filtered.length !== 1 ? 's' : ''}`;
+    if (ovCurrentFilter === 'all') return true;
+
+    // Show driver if ANY of their routes match the filter
+    return driver.routes.some(r => r.status === ovCurrentFilter);
+  });
+
+  document.getElementById('ovDriverCount').textContent = `${ovAllDriverData.length}`;
+  document.getElementById('ovRouteCount').textContent  = `${filtered.length} driver${filtered.length !== 1 ? 's' : ''}`;
 
   const grid = document.getElementById('ovDriverGrid');
   grid.innerHTML = '';
@@ -5773,8 +5792,17 @@ function ovOpenRoutePreview(routeId) {
 
 function ovSetFilter(f) {
   ovCurrentFilter = f;
-  document.querySelectorAll('.ov-filter-chip').forEach(el => el.classList.remove('active'));
-  document.getElementById('ovfc-' + f).classList.add('active');
+  ['all','active','completed'].forEach(id => {
+    const el = document.getElementById('ovfc-' + id);
+    if (el) el.classList.toggle('active', id === f);
+  });
+  ovRenderGrid();
+}
+
+function ovToggleNoRoute() {
+  ovShowNoRoute = !ovShowNoRoute;
+  const track = document.getElementById('ovNoRouteTrack');
+  if (track) track.classList.toggle('on', ovShowNoRoute);
   ovRenderGrid();
 }
 
