@@ -1388,9 +1388,7 @@
 
   /* Driver grid */
   .ov-driver-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-  @media (min-width: 640px)  { .ov-driver-grid { grid-template-columns: repeat(2,1fr); } }
-  @media (min-width: 1080px) { .ov-driver-grid { grid-template-columns: repeat(3,1fr); } }
-  @media (min-width: 1440px) { .ov-driver-grid { grid-template-columns: repeat(4,1fr); } }
+  @media (min-width: 700px)  { .ov-driver-grid { grid-template-columns: repeat(2,1fr); } }
 
   /* Driver card */
   .ov-driver-card { background: white; border-radius: var(--radius); border: 1.5px solid var(--border); box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; transition: all 0.2s; }
@@ -1414,13 +1412,12 @@
   .ov-progress-fill { height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
 
   /* Stops */
-  .ov-stops-section { padding: 0 16px 14px; flex: 1; }
-  .ov-stops-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .ov-stop-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
-  .ov-stops-col-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+  .ov-stops-section { padding: 0 16px 16px; flex: 1; }
+  .ov-stops-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ov-stops-col-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
   .ov-stops-col-label.done-label { color: var(--success); }
   .ov-stops-col-label.todo-label { color: var(--text-muted); }
-  .ov-stop-item { display: flex; align-items: flex-start; gap: 7px; padding: 6px 8px; border-radius: 8px; margin-bottom: 4px; font-size: 0.78rem; font-weight: 500; line-height: 1.3; }
+  .ov-stop-item { display: flex; align-items: flex-start; gap: 7px; padding: 6px 8px; border-radius: 8px; margin-bottom: 4px; font-size: 0.8rem; font-weight: 500; line-height: 1.35; }
   .ov-stop-item:last-child { margin-bottom: 0; }
   .ov-stop-item.done { background: rgba(0,184,107,0.06); color: var(--text-muted); text-decoration: line-through; }
   .ov-stop-item.next { background: rgba(0,75,142,0.07); color: var(--brand); font-weight: 700; border: 1.5px solid rgba(0,75,142,0.15); }
@@ -1429,7 +1426,7 @@
   .ov-stop-num.done { background: var(--success); color: white; }
   .ov-stop-num.next { background: var(--brand); color: white; }
   .ov-stop-num.todo { background: var(--border); color: var(--text-muted); }
-  .ov-stop-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ov-stop-name { flex: 1; min-width: 0; word-break: break-word; line-height: 1.35; }
 
   /* Footer */
   .ov-driver-footer { padding: 9px 16px; border-top: 1.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--off-white); }
@@ -1453,7 +1450,7 @@
   .ov-route-map-btn:active { background: rgba(0,75,142,0.2); transform: scale(0.93); }
   .ov-route-map-btn svg { width: 14px; height: 14px; color: var(--brand); }
   .ov-route-map-btn.no-coords { opacity: 0.3; pointer-events: none; }
-  .ov-route-progress { padding: 0 16px 10px; }
+  .ov-route-progress { padding: 0 16px 12px; }
 
   /* Hover */
   @media (hover: hover) and (pointer: fine) {
@@ -5649,7 +5646,7 @@ function ovBuildCard(driver) {
     return `<div class="ov-stop-item ${cls}">
       <div class="ov-stop-num ${cls}">${numInner}</div>
       <div class="ov-stop-name" title="${escHtml(stop.name)}">${escHtml(shortName)}</div>
-      ${type === 'done' && stop.time ? `<div style="font-size:0.65rem;color:var(--text-muted);flex-shrink:0;font-weight:600;">${stop.time}</div>` : ''}
+      ${type === 'done' && stop.time ? `<div style="font-size:0.7rem;color:var(--text-muted);flex-shrink:0;font-weight:700;margin-left:auto;padding-left:4px;">${stop.time}</div>` : ''}
     </div>`;
   };
 
@@ -5686,11 +5683,12 @@ function ovBuildCard(driver) {
     } else {
       const doneStops    = stops.filter(s => s.done);
       const todoStops    = stops.filter(s => !s.done);
-      const maxVis       = 4;
-      const doneVisible  = isExp ? doneStops : doneStops.slice(0, maxVis);
-      const todoVisible  = isExp ? todoStops : todoStops.slice(0, maxVis);
-      const doneOverflow = doneStops.length - maxVis;
-      const todoOverflow = todoStops.length - maxVis;
+      // Show all stops by default; collapse button appears only when list is very long
+      const maxVis       = isExp ? 999 : 8;
+      const doneVisible  = doneStops.slice(0, maxVis);
+      const todoVisible  = todoStops.slice(0, maxVis);
+      const doneOverflow = Math.max(0, doneStops.length - maxVis);
+      const todoOverflow = Math.max(0, todoStops.length - maxVis);
       const needsExpand  = doneStops.length > maxVis || todoStops.length > maxVis;
 
       stopsBody = `
