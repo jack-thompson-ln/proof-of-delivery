@@ -1419,6 +1419,16 @@
   .ov-expand-btn { background: none; border: none; color: var(--brand); font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; padding: 0 16px 12px; display: flex; align-items: center; gap: 5px; touch-action: manipulation; }
   .ov-expand-btn svg { width: 13px; height: 13px; transition: transform 0.2s; }
   .ov-expand-btn.open svg { transform: rotate(180deg); }
+  /* Per-route sub-sections inside a driver card */
+  .ov-route-block { border-top: 1.5px solid var(--border); }
+  .ov-route-block:first-child { border-top: none; }
+  .ov-route-block-header { padding: 10px 16px 8px; display: flex; align-items: center; gap: 8px; }
+  .ov-route-block-name { font-family: 'Barlow Condensed', sans-serif; font-size: 0.88rem; font-weight: 800; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ov-route-map-btn { background: rgba(0,75,142,0.08); border: 1.5px solid rgba(0,75,142,0.18); border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; touch-action: manipulation; transition: background 0.15s; }
+  .ov-route-map-btn:active { background: rgba(0,75,142,0.2); transform: scale(0.93); }
+  .ov-route-map-btn svg { width: 14px; height: 14px; color: var(--brand); }
+  .ov-route-map-btn.no-coords { opacity: 0.3; pointer-events: none; }
+  .ov-route-progress { padding: 0 16px 10px; }
 
   /* Hover */
   @media (hover: hover) and (pointer: fine) {
@@ -5460,28 +5470,16 @@ async function ovLoad() {
         ? new Date(lastDel.delivery_datetime).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
         : null;
 
-      // Build stop list from ALL routes, aggregated
-      let status = 'no-route';
-      let stops  = [];
-      let routeName = null;
+      // Build per-route data — one entry per route, kept separate
+      let overallStatus = 'no-route';
+      let routes = [];
 
       if (driverRoutes.length > 0) {
-        // Priority: active > draft > completed (pick best as the "primary" label)
-        const primary =
-          driverRoutes.find(r => r.status === 'active') ||
-          driverRoutes.find(r => r.status === 'draft')  ||
-          driverRoutes[driverRoutes.length - 1];
-
-        routeName = driverRoutes.length > 1
-          ? `${driverRoutes.length} routes today`
-          : (primary.route_name || null);
-
-        // Aggregate stops across every route
-        stops = driverRoutes.flatMap(route => {
+        routes = driverRoutes.map(route => {
           const rawStops = Array.isArray(route.stops)
             ? route.stops.filter(s => !s.__final_dest)
             : [];
-          return rawStops.map(s => {
+          const stops = rawStops.map(s => {
             const custName = s.customer || '';
             const done = deliveredNames.has(custName.toLowerCase());
             const matchDel = myDeliveries.find(d =>
@@ -5492,25 +5490,33 @@ async function ovLoad() {
               : null;
             return { name: custName, done, time };
           });
+
+          let status = route.status || 'draft';
+          // If all stops delivered but route not yet marked completed, show as completed
+          if (stops.length > 0 && stops.every(s => s.done) && status === 'active') {
+            status = 'completed';
+          }
+
+          return {
+            id:        route.id,
+            routeName: route.route_name || null,
+            status,
+            stops,
+            rawRoute:  route   // keep original for map preview
+          };
         });
 
-        // Overall status: active if any route is active; completed if all routes
-        // are completed (or all stops done); otherwise use primary status
-        if (driverRoutes.some(r => r.status === 'active')) {
-          status = 'active';
-        } else if (driverRoutes.every(r => r.status === 'completed')) {
-          status = 'completed';
-        } else {
-          status = primary.status || 'draft';
-        }
+        // Sort: active first, then draft, then completed
+        const statusOrder = { active: 0, draft: 1, completed: 2 };
+        routes.sort((a, b) => (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3));
 
-        // If all stops are delivered but status still shows active, mark completed
-        if (stops.length > 0 && stops.every(s => s.done) && status === 'active') {
-          status = 'completed';
-        }
+        // Overall driver status for filtering/summary
+        if (routes.some(r => r.status === 'active'))          overallStatus = 'active';
+        else if (routes.every(r => r.status === 'completed')) overallStatus = 'completed';
+        else                                                   overallStatus = routes[0].status;
       }
 
-      return { name, color, route: routeName, status, lastDelivery, stops };
+      return { name, color, routes, status: overallStatus, lastDelivery };
     });
 
     // ── 5. Render ────────────────────────────────────────────────────────
@@ -5545,8 +5551,9 @@ function ovRenderAll() {
 }
 
 function ovRenderSummary() {
-  const totalDelivered = ovAllDriverData.reduce((s, d) => s + d.stops.filter(st => st.done).length, 0);
-  const totalRemaining = ovAllDriverData.reduce((s, d) => s + d.stops.filter(st => !st.done).length, 0);
+  const allStops = ovAllDriverData.flatMap(d => d.routes.flatMap(r => r.stops));
+  const totalDelivered = allStops.filter(st => st.done).length;
+  const totalRemaining = allStops.filter(st => !st.done).length;
   const activeCount    = ovAllDriverData.filter(d => d.status === 'active').length;
   const completedCount = ovAllDriverData.filter(d => d.status === 'completed').length;
   const totalStops     = totalDelivered + totalRemaining;
@@ -5593,29 +5600,13 @@ function ovRenderGrid() {
 }
 
 function ovBuildCard(driver) {
-  const done      = driver.stops.filter(s => s.done).length;
-  const total     = driver.stops.length;
-  const remaining = total - done;
-  const pct       = total > 0 ? Math.round((done / total) * 100) : 0;
-  const nextIdx   = driver.stops.findIndex(s => !s.done);
-  const isExp     = ovExpandedDrivers.has(driver.name);
+  const badgeMap  = { active:'Active', completed:'Complete', draft:'Draft', 'no-route':'No Route' };
 
-  const badgeMap = { active:'Active', completed:'Complete', draft:'Draft', 'no-route':'No Route' };
-  const progColor = driver.status === 'completed' ? 'var(--success)' : driver.color;
-
-  const doneStops    = driver.stops.filter(s => s.done);
-  const todoStops    = driver.stops.filter(s => !s.done);
-  const maxVis       = 4;
-  const doneVisible  = isExp ? doneStops : doneStops.slice(0, maxVis);
-  const todoVisible  = isExp ? todoStops : todoStops.slice(0, maxVis);
-  const doneOverflow = doneStops.length - maxVis;
-  const todoOverflow = todoStops.length - maxVis;
-
-  const stopHTML = (stop, type) => {
-    const globalIdx = driver.stops.indexOf(stop);
-    const isNext    = type === 'todo' && globalIdx === nextIdx;
-    const cls       = type === 'done' ? 'done' : (isNext ? 'next' : 'todo');
-    const numInner  = type === 'done'
+  // ── Helper: build one stop row ───────────────────────────────────────────
+  const stopHTML = (stop, type, globalIdx, nextIdx) => {
+    const isNext   = type === 'todo' && globalIdx === nextIdx;
+    const cls      = type === 'done' ? 'done' : (isNext ? 'next' : 'todo');
+    const numInner = type === 'done'
       ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
       : (globalIdx + 1);
     const shortName = stop.name.replace(/^[A-Z]\d+\s-\s/, '');
@@ -5626,47 +5617,109 @@ function ovBuildCard(driver) {
     </div>`;
   };
 
-  const needsExpand = (doneStops.length > maxVis || todoStops.length > maxVis) && total > 0;
+  // ── Helper: build one route block ────────────────────────────────────────
+  const buildRouteBlock = (route, driverName) => {
+    const stops     = route.stops;
+    const done      = stops.filter(s => s.done).length;
+    const total     = stops.length;
+    const remaining = total - done;
+    const pct       = total > 0 ? Math.round((done / total) * 100) : 0;
+    const nextIdx   = stops.findIndex(s => !s.done);
+    const expKey    = driverName + '::' + route.id;
+    const isExp     = ovExpandedDrivers.has(expKey);
+    const progColor = route.status === 'completed' ? 'var(--success)' : driver.color;
 
-  let stopsBody = '';
-  if (driver.status === 'no-route') {
-    stopsBody = `<div class="ov-no-route-body">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      No route assigned for today
-    </div>`;
-  } else if (total === 0) {
-    stopsBody = `<div class="ov-no-route-body">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Route draft — no stops added yet
-    </div>`;
-  } else {
-    stopsBody = `
-      <div class="ov-stops-section">
-        <div class="ov-stops-cols">
-          <div>
-            <div class="ov-stops-col-label done-label">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-              Done (${done})
-            </div>
-            ${doneVisible.map(s => stopHTML(s, 'done')).join('')}
-            ${!isExp && doneOverflow > 0 ? `<div style="font-size:0.7rem;color:var(--text-muted);padding:4px 8px;font-weight:600;">+${doneOverflow} more…</div>` : ''}
+    // Check if any stops have coords for map btn
+    const rawStops      = Array.isArray(route.rawRoute.stops) ? route.rawRoute.stops.filter(s => !s.__final_dest) : [];
+    const hasCoords     = rawStops.some(s => s.lat && s.lng);
+    const mapBtnCls     = hasCoords ? 'ov-route-map-btn' : 'ov-route-map-btn no-coords';
+    const safeDriver    = escHtml(driverName).replace(/'/g, "\'");
+    const safeRouteId   = escHtml(route.id || '');
+
+    const routeLabel = route.routeName
+      ? escHtml(route.routeName)
+      : (route.status === 'draft' ? 'Draft Route' : 'Unnamed Route');
+
+    // Progress + stops
+    let stopsBody = '';
+    if (total === 0) {
+      stopsBody = `<div class="ov-no-route-body" style="padding:10px 16px 14px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        No stops added yet
+      </div>`;
+    } else {
+      const doneStops    = stops.filter(s => s.done);
+      const todoStops    = stops.filter(s => !s.done);
+      const maxVis       = 4;
+      const doneVisible  = isExp ? doneStops : doneStops.slice(0, maxVis);
+      const todoVisible  = isExp ? todoStops : todoStops.slice(0, maxVis);
+      const doneOverflow = doneStops.length - maxVis;
+      const todoOverflow = todoStops.length - maxVis;
+      const needsExpand  = doneStops.length > maxVis || todoStops.length > maxVis;
+
+      stopsBody = `
+        <div class="ov-route-progress">
+          <div class="ov-progress-meta">
+            <span class="ov-progress-meta-left">${done} of ${total} stops delivered</span>
+            <span class="ov-progress-meta-right" style="color:${progColor};">${pct}%</span>
           </div>
-          <div>
-            <div class="ov-stops-col-label todo-label">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              To Go (${remaining})
-            </div>
-            ${todoVisible.map(s => stopHTML(s, 'todo')).join('')}
-            ${!isExp && todoOverflow > 0 ? `<div style="font-size:0.7rem;color:var(--text-muted);padding:4px 8px;font-weight:600;">+${todoOverflow} more…</div>` : ''}
+          <div class="ov-progress-track">
+            <div class="ov-progress-fill" style="width:${pct}%;background:${progColor};"></div>
           </div>
         </div>
+        <div class="ov-stops-section" style="padding-top:0;">
+          <div class="ov-stops-cols">
+            <div>
+              <div class="ov-stops-col-label done-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                Done (${done})
+              </div>
+              ${doneVisible.map(s => stopHTML(s, 'done', stops.indexOf(s), nextIdx)).join('')}
+              ${!isExp && doneOverflow > 0 ? `<div style="font-size:0.7rem;color:var(--text-muted);padding:4px 8px;font-weight:600;">+${doneOverflow} more…</div>` : ''}
+            </div>
+            <div>
+              <div class="ov-stops-col-label todo-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                To Go (${remaining})
+              </div>
+              ${todoVisible.map(s => stopHTML(s, 'todo', stops.indexOf(s), nextIdx)).join('')}
+              ${!isExp && todoOverflow > 0 ? `<div style="font-size:0.7rem;color:var(--text-muted);padding:4px 8px;font-weight:600;">+${todoOverflow} more…</div>` : ''}
+            </div>
+          </div>
+        </div>
+        ${needsExpand ? `
+          <button class="ov-expand-btn ${isExp ? 'open' : ''}" onclick="ovToggleExpand('${escHtml(expKey).replace(/'/g, "\\'")}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            ${isExp ? 'Show less' : `Show all ${total} stops`}
+          </button>` : ''}`;
+    }
+
+    return `<div class="ov-route-block">
+      <div class="ov-route-block-header">
+        <span class="ov-route-block-name">${routeLabel}</span>
+        <span class="ov-status-badge ${route.status}" style="font-size:0.6rem;padding:3px 7px;">${badgeMap[route.status] || route.status}</span>
+        <button class="${mapBtnCls}" onclick="ovOpenRoutePreview('${safeRouteId}')" title="${hasCoords ? 'Preview route map' : 'No coordinates available'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+            <line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>
+          </svg>
+        </button>
       </div>
-      ${needsExpand ? `
-        <button class="ov-expand-btn ${isExp ? 'open' : ''}" onclick="ovToggleExpand('${driver.name.replace(/'/g,"\\'")}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          ${isExp ? 'Show less' : `Show all ${total} stops`}
-        </button>` : ''}`;
-  }
+      ${stopsBody}
+    </div>`;
+  };
+
+  // ── Assemble full card ───────────────────────────────────────────────────
+  const allRouteBlocks = driver.routes.length > 0
+    ? driver.routes.map(r => buildRouteBlock(r, driver.name)).join('')
+    : `<div class="ov-no-route-body">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        No route assigned for today
+      </div>`;
+
+  const routeCountLabel = driver.routes.length === 0 ? 'No route today'
+    : driver.routes.length === 1 ? (driver.routes[0].routeName || 'Unnamed Route')
+    : `${driver.routes.length} routes today`;
 
   const footerLeft = driver.lastDelivery
     ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Last delivery ${driver.lastDelivery}`
@@ -5679,26 +5732,43 @@ function ovBuildCard(driver) {
       <div class="ov-driver-avatar" style="background:${driver.color};">${escHtml(driver.name[0])}</div>
       <div class="ov-driver-info">
         <div class="ov-driver-name">${escHtml(driver.name)}</div>
-        <div class="ov-driver-route">${driver.route ? escHtml(driver.route) : 'No route today'}</div>
+        <div class="ov-driver-route">${escHtml(routeCountLabel)}</div>
       </div>
       <span class="ov-status-badge ${driver.status}">${badgeMap[driver.status] || driver.status}</span>
     </div>
-    ${total > 0 ? `
-    <div class="ov-driver-progress">
-      <div class="ov-progress-meta">
-        <span class="ov-progress-meta-left">${done} of ${total} stops delivered</span>
-        <span class="ov-progress-meta-right" style="color:${progColor};">${pct}%</span>
-      </div>
-      <div class="ov-progress-track">
-        <div class="ov-progress-fill" style="width:${pct}%;background:${progColor};"></div>
-      </div>
-    </div>` : ''}
-    ${stopsBody}
+    ${allRouteBlocks}
     <div class="ov-driver-footer">
       <div class="ov-driver-footer-left">${footerLeft}</div>
-      <div style="font-size:0.72rem;color:${driver.color};font-weight:700;font-family:'Barlow Condensed',sans-serif;">${pct > 0 ? pct + '% done' : driver.status === 'draft' ? 'Not started' : '—'}</div>
     </div>`;
   return card;
+}
+
+function ovOpenRoutePreview(routeId) {
+  // Find the route across all drivers
+  let targetRoute = null;
+  for (const driver of ovAllDriverData) {
+    const match = driver.routes.find(r => r.id === routeId);
+    if (match) { targetRoute = match.rawRoute; break; }
+  }
+  if (!targetRoute) return;
+
+  const delivStops = Array.isArray(targetRoute.stops) ? targetRoute.stops.filter(s => !s.__final_dest) : [];
+  if (!delivStops.length) { alert('No stops on this route to preview.'); return; }
+
+  const stopsWithCoords    = delivStops.filter(s => s.lat && s.lng);
+  const stopsWithoutCoords = delivStops.filter(s => !(s.lat && s.lng));
+
+  document.getElementById('routePreviewTitle').textContent = targetRoute.route_name || 'Route Preview';
+  document.getElementById('routePreviewSub').textContent   = `${delivStops.length} stop${delivStops.length !== 1 ? 's' : ''}`;
+  document.getElementById('routePreviewInfoText').textContent =
+    `${stopsWithCoords.length} stop${stopsWithCoords.length !== 1 ? 's' : ''} with coordinates · tap a marker for details`;
+
+  const noCoords = document.getElementById('routePreviewNoCoords');
+  stopsWithoutCoords.length > 0 ? noCoords.classList.add('show') : noCoords.classList.remove('show');
+
+  document.getElementById('routePreviewOverlay').classList.add('open');
+  window.scrollTo(0, 0);
+  setTimeout(() => initRoutePreviewMap(targetRoute, stopsWithCoords), 80);
 }
 
 function ovSetFilter(f) {
@@ -5708,9 +5778,9 @@ function ovSetFilter(f) {
   ovRenderGrid();
 }
 
-function ovToggleExpand(name) {
-  if (ovExpandedDrivers.has(name)) ovExpandedDrivers.delete(name);
-  else ovExpandedDrivers.add(name);
+function ovToggleExpand(expKey) {
+  if (ovExpandedDrivers.has(expKey)) ovExpandedDrivers.delete(expKey);
+  else ovExpandedDrivers.add(expKey);
   ovRenderGrid();
 }
 
