@@ -5439,10 +5439,10 @@ async function ovLoad() {
       const name  = driver.name;
       const color = ovColorForDriver(name);
 
-      // Match route by driver_name
-      const route = routesRaw.find(r =>
+      // Match ALL routes for this driver today (a driver may have multiple)
+      const driverRoutes = routesRaw.filter(r =>
         (r.driver_name || '').toLowerCase() === name.toLowerCase()
-      ) || null;
+      );
 
       // Deliveries this driver has made today
       const myDeliveries = delivRaw.filter(d =>
@@ -5460,32 +5460,51 @@ async function ovLoad() {
         ? new Date(lastDel.delivery_datetime).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
         : null;
 
-      // Build stop list from route
+      // Build stop list from ALL routes, aggregated
       let status = 'no-route';
       let stops  = [];
       let routeName = null;
 
-      if (route) {
-        status    = route.status || 'draft';
-        routeName = route.route_name || null;
-        const rawStops = Array.isArray(route.stops)
-          ? route.stops.filter(s => !s.__final_dest)
-          : [];
+      if (driverRoutes.length > 0) {
+        // Priority: active > draft > completed (pick best as the "primary" label)
+        const primary =
+          driverRoutes.find(r => r.status === 'active') ||
+          driverRoutes.find(r => r.status === 'draft')  ||
+          driverRoutes[driverRoutes.length - 1];
 
-        stops = rawStops.map(s => {
-          const custName = s.customer || '';
-          const done = deliveredNames.has(custName.toLowerCase());
-          // Find the time from deliveries
-          const matchDel = myDeliveries.find(d =>
-            (d.customer_name || '').toLowerCase() === custName.toLowerCase()
-          );
-          const time = matchDel
-            ? new Date(matchDel.delivery_datetime).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
-            : null;
-          return { name: custName, done, time };
+        routeName = driverRoutes.length > 1
+          ? `${driverRoutes.length} routes today`
+          : (primary.route_name || null);
+
+        // Aggregate stops across every route
+        stops = driverRoutes.flatMap(route => {
+          const rawStops = Array.isArray(route.stops)
+            ? route.stops.filter(s => !s.__final_dest)
+            : [];
+          return rawStops.map(s => {
+            const custName = s.customer || '';
+            const done = deliveredNames.has(custName.toLowerCase());
+            const matchDel = myDeliveries.find(d =>
+              (d.customer_name || '').toLowerCase() === custName.toLowerCase()
+            );
+            const time = matchDel
+              ? new Date(matchDel.delivery_datetime).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
+              : null;
+            return { name: custName, done, time };
+          });
         });
 
-        // If all stops done but status still active, mark completed
+        // Overall status: active if any route is active; completed if all routes
+        // are completed (or all stops done); otherwise use primary status
+        if (driverRoutes.some(r => r.status === 'active')) {
+          status = 'active';
+        } else if (driverRoutes.every(r => r.status === 'completed')) {
+          status = 'completed';
+        } else {
+          status = primary.status || 'draft';
+        }
+
+        // If all stops are delivered but status still shows active, mark completed
         if (stops.length > 0 && stops.every(s => s.done) && status === 'active') {
           status = 'completed';
         }
