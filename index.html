@@ -403,6 +403,43 @@
   .login-title { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 800; color: white; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
   .login-sub { font-size: 0.8rem; color: rgba(255,255,255,0.65); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 24px; }
   .login-admin-pills { display: flex; gap: 8px; justify-content: center; margin-bottom: 24px; }
+
+  /* ── COG MENU ── */
+  .login-cog-wrap { position: relative; display: inline-flex; justify-content: center; margin-bottom: 24px; }
+  .login-cog-btn {
+    width: 40px; height: 40px; border-radius: 12px;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4);
+    color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; touch-action: manipulation;
+  }
+  .login-cog-btn:active { background: rgba(255,255,255,0.3); transform: scale(0.94); }
+  .login-cog-btn svg { width: 18px; height: 18px; transition: transform 0.3s ease; }
+  .login-cog-btn.open svg { transform: rotate(60deg); }
+  .cog-menu {
+    position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(10px);
+    background: white; border-radius: 14px; padding: 6px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.22); border: 1.5px solid var(--border);
+    min-width: 200px; opacity: 0; pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 600;
+  }
+  .cog-menu.open {
+    opacity: 1; pointer-events: all;
+    transform: translateX(-50%) translateY(0);
+  }
+  .cog-menu-item {
+    display: flex; align-items: center; gap: 11px; padding: 10px 14px; border-radius: 10px;
+    font-family: 'Barlow', sans-serif; font-size: 0.88rem; font-weight: 600; color: var(--text);
+    cursor: pointer; transition: background 0.12s; border: none; background: none; width: 100%;
+    text-align: left; touch-action: manipulation;
+  }
+  .cog-menu-item:active { background: rgba(0,75,142,0.07); }
+  .cog-menu-item svg { width: 16px; height: 16px; color: var(--brand); flex-shrink: 0; }
+  .cog-menu-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+  @media (hover: hover) and (pointer: fine) {
+    .login-cog-btn:hover { background: rgba(255,255,255,0.3); }
+    .cog-menu-item:hover { background: rgba(0,75,142,0.06); }
+  }
   .login-box { background: white; border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
   .login-step-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 10px; }
   .driver-login-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
@@ -436,6 +473,34 @@
   }
   .logout-pill:active { background: rgba(255,255,255,0.3); transform: scale(0.96); }
   .logout-pill svg { width: 17px; height: 17px; }
+
+  /* ── HEADER DRIVER CHIP (replaces in-page welcome card) ── */
+  .header-driver-chip {
+    display: none; /* hidden on mobile — welcome card used instead */
+    align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.12);
+    border: 1.5px solid rgba(255,255,255,0.25);
+    border-radius: 10px; padding: 6px 12px 6px 8px;
+    flex-shrink: 0; min-width: 0;
+  }
+  .header-driver-chip-avatar {
+    width: 26px; height: 26px; background: rgba(255,255,255,0.2);
+    border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .header-driver-chip-avatar svg { width: 14px; height: 14px; color: white; }
+  .header-driver-chip-name {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 800;
+    color: white; letter-spacing: 0.03em; white-space: nowrap;
+  }
+  .header-driver-chip-sub {
+    font-size: 0.6rem; color: rgba(255,255,255,0.6); letter-spacing: 0.04em;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  /* Show header chip (and hide in-page welcome) at tablet+ */
+  @media (min-width: 700px) {
+    .header-driver-chip { display: flex; }
+    .driver-welcome { display: none !important; }
+  }
 
   /* Driver welcome strip on form */
   .driver-welcome { display: flex; flex-direction: column; gap: 10px; background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
@@ -544,40 +609,57 @@
     .photo-zone:hover:not(.has-photo) { border-color: var(--brand); background: rgba(0,75,142,0.03); }
   }
 
-  /* Desktop layout — wider viewport, centred content with breathing room */
+  /* ══ DESKTOP / TABLET RESPONSIVE ══
+     Mobile-first: all base styles are for phones.
+     700px+  = tablet/small laptop  — content widens, overlays float.
+     1100px+ = desktop              — full-width shell, content fills viewport.
+     1400px+ = wide desktop         — even more breathing room.
+  */
+
   @media (min-width: 700px) {
-    body { background: #e8eef6; }
+    body { background: #e0e8f2; }
 
-    header { }
-    .header-inner { max-width: 1100px; margin: 0 auto; padding: 14px 32px; }
+    /* Header: inner content centred with comfortable padding */
+    .header-inner { max-width: 1600px; margin: 0 auto; padding: 14px 32px; }
 
-    main { max-width: 680px; padding: 28px 24px 60px; }
+    /* Main: wider column, centred */
+    main { max-width: 820px; padding: 28px 28px 60px; }
 
-    /* Login screen — side-by-side feel on wide screens */
+    /* Login */
     #driverLoginScreen { padding: 40px 32px; }
-    .login-box { max-width: 380px; padding: 32px 28px; }
+    .login-box { max-width: 400px; padding: 32px 28px; }
     .driver-login-grid { grid-template-columns: repeat(4, 1fr); }
 
-    /* Cards more comfortable */
+    /* Cards */
     .card { padding: 24px; }
 
-    /* Filter bar date row — bigger inputs */
+    /* Filter inputs */
     .filter-row input[type="date"] { font-size: 0.88rem; padding: 11px 12px; }
 
-    /* Record cards — slightly taller thumb on desktop */
+    /* Record cards */
     .record-thumb, .record-thumb-placeholder { width: 64px; height: 64px; }
     .record-customer { font-size: 1.12rem; }
 
-    /* Analytics charts — allow wider doughnuts */
-    .chart-wrap { max-width: 380px; }
+    /* Analytics charts */
+    .chart-wrap { max-width: 400px; }
 
-    /* Detail view photo constrained to sensible size */
+    /* Detail photo */
     .detail-photo-wrap img { max-height: 420px; object-fit: cover; }
 
-    /* Map overlay — centred panel on desktop, not full bleed */
+    /* Sync bar */
+    .sync-bar { padding: 8px 32px; }
+
+    /* Step labels */
+    .step-label { font-size: 0.65rem; }
+
+    /* Stat cards */
+    .stat-card { padding: 20px 16px; }
+    .stat-card-value { font-size: 1.6rem; }
+
+    /* Map overlay — floating centred panel */
     #mapOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
     #mapOverlay .map-panel {
-      width: 100%; max-width: 900px; height: 85vh;
+      width: 100%; max-width: 960px; height: 85vh;
       background: var(--off-white); border-radius: 20px;
       overflow: hidden; display: flex; flex-direction: column;
       box-shadow: 0 24px 80px rgba(0,0,0,0.35);
@@ -587,25 +669,28 @@
     .map-no-gps { margin: 12px 16px 0; }
     .map-info-bar { border-radius: 0; }
 
-    /* Sync bar centred text */
-    .sync-bar { padding: 8px 32px; }
-
-    /* Step labels bigger */
-    .step-label { font-size: 0.65rem; }
+    /* Route editor overlay — centred floating panel */
+    #routeEditorOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
+    .route-editor-panel { max-width: 680px; height: 90vh; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.35); background: var(--off-white); }
   }
 
-  @media (min-width: 900px) {
-    main { max-width: 760px; }
+  @media (min-width: 1100px) {
+    /* Main fills the viewport — no artificial narrow cap */
+    main { max-width: 1100px; padding: 32px 40px 60px; }
 
-    /* History — two-column record list on very wide screens */
-    /* (keep single column — content is better readable single col) */
+    /* Route editor gets more room on big screens */
+    .route-editor-panel { max-width: 860px; }
 
-    /* Analytics stat cards — keep 3-column, just give more padding */
-    .stat-card { padding: 20px 16px; }
-    .stat-card-value { font-size: 1.6rem; }
+    /* Charts wider */
+    .chart-wrap { max-width: 480px; }
 
-    /* Chart side by side */
-    .chart-wrap { max-width: 440px; }
+    /* Record cards — a touch more padding */
+    .record-card { padding: 16px 20px; }
+  }
+
+  @media (min-width: 1400px) {
+    main { max-width: 1340px; padding: 36px 48px 60px; }
+    .route-editor-panel { max-width: 980px; }
   }
 
   /* ══ ROUTE PILL (header) ══ */
@@ -639,6 +724,12 @@
     display: none;
   }
   .route-active-card.show { display: block; animation: slideUp 0.3s ease; }
+  #routeCardsContainer { display: flex; flex-direction: column; gap: 10px; margin-bottom: 0; }
+  #routeCardsContainer:empty { display: none; }
+  .route-collapse-btn { background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.3); border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; touch-action: manipulation; transition: background 0.15s; }
+  .route-collapse-btn:active { background: rgba(255,255,255,0.35); }
+  .route-collapse-btn svg { width: 14px; height: 14px; color: white; transition: transform 0.2s; }
+  .route-collapse-btn.collapsed svg { transform: rotate(-90deg); }
   .route-active-header {
     background: var(--brand); padding: 12px 16px;
     display: flex; align-items: center; gap: 10px;
@@ -679,6 +770,70 @@
   .route-stop-item.delivered .route-stop-name { color: var(--text-muted); text-decoration: line-through; }
   .route-stop-tick  { width: 18px; height: 18px; color: var(--success); flex-shrink: 0; }
   .route-stop-arrow { width: 16px; height: 16px; color: var(--brand);   flex-shrink: 0; }
+  /* ── Navigation button on route stop items ── */
+  .route-stop-nav-btn {
+    width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    background: var(--brand); transition: background 0.15s, opacity 0.15s;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .route-stop-nav-btn svg { width: 15px; height: 15px; stroke: white; fill: none; stroke-width: 2; }
+  .route-stop-nav-btn:active { background: #003a70; }
+  .route-stop-nav-btn.no-addr { background: var(--border); cursor: default; }
+  .route-stop-nav-btn.no-addr svg { stroke: var(--text-muted); }
+  /* ── Nav app-picker sheet ── */
+  #navSheet {
+    display: none; position: fixed; inset: 0; z-index: 450;
+    background: rgba(0,20,50,0.55); align-items: flex-end; justify-content: center;
+  }
+  #navSheet.open { display: flex; }
+  #navSheetInner {
+    background: white; border-radius: 18px 18px 0 0; width: 100%; max-width: 480px;
+    padding-bottom: env(safe-area-inset-bottom, 0px); overflow: hidden;
+  }
+  .nav-sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 14px; }
+  .nav-sheet-title  { font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); text-align: center; margin-bottom: 4px; padding: 0 16px; }
+  .nav-sheet-addr   { font-size: 0.8rem; color: var(--text); font-weight: 600; text-align: center; padding: 0 20px 14px; line-height: 1.4; border-bottom: 1px solid var(--border); }
+  .nav-app-list     { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .nav-app-btn {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 11px 14px; border-radius: 11px; border: 1.5px solid var(--border);
+    background: var(--off-white); cursor: pointer; text-align: left;
+    font-family: 'Barlow', sans-serif; transition: background 0.12s;
+    touch-action: manipulation;
+  }
+  .nav-app-btn.primary { background: var(--brand); border-color: var(--brand); }
+  .nav-app-btn:active:not(.primary) { background: var(--border); }
+  .nav-app-btn.primary:active { background: #003a70; }
+  .nav-app-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .nav-app-btn.primary .nav-app-icon { background: rgba(255,255,255,0.15); }
+  .nav-app-btn:not(.primary) .nav-app-icon { background: rgba(0,75,142,0.08); }
+  .nav-app-icon svg { width: 20px; height: 20px; stroke-width: 1.8; fill: none; }
+  .nav-app-btn.primary .nav-app-icon svg { stroke: white; }
+  .nav-app-btn:not(.primary) .nav-app-icon svg { stroke: var(--brand); }
+  .nav-app-label { font-size: 0.88rem; font-weight: 700; color: var(--text); }
+  .nav-app-btn.primary .nav-app-label { color: white; }
+  .nav-app-sub   { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
+  .nav-app-btn.primary .nav-app-sub { color: rgba(255,255,255,0.65); }
+  .nav-cancel-btn {
+    display: block; width: calc(100% - 28px); margin: 0 14px 14px; padding: 11px;
+    border: 1.5px solid var(--border); border-radius: 11px; background: none;
+    font-family: 'Barlow', sans-serif; font-size: 0.85rem; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; touch-action: manipulation;
+  }
+  .nav-cancel-btn:active { background: var(--border); }
+  .route-card-map-btn {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4);
+    border-radius: 8px; width: 32px; height: 32px; color: white; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0; touch-action: manipulation;
+  }
+  .route-card-map-btn:active { background: rgba(255,255,255,0.32); transform: scale(0.93); }
+  .route-card-map-btn svg { width: 15px; height: 15px; }
+  .route-card-map-btn.disabled { opacity: 0.35; pointer-events: none; }
+  @media (hover: hover) and (pointer: fine) {
+    .route-card-map-btn:hover { background: rgba(255,255,255,0.3); }
+  }
   .route-active-actions { padding: 0 14px 14px; display: flex; gap: 8px; }
   .route-start-btn {
     flex: 1; padding: 11px; background: var(--success); color: white; border: none;
@@ -789,11 +944,29 @@
   .route-editor-close svg { width: 17px; height: 17px; }
   .route-editor-save {
     display: flex; align-items: center; justify-content: center; gap: 5px;
-    background: white; border: none; border-radius: 10px;
-    padding: 8px 14px; color: var(--brand); cursor: pointer;
-    font-family: "Barlow Condensed", sans-serif; font-size: 0.85rem; font-weight: 800;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.35); border-radius: 10px;
+    padding: 8px 13px; color: white; cursor: pointer;
+    font-family: "Barlow Condensed", sans-serif; font-size: 0.82rem; font-weight: 800;
     letter-spacing: 0.05em; text-transform: uppercase; transition: all 0.15s; flex-shrink: 0;
   }
+  .route-editor-save svg { width: 15px; height: 15px; }
+  .route-editor-optimise {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    background: white; border: none; border-radius: 10px;
+    padding: 8px 13px; color: var(--brand); cursor: pointer;
+    font-family: "Barlow Condensed", sans-serif; font-size: 0.82rem; font-weight: 800;
+    letter-spacing: 0.05em; text-transform: uppercase; transition: all 0.15s; flex-shrink: 0;
+  }
+  .route-editor-optimise svg { width: 15px; height: 15px; }
+  .route-map-pill {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.35);
+    border-radius: 10px; width: 36px; height: 36px; color: white; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .route-map-pill svg { width: 17px; height: 17px; }
+  .route-map-pill.disabled { opacity: 0.35; cursor: not-allowed; }
+  .route-editor-actions { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
   .route-editor-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
   .route-editor-section { background: white; border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
   .route-editor-section-label { font-family: "Barlow Condensed", sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
@@ -861,14 +1034,11 @@
     .new-route-btn:hover        { background: var(--brand-dark); }
     .stop-drag-remove:hover     { background: rgba(224,60,60,0.1); color: var(--error); }
     .route-customer-option:hover { background: rgba(0,75,142,0.06); }
-    .route-editor-close:hover   { background: rgba(255,255,255,0.28); }
-    .route-editor-save:hover    { background: rgba(255,255,255,0.9); }
+    .route-editor-close:hover    { background: rgba(255,255,255,0.28); }
+    .route-editor-save:hover     { background: rgba(255,255,255,0.32); }
+    .route-editor-optimise:hover { background: rgba(255,255,255,0.9); }
+    .route-map-pill:hover:not(.disabled) { background: rgba(255,255,255,0.28); }
   }
-  @media (min-width: 700px) {
-    #routeEditorOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
-    .route-editor-panel { max-width: 560px; height: 90vh; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.35); background: var(--off-white); }
-  }
-
   /* ══ ADDRESS PICKER OVERLAY ══ */
   #addressPickerOverlay {
     display: none; position: fixed; inset: 0; z-index: 410;
@@ -942,6 +1112,82 @@
   }
   .optimise-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
   .optimise-toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+ /* ── Final destination field ───────────────────────────────────────────── */
+  .final-dest-search-wrap { position: relative; display: flex; align-items: center; gap: 8px; }
+  .final-dest-search-icon { position: absolute; left: 11px; top: 50%; margin-top: -7px; width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; flex-shrink: 0; }
+  .final-dest-input {
+    flex: 1; width: 100%; padding: 11px 14px; border: 2px solid var(--border); border-radius: 10px;
+    font-family: "Barlow", sans-serif; font-size: 0.92rem; font-weight: 500; color: var(--text);
+    background: var(--off-white); outline: none; -webkit-appearance: none; transition: border-color 0.2s;
+    box-sizing: border-box;
+  }
+  .final-dest-search-wrap .final-dest-input { padding-left: 34px; }
+  .final-dest-input:focus { border-color: var(--brand); background: white; box-shadow: 0 0 0 3px rgba(0,75,142,0.1); }
+  .final-dest-reset {
+    background: none; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 10px;
+    color: var(--text-muted); font-family: "Barlow Condensed", sans-serif; font-size: 0.72rem;
+    font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+    white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
+  }
+  .final-dest-reset:active { border-color: var(--brand); color: var(--brand); }
+  .final-dest-dropdown {
+    position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 400;
+    background: white; border: 2px solid var(--brand); border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,75,142,0.18); max-height: 220px; overflow-y: auto; display: none;
+  }
+  .final-dest-dropdown.open { display: block; animation: slideUp 0.15s ease; }
+  .final-dest-option {
+    padding: 11px 15px; font-size: 0.88rem; font-weight: 500; color: var(--text);
+    cursor: pointer; border-bottom: 1px solid var(--off-white); transition: background 0.1s;
+  }
+  .final-dest-option:last-child { border-bottom: none; }
+  .final-dest-option:active { background: rgba(0,75,142,0.06); }
+  .final-dest-option-label { font-weight: 700; font-size: 0.88rem; color: var(--text); }
+  .final-dest-option-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+  .final-dest-coords-row { display: flex; gap: 6px; margin-top: 6px; }
+  .final-dest-coord-input { padding-left: 14px !important; font-size: 0.82rem !important; }
+  .final-dest-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
+  .final-dest-hint.has-address { color: var(--success); font-weight: 600; }
+
+  /* ── Route preview map overlay ─────────────────────────────────────────── */
+  #routePreviewOverlay {
+    display: none; position: fixed; inset: 0; z-index: 380;
+    flex-direction: column; background: white;
+  }
+  #routePreviewOverlay.open { display: flex; animation: slideUp 0.25s ease; }
+  .route-preview-panel { display: flex; flex-direction: column; width: 100%; height: 100%; }
+  .route-preview-header {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    background: var(--brand); color: white; flex-shrink: 0;
+  }
+  .route-preview-close {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.35);
+    border-radius: 10px; width: 36px; height: 36px; color: white; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .route-preview-close svg { width: 17px; height: 17px; }
+  .route-preview-title { font-family: "Barlow Condensed", sans-serif; font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .route-preview-sub { font-size: 0.72rem; font-weight: 600; opacity: 0.75; font-family: "Barlow", sans-serif; }
+  #routePreviewContainer { flex: 1; min-height: 0; }
+  .route-preview-info {
+    display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+    background: var(--off-white); border-top: 1px solid var(--border);
+    font-size: 0.8rem; color: var(--text-muted); flex-shrink: 0;
+  }
+  .route-preview-info svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .route-preview-no-coords {
+    display: none; align-items: center; gap: 8px; padding: 10px 16px;
+    background: #fff8e1; border-bottom: 1px solid #ffe082;
+    font-size: 0.8rem; color: #7a6000; flex-shrink: 0;
+  }
+  .route-preview-no-coords.show { display: flex; }
+  .route-preview-no-coords svg { width: 14px; height: 14px; flex-shrink: 0; }
+  @media (min-width: 700px) {
+    #routePreviewOverlay { align-items: center; justify-content: center; background: rgba(0,20,50,0.5); backdrop-filter: blur(4px); }
+    #routePreviewOverlay .route-preview-panel { max-width: 960px; height: 90vh; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.35); }
+  }
 
   @media (hover: hover) and (pointer: fine) {
     .address-picker-option:hover { border-color: var(--brand); background: rgba(0,75,142,0.06); transform: translateY(-1px); }
@@ -1141,6 +1387,136 @@
   .am-form-err { font-size: 0.8rem; color: var(--error); margin-top: 8px; text-align: center; display: none; }
   .am-form-err.show { display: block; }
 
+  /* ══ OVERVIEW VIEW ══ */
+  #overviewView { display: none; }
+  #overviewView.show {
+    display: block;
+    animation: slideUp 0.3s ease;
+    /* Break out of main's max-width constraint */
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: -20px;    /* undo main's top padding */
+    padding-top: 20px;
+    background: var(--off-white);
+    min-height: 100dvh;
+  }
+  .ov-wrap { padding: 20px 12px 60px; max-width: 1600px; margin: 0 auto; }
+  @media (min-width: 480px) { .ov-wrap { padding: 20px 20px 60px; } }
+  @media (min-width: 700px) { .ov-wrap { padding: 28px 32px 80px; } }
+  @media (min-width: 1100px) { .ov-wrap { padding: 32px 48px 80px; } }
+
+  /* Summary strip */
+  .ov-summary-strip { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 20px; }
+  @media (min-width: 480px) { .ov-summary-strip { grid-template-columns: repeat(4,1fr); } }
+  /* On desktop the summary strip should not be too wide */
+  @media (min-width: 1080px) { .ov-summary-strip { max-width: 700px; } }
+  .ov-summary-card { background: white; border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); border: 1.5px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+  .ov-summary-val { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 800; color: var(--brand); line-height: 1; }
+  .ov-summary-val.green { color: var(--success); }
+  .ov-summary-val.amber { color: var(--warning); }
+  .ov-summary-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .ov-summary-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+
+  /* Refresh bar */
+  .ov-refresh-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 20px; background: white; border-radius: var(--radius); border: 1.5px solid var(--border); box-shadow: var(--shadow); }
+  .ov-refresh-bar svg { width: 15px; height: 15px; color: var(--brand); flex-shrink: 0; }
+  .ov-refresh-text { flex: 1; font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+  .ov-refresh-btn { background: var(--brand); color: white; border: none; border-radius: 8px; padding: 7px 14px; font-family: 'Barlow Condensed', sans-serif; font-size: 0.82rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.15s; flex-shrink: 0; }
+  .ov-refresh-btn:active { background: var(--brand-dark); transform: scale(0.97); }
+  .ov-refresh-btn svg { width: 13px; height: 13px; }
+  .ov-refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+
+  /* Filter chips */
+  .ov-filter-row { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .ov-filter-chip { background: white; border: 2px solid var(--border); border-radius: 20px; padding: 6px 14px; font-family: 'Barlow', sans-serif; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; white-space: nowrap; touch-action: manipulation; }
+  .ov-filter-chip.active { background: var(--brand); border-color: var(--brand); color: white; }
+  .ov-filter-chip:active { transform: scale(0.96); }
+  .ov-filter-divider { width: 1.5px; height: 22px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+  .ov-toggle-label { display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; user-select: none; }
+  .ov-toggle-track { position: relative; width: 34px; height: 20px; background: var(--border); border-radius: 10px; transition: background 0.2s; flex-shrink: 0; }
+  .ov-toggle-track.on { background: var(--brand); }
+  .ov-toggle-knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: white; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.2); transition: transform 0.2s; }
+  .ov-toggle-track.on .ov-toggle-knob { transform: translateX(14px); }
+
+  /* Section label */
+  .ov-section-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .ov-section-label-right { font-family: 'Barlow', sans-serif; font-weight: 400; font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0; text-transform: none; }
+
+  /* Driver grid */
+  .ov-driver-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 700px)  { .ov-driver-grid { grid-template-columns: repeat(2,1fr); } }
+
+  /* Driver card */
+  .ov-driver-card { background: white; border-radius: var(--radius); border: 1.5px solid var(--border); box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; transition: all 0.2s; }
+  .ov-driver-card-header { padding: 14px 16px 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1.5px solid var(--border); }
+  .ov-driver-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 1.15rem; font-weight: 800; color: white; flex-shrink: 0; }
+  .ov-driver-info { flex: 1; min-width: 0; }
+  .ov-driver-name { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--text); line-height: 1.1; }
+  .ov-driver-route { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ov-status-badge { font-family: 'Barlow Condensed', sans-serif; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 9px; border-radius: 6px; flex-shrink: 0; }
+  .ov-status-badge.active    { background: rgba(0,184,107,0.12); color: var(--success); border: 1.5px solid rgba(0,184,107,0.3); }
+  .ov-status-badge.draft     { background: rgba(0,75,142,0.08);  color: var(--brand);   border: 1.5px solid rgba(0,75,142,0.2); }
+  .ov-status-badge.completed { background: rgba(90,122,154,0.1); color: var(--text-muted); border: 1.5px solid var(--border); }
+  .ov-status-badge.no-route  { background: rgba(240,165,0,0.1);  color: var(--warning); border: 1.5px solid rgba(240,165,0,0.3); }
+
+  /* Progress */
+  .ov-driver-progress { padding: 12px 16px 10px; }
+  .ov-progress-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+  .ov-progress-meta-left { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+  .ov-progress-meta-right { font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 800; color: var(--brand); }
+  .ov-progress-track { height: 8px; background: var(--off-white); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .ov-progress-fill { height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+
+  /* Stops */
+  .ov-stops-section { padding: 0 16px 16px; flex: 1; }
+  .ov-stops-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ov-stops-col-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+  .ov-stops-col-label.done-label { color: var(--success); }
+  .ov-stops-col-label.todo-label { color: var(--text-muted); }
+  .ov-stop-item { display: flex; align-items: flex-start; gap: 7px; padding: 6px 8px; border-radius: 8px; margin-bottom: 4px; font-size: 0.8rem; font-weight: 500; line-height: 1.35; }
+  .ov-stop-item:last-child { margin-bottom: 0; }
+  .ov-stop-item.done { background: rgba(0,184,107,0.06); color: var(--text-muted); text-decoration: line-through; }
+  .ov-stop-item.next { background: rgba(0,75,142,0.07); color: var(--brand); font-weight: 700; border: 1.5px solid rgba(0,75,142,0.15); }
+  .ov-stop-item.todo { background: var(--off-white); color: var(--text); }
+  .ov-stop-num { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 0.65rem; font-weight: 800; flex-shrink: 0; margin-top: 1px; }
+  .ov-stop-num.done { background: var(--success); color: white; }
+  .ov-stop-num.next { background: var(--brand); color: white; }
+  .ov-stop-num.todo { background: var(--border); color: var(--text-muted); }
+  .ov-stop-name { flex: 1; min-width: 0; word-break: break-word; line-height: 1.35; }
+
+  /* Footer */
+  .ov-driver-footer { padding: 9px 16px; border-top: 1.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--off-white); }
+  .ov-driver-footer-left { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+  .ov-driver-footer-left svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+  /* No route */
+  .ov-no-route-body { padding: 20px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; line-height: 1.6; flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .ov-no-route-body svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.4; }
+
+  /* Expand */
+  .ov-expand-btn { background: none; border: none; color: var(--brand); font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; padding: 0 16px 12px; display: flex; align-items: center; gap: 5px; touch-action: manipulation; }
+  .ov-expand-btn svg { width: 13px; height: 13px; transition: transform 0.2s; }
+  .ov-expand-btn.open svg { transform: rotate(180deg); }
+  /* Per-route sub-sections inside a driver card */
+  .ov-route-block { border-top: 1.5px solid var(--border); }
+  .ov-route-block:first-child { border-top: none; }
+  .ov-route-block-header { padding: 10px 16px 8px; display: flex; align-items: center; gap: 8px; }
+  .ov-route-block-name { font-family: 'Barlow Condensed', sans-serif; font-size: 0.88rem; font-weight: 800; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ov-route-map-btn { background: rgba(0,75,142,0.08); border: 1.5px solid rgba(0,75,142,0.18); border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; touch-action: manipulation; transition: background 0.15s; }
+  .ov-route-map-btn:active { background: rgba(0,75,142,0.2); transform: scale(0.93); }
+  .ov-route-map-btn svg { width: 14px; height: 14px; color: var(--brand); }
+  .ov-route-map-btn.no-coords { opacity: 0.3; pointer-events: none; }
+  .ov-route-progress { padding: 0 16px 12px; }
+
+  /* Hover */
+  @media (hover: hover) and (pointer: fine) {
+    .ov-filter-chip:hover:not(.active) { border-color: var(--brand); color: var(--brand); }
+    @media (hover: hover) { .ov-driver-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,75,142,0.16); border-color: rgba(0,75,142,0.25); } }
+    .ov-refresh-btn:hover { background: var(--brand-dark); }
+  }
+
   @media (min-width: 700px) {
     #amFormOverlay { align-items: center; }
     .am-form-sheet { border-radius: 20px; }
@@ -1158,20 +1534,35 @@
   </div>
   <div class="login-title">FMF POD</div>
   <div class="login-sub">Delivery Confirmation</div>
-  <div class="login-admin-pills">
-    <button class="config-pill" onclick="openPinModal('config')" title="Configuration">
+  <div class="login-cog-wrap">
+    <button class="login-cog-btn" id="loginCogBtn" onclick="toggleCogMenu(event)" title="Admin">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
     </button>
-    <button class="analytics-pill" onclick="openPinModal('analytics')" title="Analytics">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-    </button>
-    <button class="history-pill" onclick="openPinModal('history')" title="History">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <span class="history-pill-badge" id="historyBadge"></span>
-    </button>
-    <button class="address-pill" onclick="openPinModal('addresses')" title="Address Management">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-    </button>
+    <div class="cog-menu" id="cogMenu">
+      <button class="cog-menu-item" onclick="cogOpen('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Overview
+      </button>
+      <div class="cog-menu-divider"></div>
+      <button class="cog-menu-item" onclick="cogOpen('history')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        History
+        <span class="history-pill-badge" id="historyBadge" style="margin-left:auto;"></span>
+      </button>
+      <button class="cog-menu-item" onclick="cogOpen('analytics')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Analytics
+      </button>
+      <button class="cog-menu-item" onclick="cogOpen('addresses')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Address Manager
+      </button>
+      <div class="cog-menu-divider"></div>
+      <button class="cog-menu-item" onclick="cogOpen('config')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Configuration
+      </button>
+    </div>
   </div>
   <div class="login-box">
     <div id="loginStep1">
@@ -1221,6 +1612,16 @@
     <div class="header-titles">
       <div class="header-title">FMF POD</div>
       <div class="header-sub">Delivery Confirmation</div>
+    </div>
+    <!-- Driver chip — shown in header on tablet/desktop when a driver is logged in -->
+    <div class="header-driver-chip" id="headerDriverChip">
+      <div class="header-driver-chip-avatar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      </div>
+      <div>
+        <div class="header-driver-chip-name" id="headerDriverName"></div>
+        <div class="header-driver-chip-sub">Logged in as driver</div>
+      </div>
     </div>
     <div class="header-right">
       <button class="route-pill" id="routePill" onclick="showRouteView()" title="My Routes" style="display:none;">
@@ -1325,21 +1726,8 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
       <span>No connection — delivery will be saved and uploaded when you're back online.</span>
     </div>
-    <!-- Active route card -->
-    <div class="route-active-card" id="routeActiveCard">
-      <div class="route-active-header">
-        <div class="route-active-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
-        </div>
-        <div style="flex:1;min-width:0;">
-          <div class="route-active-title" id="routeCardTitle">Today's Route</div>
-          <div class="route-active-meta" id="routeCardMeta">0 stops</div>
-        </div>
-        <span class="route-status-badge draft" id="routeCardBadge">Draft</span>
-      </div>
-      <div class="route-stops-list" id="routeCardStops"></div>
-      <div class="route-active-actions" id="routeCardActions"></div>
-    </div>
+    <!-- Route cards for today -->
+    <div id="routeCardsContainer"></div>
 
     <!-- Driver welcome strip -->
     <div class="driver-welcome">
@@ -1541,15 +1929,14 @@
       New Route
     </button>
     <div class="route-filter-bar">
-      <button class="route-filter-chip active" onclick="setRouteFilter('all')" id="rfChip-all">All</button>
-      <button class="route-filter-chip" onclick="setRouteFilter('draft')" id="rfChip-draft">Drafts</button>
+      <button class="route-filter-chip active" onclick="setRouteFilter('draft')" id="rfChip-draft">Drafts</button>
       <button class="route-filter-chip" onclick="setRouteFilter('active')" id="rfChip-active">Active</button>
       <button class="route-filter-chip" onclick="setRouteFilter('completed')" id="rfChip-completed">Completed</button>
     </div>
     <div id="routeListContainer"></div>
   </div>
 
-  <!-- ROUTE EDITOR OVERLAY -->
+ <!-- ROUTE EDITOR OVERLAY -->
   <div id="routeEditorOverlay">
     <div class="route-editor-panel">
       <div class="route-editor-header">
@@ -1557,10 +1944,19 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div class="route-editor-title" id="routeEditorTitle">New Route</div>
-        <button class="route-editor-save" onclick="saveRoute()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Save
-        </button>
+        <div class="route-editor-actions">
+          <button class="route-map-pill disabled" id="routeMapPill" onclick="openRoutePreview()" title="Save route first to preview map">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+          </button>
+          <button class="route-editor-save" id="routeEditorSaveBtn" onclick="saveRoute()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Save
+          </button>
+          <button class="route-editor-optimise" id="routeEditorOptimiseBtn" onclick="optimiseAndSaveRoute()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            Optimise
+          </button>
+        </div>
       </div>
       <div class="route-editor-body">
         <div class="route-editor-section">
@@ -1588,10 +1984,47 @@
             <div class="route-stops-empty-msg">No stops added yet. Search for customers above.</div>
           </div>
         </div>
+     <div class="route-editor-section">
+          <div class="route-editor-section-label">Final Destination</div>
+          <div class="final-dest-search-wrap">
+            <svg class="final-dest-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="final-dest-input" type="text" id="finalDestLabel" placeholder="Search saved addresses or type a label…" maxlength="80" oninput="onFinalDestSearch()" onfocus="onFinalDestFocus()" autocomplete="off">
+            <button class="final-dest-reset" onclick="resetFinalDest()" title="Reset to Lincoln Depot">Reset</button>
+            <div class="final-dest-dropdown" id="finalDestDropdown"></div>
+          </div>
+          <div class="final-dest-coords-row" id="finalDestCoordsRow" style="display:none;">
+            <input type="hidden" id="finalDestLat">
+            <input type="hidden" id="finalDestLng">
+          </div>
+          <div class="final-dest-hint" id="finalDestHint">Defaults to Lincoln Depot. Search saved addresses to pick a driver home address, or enter coordinates manually.</div>
+        </div>
       </div>
     </div>
   </div>
 
+  <!-- ROUTE PREVIEW MAP OVERLAY -->
+  <div id="routePreviewOverlay" onclick="handleRoutePreviewOverlayClick(event)">
+    <div class="route-preview-panel">
+      <div class="route-preview-header">
+        <button class="route-preview-close" onclick="closeRoutePreview()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="route-preview-title" id="routePreviewTitle">Route Preview</div>
+        <div class="route-preview-sub" id="routePreviewSub"></div>
+      </div>
+      <div class="route-preview-no-coords" id="routePreviewNoCoords">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Some stops have no address coordinates and won't appear on the map.
+      </div>
+      <div id="routePreviewContainer"></div>
+      <div class="route-preview-info">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span id="routePreviewInfoText">Numbered markers show stop order. Tap a marker for details.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADDRESS PICKER OVERLAY -->
   <!-- ADDRESS PICKER OVERLAY -->
   <div id="addressPickerOverlay" onclick="handleAddressPickerOverlayClick(event)">
     <div class="address-picker-sheet">
@@ -1788,6 +2221,57 @@
     </div>
   </div>
 
+  <!-- OVERVIEW VIEW -->
+  <div id="overviewView">
+    <div class="ov-wrap">
+
+      <!-- Header row -->
+      <div class="history-header">
+        <button class="back-btn" onclick="showForm()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
+        <div class="history-title">Overview</div>
+        <div class="history-count" id="ovDriverCount"></div>
+      </div>
+
+      <!-- Summary strip -->
+      <div class="ov-summary-strip" id="ovSummaryStrip"></div>
+
+      <!-- Refresh bar -->
+      <div class="ov-refresh-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="ov-refresh-text" id="ovRefreshText">Loading…</span>
+        <button class="ov-refresh-btn" id="ovRefreshBtn" onclick="ovDoRefresh()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Refresh
+        </button>
+      </div>
+
+      <!-- Filter row -->
+      <div class="ov-filter-row">
+        <button class="ov-filter-chip active" onclick="ovSetFilter('all')"       id="ovfc-all">All Routes</button>
+        <button class="ov-filter-chip"        onclick="ovSetFilter('active')"    id="ovfc-active">Active</button>
+        <button class="ov-filter-chip"        onclick="ovSetFilter('completed')" id="ovfc-completed">Completed</button>
+        <div class="ov-filter-divider"></div>
+        <label class="ov-toggle-label" onclick="ovToggleNoRoute()">
+          <div class="ov-toggle-track" id="ovNoRouteTrack"><div class="ov-toggle-knob"></div></div>
+          Show unassigned
+        </label>
+      </div>
+
+      <!-- Section label -->
+      <div class="ov-section-label">
+        Driver Routes
+        <span class="ov-section-label-right" id="ovRouteCount"></span>
+      </div>
+
+      <!-- Driver grid -->
+      <div class="ov-driver-grid" id="ovDriverGrid"></div>
+
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -1832,6 +2316,29 @@ updateClock();
 let pinEntry = '';
 let pinDestination = 'history';
 
+// ── COG MENU ──────────────────────────────────────────────
+function toggleCogMenu(e) {
+  e.stopPropagation();
+  const btn  = document.getElementById('loginCogBtn');
+  const menu = document.getElementById('cogMenu');
+  const isOpen = menu.classList.contains('open');
+  btn.classList.toggle('open', !isOpen);
+  menu.classList.toggle('open', !isOpen);
+}
+
+function cogOpen(dest) {
+  // Close the menu first, then open the PIN modal
+  document.getElementById('loginCogBtn').classList.remove('open');
+  document.getElementById('cogMenu').classList.remove('open');
+  openPinModal(dest);
+}
+
+// Close cog menu when tapping elsewhere
+document.addEventListener('click', () => {
+  document.getElementById('loginCogBtn')?.classList.remove('open');
+  document.getElementById('cogMenu')?.classList.remove('open');
+});
+
 function openPinModal(dest = 'history') {
   pinDestination = dest;
   pinEntry = '';
@@ -1841,13 +2348,15 @@ function openPinModal(dest = 'history') {
     config:    'Configuration',
     analytics: 'Analytics',
     history:   'History',
-    addresses: 'Address Manager'
+    addresses: 'Address Manager',
+    overview:  'Overview'
   };
   const descs = {
     config:    'Enter the admin PIN to access configuration',
     analytics: 'Enter the admin PIN to view analytics',
     history:   'Enter the admin PIN to view delivery history',
-    addresses: 'Enter the admin PIN to manage customer addresses'
+    addresses: 'Enter the admin PIN to manage customer addresses',
+    overview:  'Enter the admin PIN to view the driver overview'
   };
   document.getElementById('pinModalTitle').textContent = titles[dest] || 'Admin Access';
   document.getElementById('pinModalDesc').textContent  = descs[dest]  || 'Enter the admin PIN';
@@ -1881,6 +2390,7 @@ function checkPin() {
     if (pinDestination === 'analytics') showAnalytics();
     else if (pinDestination === 'config') toggleConfig();
     else if (pinDestination === 'addresses') showAddressManager();
+    else if (pinDestination === 'overview') showOverview();
     else showHistory();
   } else {
     for (let i = 0; i < 4; i++) document.getElementById('pd'+i).classList.add('error');
@@ -1901,6 +2411,7 @@ function showForm() {
   document.getElementById('detailView').classList.remove('show');
   document.getElementById('analyticsView').classList.remove('show');
   document.getElementById('routeView').classList.remove('show');
+  document.getElementById('overviewView').classList.remove('show');
   window.scrollTo(0,0);
 }
 function showDriverHistory() {
@@ -2077,6 +2588,9 @@ function checkLoginPin() {
 function showAppAsDriver(name) {
   document.getElementById('driverLoginScreen').classList.add('hidden');
   document.getElementById('driverWelcomeName').textContent = name;
+  // Header driver chip (shown on tablet/desktop)
+  document.getElementById('headerDriverName').textContent = name;
+  document.getElementById('headerDriverChip').style.removeProperty('display');
   document.getElementById('formSection').style.display = 'block';
   document.getElementById('routePill').style.display = 'flex';
   document.getElementById('driverHistoryPill').style.display = 'flex';
@@ -2094,6 +2608,9 @@ function logoutDriver() {
   document.getElementById('driverLoginScreen').classList.remove('hidden');
   document.getElementById('driverHistoryPill').style.display = 'none';
   document.getElementById('routePill').style.display = 'none';
+  document.getElementById('headerDriverChip').style.display = 'none';
+  // Re-fetch drivers so the grid is always fresh on return to login
+  initDriverLogin();
 }
 
 // ── CUSTOMER SEARCH ───────────────────────────────────────
@@ -3412,7 +3929,7 @@ function renderLineChart(records) {
 let allRoutes       = [];
 let editingRoute    = null;
 let editorStops     = [];
-let routeFilter     = 'all';
+let routeFilter     = 'draft';
 let activeRouteData = null;
 let dragSrcIndex    = null;
 
@@ -3464,46 +3981,69 @@ async function fetchTodayDeliveries() {
   return data.map(d => d.customer_name);
 }
 
-// ── Active route card on delivery form ───────────────────────────────────────
+// ── Route cards on delivery form (all today's non-completed routes) ───────────
+let todayRoutes        = [];       // all routes fetched for today
+let collapsedRoutes    = new Set(); // IDs of collapsed cards
+
 async function loadActiveRoute() {
-  const card = document.getElementById('routeActiveCard');
-  if (!loggedInDriver) { card.classList.remove('show'); return; }
+  const container = document.getElementById('routeCardsContainer');
+  if (!loggedInDriver || !container) return;
   try {
     const today = todayStr();
     const res = await sbRequest(
-      `/rest/v1/routes?driver_name=eq.${encodeURIComponent(loggedInDriver)}&route_date=eq.${today}&status=neq.completed&order=created_at.desc&limit=10`,
+      `/rest/v1/routes?driver_name=eq.${encodeURIComponent(loggedInDriver)}&route_date=eq.${today}&status=neq.completed&order=created_at.asc`,
       { headers: { 'Accept': 'application/json' } }
     );
-    const routes = res.ok ? await res.json() : [];
-    const chosen = routes.find(r => r.status === 'active') || routes.find(r => r.status === 'draft') || null;
-    if (!chosen) { card.classList.remove('show'); activeRouteData = null; updateRoutePillBadge(); return; }
-    activeRouteData = chosen;
-    const delivered = chosen.status === 'active' ? await fetchTodayDeliveries() : [];
-    renderActiveRouteCard(chosen, delivered);
-    card.classList.add('show');
+    todayRoutes = res.ok ? await res.json() : [];
+
+    // activeRouteData = the running route (for prefill + pill badge)
+    activeRouteData = todayRoutes.find(r => r.status === 'active') || null;
+
+    // Collapse all non-active routes by default; preserve any manual toggles on reload
+    todayRoutes.forEach(r => {
+      if (r.status !== 'active' && !collapsedRoutes.has(r.id)) {
+        collapsedRoutes.add(r.id);
+      }
+    });
+
+    const delivered = activeRouteData ? await fetchTodayDeliveries() : [];
+    renderAllRouteCards(delivered);
     updateRoutePillBadge();
   } catch(e) {
     console.warn('loadActiveRoute error:', e.message);
-    document.getElementById('routeActiveCard').classList.remove('show');
+    document.getElementById('routeCardsContainer').innerHTML = '';
   }
 }
 
-function renderActiveRouteCard(route, deliveredCustomers) {
-  const stops     = Array.isArray(route.stops) ? route.stops : [];
+function renderAllRouteCards(deliveredCustomers) {
+  const container = document.getElementById('routeCardsContainer');
+  if (!container) return;
+  if (!todayRoutes.length) { container.innerHTML = ''; return; }
+
+  const delivSet = new Set(deliveredCustomers.map(n => n.toLowerCase()));
+
+  // Sort: active first, then drafts in creation order
+  const sorted = [...todayRoutes].sort((a, b) => {
+    const order = { active: 0, draft: 1 };
+    return (order[a.status] ?? 2) - (order[b.status] ?? 2);
+  });
+
+  container.innerHTML = sorted.map(route => buildRouteCardHTML(route, delivSet)).join('');
+}
+
+function buildRouteCardHTML(route, delivSet) {
+  const id        = route.id;
+  const stops     = Array.isArray(route.stops) ? route.stops.filter(s => !s.__final_dest) : [];
   const isActive  = route.status === 'active';
   const isDraft   = route.status === 'draft';
-  const delivSet  = new Set(deliveredCustomers.map(n => n.toLowerCase()));
-
-  document.getElementById('routeCardTitle').textContent = route.route_name || formatRouteDate(route.route_date);
-  document.getElementById('routeCardMeta').textContent  = `${stops.length} stop${stops.length !== 1 ? 's' : ''}`;
-  const badge = document.getElementById('routeCardBadge');
-  badge.textContent = route.status.charAt(0).toUpperCase() + route.status.slice(1);
-  badge.className   = 'route-status-badge ' + route.status;
+  const collapsed = collapsedRoutes.has(id);
+  const hasCoords = stops.some(s => s.lat && s.lng);
+  const title     = route.route_name || formatRouteDate(route.route_date);
 
   let firstUndelivered = -1;
   stops.forEach((s, i) => { if (firstUndelivered === -1 && !delivSet.has((s.customer||'').toLowerCase())) firstUndelivered = i; });
 
-  document.getElementById('routeCardStops').innerHTML = stops.map((s, i) => {
+  const stopsHTML = stops.map((s, i) => {
     const done   = delivSet.has((s.customer||'').toLowerCase());
     const isNext = isActive && !done && i === firstUndelivered;
     const cls    = done ? 'delivered' : (isNext ? 'active-stop' : '');
@@ -3515,35 +4055,111 @@ function renderActiveRouteCard(route, deliveredCustomers) {
       : (isNext ? '<svg class="route-stop-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' : '');
     const click = (!done && isActive) ? `onclick="prefillFromRoute('${s.customer.replace(/'/g,"\\'")}','${(s.doc_number||'').replace(/'/g,"\\'")}')"` : '';
     const docBadge = s.doc_number ? `<div class="route-stop-doc-badge">📄 ${escHtml(s.doc_number)}</div>` : '';
+    // Nav button — build a safe data attribute for the stop object
+    const navHasAddr = !!(s.lat || s.address_line || s.postcode);
+    const navData = encodeURIComponent(JSON.stringify({
+      customer: s.customer || '', lat: s.lat || null, lng: s.lng || null,
+      address_line: s.address_line || null, postcode: s.postcode || null
+    }));
+    const navBtn = (!done && isActive)
+      ? `<button class="route-stop-nav-btn${navHasAddr ? '' : ' no-addr'}"
+           title="${navHasAddr ? 'Navigate to this stop' : 'No address on file'}"
+           onclick="event.stopPropagation();openNavSheet(JSON.parse(decodeURIComponent('${navData}')))"
+           ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></button>`
+      : '';
     return `<div class="route-stop-item ${cls}" ${click}>
       <div class="route-stop-num">${numInner}</div>
       <div class="route-stop-name-wrap" style="flex:1;min-width:0;overflow:hidden;">
         <div class="route-stop-name">${escHtml(s.customer||'')}</div>
         ${docBadge}
       </div>
+      ${navBtn}
       ${right}
     </div>`;
-  }).join('');
 
   const delivCount = stops.filter(s => delivSet.has((s.customer||'').toLowerCase())).length;
   const allDone    = delivCount === stops.length && stops.length > 0;
-  const actions    = document.getElementById('routeCardActions');
+  const metaText   = isActive
+    ? `${delivCount} of ${stops.length} delivered`
+    : `${stops.length} stop${stops.length !== 1 ? 's' : ''}`;
 
+  let actionsHTML = '';
   if (isDraft) {
-    actions.innerHTML = `
-      <button class="route-start-btn" onclick="startRoute('${route.id}')">
+    actionsHTML = `
+      <button class="route-start-btn" onclick="startRoute('${id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         Start Route
       </button>
-      <button class="route-edit-btn" onclick="openRouteEditor('${route.id}')">Edit</button>`;
+      <button class="route-edit-btn" onclick="openRouteEditor('${id}')">Edit</button>`;
   } else if (isActive) {
-    actions.innerHTML = `
-      <button class="route-finish-btn${allDone ? '' : ' early-finish'}" id="routeFinishBtn" onclick="finishRoute('${route.id}', ${allDone})">
+    actionsHTML = `
+      <button class="route-finish-btn${allDone ? '' : ' early-finish'}" onclick="finishRoute('${id}', ${allDone})">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         ${allDone ? 'Finish Route' : `Finish Early (${delivCount}/${stops.length})`}
       </button>
-      <button class="route-edit-btn" onclick="openRouteEditor('${route.id}')">Edit</button>`;
+      <button class="route-edit-btn" onclick="openRouteEditor('${id}')">Edit</button>`;
   }
+
+  return `<div class="route-active-card show" id="routeCard-${escHtml(id)}">
+    <div class="route-active-header">
+      <div class="route-active-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="route-active-title">${escHtml(title)}</div>
+        <div class="route-active-meta">${metaText}</div>
+      </div>
+      <button class="route-card-map-btn${hasCoords ? '' : ' disabled'}" onclick="openRouteCardPreview('${id}')" title="${hasCoords ? 'Preview route map' : 'No coordinates on file'}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+      </button>
+      <span class="route-status-badge ${route.status}">${route.status.charAt(0).toUpperCase() + route.status.slice(1)}</span>
+      <button class="route-collapse-btn${collapsed ? ' collapsed' : ''}" onclick="toggleRouteCardCollapse('${id}')" title="${collapsed ? 'Expand' : 'Collapse'}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+    <div style="display:${collapsed ? 'none' : 'block'};">
+      <div class="route-stops-list">${stopsHTML}</div>
+      ${actionsHTML ? `<div class="route-active-actions">${actionsHTML}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function toggleRouteCardCollapse(id) {
+  if (collapsedRoutes.has(id)) collapsedRoutes.delete(id);
+  else collapsedRoutes.add(id);
+  // Re-render without a fresh fetch
+  const delivered = activeRouteData ? [] : []; // stops colours already baked in
+  // We need delivSet — refetch from last known state
+  const container = document.getElementById('routeCardsContainer');
+  if (!container) return;
+  // Partial re-render: just rebuild the single card's body
+  const route = todayRoutes.find(r => r.id === id);
+  if (!route) return;
+  // Get last fetched delivered names from existing done stops in DOM
+  const doneCells = container.querySelectorAll('.route-stop-item.delivered .route-stop-name');
+  const delivSet  = new Set([...doneCells].map(el => el.textContent.trim().toLowerCase()));
+  const cardEl    = document.getElementById('routeCard-' + id);
+  if (cardEl) cardEl.outerHTML = buildRouteCardHTML(route, delivSet);
+}
+
+function openRouteCardPreview(id) {
+  const route = todayRoutes.find(r => r.id === id);
+  if (!route) return;
+  // Temporarily set editingRoute for the existing preview function
+  const prev  = editingRoute;
+  editingRoute = route;
+  openRoutePreview();
+  editingRoute = prev;
+}
+
+function renderActiveRouteCard(route, deliveredCustomers) {
+  // Legacy shim — now handled by renderAllRouteCards
+  const delivSet = new Set(deliveredCustomers.map(n => n.toLowerCase()));
+  // Update this specific card in todayRoutes
+  const idx = todayRoutes.findIndex(r => r.id === route.id);
+  if (idx >= 0) todayRoutes[idx] = route;
+  else todayRoutes.push(route);
+  renderAllRouteCards(deliveredCustomers);
 }
 
 function updateRoutePillBadge() {
@@ -3569,9 +4185,12 @@ function prefillFromRoute(customerName, docNumber) {
 async function startRoute(id) {
   try {
     const saved = await patchRoute(id, { status: 'active', started_at: new Date().toISOString() });
+    // Update in todayRoutes array
+    const idx = todayRoutes.findIndex(r => r.id === id);
+    if (idx >= 0) todayRoutes[idx] = saved;
     activeRouteData = saved;
     const delivered = await fetchTodayDeliveries();
-    renderActiveRouteCard(saved, delivered);
+    renderAllRouteCards(delivered);
     updateRoutePillBadge();
   } catch(e) { alert('Could not start route: ' + e.message); }
 }
@@ -3582,8 +4201,11 @@ async function finishRoute(id, allDone) {
   }
   try {
     await patchRoute(id, { status: 'completed', completed_at: new Date().toISOString() });
-    activeRouteData = null;
-    document.getElementById('routeActiveCard').classList.remove('show');
+    // Remove from todayRoutes so the card disappears
+    todayRoutes = todayRoutes.filter(r => r.id !== id);
+    activeRouteData = todayRoutes.find(r => r.status === 'active') || null;
+    const delivered = activeRouteData ? await fetchTodayDeliveries() : [];
+    renderAllRouteCards(delivered);
     updateRoutePillBadge();
   } catch(e) { alert('Could not finish route: ' + e.message); }
 }
@@ -3639,10 +4261,8 @@ function renderRouteList() {
   const activeChip = document.getElementById('rfChip-' + routeFilter);
   if (activeChip) activeChip.classList.add('active');
 
-  // Apply filter
-  const filtered = routeFilter === 'all'
-    ? allRoutes
-    : allRoutes.filter(r => r.status === routeFilter);
+  // Apply filter — each chip maps directly to a status
+  const filtered = allRoutes.filter(r => r.status === routeFilter);
 
   if (!allRoutes.length) {
     c.innerHTML = `<div class="route-list-empty">
@@ -3651,11 +4271,11 @@ function renderRouteList() {
     return;
   }
 
+  const labelMap = { draft: 'draft', active: 'active', completed: 'completed' };
   if (!filtered.length) {
-    const label = routeFilter === 'all' ? '' : routeFilter;
     c.innerHTML = `<div class="route-list-empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
-      <p>No ${label} routes found.</p></div>`;
+      <p>No ${labelMap[routeFilter] || routeFilter} routes found.</p></div>`;
     return;
   }
 
@@ -3702,12 +4322,12 @@ function formatRouteDate(dateStr) {
 
 // ── Route editor ─────────────────────────────────────────────────────────────
 function openRouteEditor(routeId) {
-  editingRoute = routeId ? (allRoutes.find(r => r.id === routeId) || null) : null;
+  editingRoute = routeId ? (allRoutes.find(r => r.id === routeId) || todayRoutes.find(r => r.id === routeId) || null) : null;
   if (editingRoute) {
     document.getElementById('routeEditorTitle').textContent = editingRoute.route_name || 'Edit Route';
     document.getElementById('routeEditorName').value  = editingRoute.route_name || '';
     document.getElementById('routeEditorDate').value  = editingRoute.route_date  || todayStr();
-    editorStops = Array.isArray(editingRoute.stops) ? editingRoute.stops.map(s => ({...s})) : [];
+    editorStops = Array.isArray(editingRoute.stops) ? editingRoute.stops.filter(s => !s.__final_dest).map(s => ({...s})) : [];
   } else {
     document.getElementById('routeEditorTitle').textContent = 'New Route';
     document.getElementById('routeEditorName').value  = '';
@@ -3717,6 +4337,37 @@ function openRouteEditor(routeId) {
   document.getElementById('rcSearch').value = '';
   document.getElementById('rcDropdown').classList.remove('open');
   renderEditorStops();
+ // Reset map pill — only active once route has been saved
+  const mapPill = document.getElementById('routeMapPill');
+  if (mapPill) {
+    if (editingRoute && editingRoute.id) {
+      mapPill.classList.remove('disabled');
+      mapPill.title = 'Preview route on map';
+    } else {
+      mapPill.classList.add('disabled');
+      mapPill.title = 'Save route first to preview map';
+    }
+  }
+
+  // Initialise final destination field — reset to depot only for new routes
+  if (!editingRoute) {
+    initFinalDest();
+  } else {
+    // Editing existing route — restore previously saved final dest if any,
+    // otherwise default to depot
+    const sentinel = Array.isArray(editingRoute.stops) ? editingRoute.stops.find(s => s.__final_dest) : null;
+    const saved = sentinel || null;
+    if (saved && saved.lat && saved.lng) {
+      document.getElementById('finalDestLabel').value = saved.label || DEPOT_LABEL;
+      document.getElementById('finalDestLat').value   = saved.lat;
+      document.getElementById('finalDestLng').value   = saved.lng;
+      setFinalDestHint(saved.label || DEPOT_LABEL, true);
+      closeFinalDestDropdown();
+    } else {
+      initFinalDest();
+    }
+  }
+
   document.getElementById('routeEditorOverlay').classList.add('open');
 }
 
@@ -3725,25 +4376,385 @@ function closeRouteEditor() {
   document.getElementById('rcDropdown').classList.remove('open');
 }
 
-async function saveRoute() {
+// ── Route Preview Map ─────────────────────────────────────────────────────────
+
+let routePreviewMap = null;
+
+function openActiveRoutePreview() {
+  if (!activeRouteData) return;
+  // Temporarily use activeRouteData as the preview source
+  const prev = editingRoute;
+  editingRoute = activeRouteData;
+  // Remove disabled guard by bypassing pill check — call map init directly
+  const route = activeRouteData;
+  const delivStops = Array.isArray(route.stops) ? route.stops.filter(s => !s.__final_dest) : [];
+  if (!delivStops.length) {
+    editingRoute = prev;
+    alert('No stops on this route to preview.');
+    return;
+  }
+  const stopsWithCoords    = delivStops.filter(s => s.lat && s.lng);
+  const stopsWithoutCoords = delivStops.filter(s => !(s.lat && s.lng));
+
+  document.getElementById('routePreviewTitle').textContent = route.route_name || 'Route Preview';
+  document.getElementById('routePreviewSub').textContent   = `${delivStops.length} stop${delivStops.length !== 1 ? 's' : ''}`;
+  document.getElementById('routePreviewInfoText').textContent =
+    `${stopsWithCoords.length} stop${stopsWithCoords.length !== 1 ? 's' : ''} with coordinates · tap a marker for details`;
+
+  const noCoords = document.getElementById('routePreviewNoCoords');
+  stopsWithoutCoords.length > 0 ? noCoords.classList.add('show') : noCoords.classList.remove('show');
+
+  document.getElementById('routePreviewOverlay').classList.add('open');
+  window.scrollTo(0, 0);
+  setTimeout(() => initRoutePreviewMap(route, stopsWithCoords), 80);
+  editingRoute = prev;
+}
+
+function openRoutePreview() {
+  const pill = document.getElementById('routeMapPill');
+  if (pill && pill.classList.contains('disabled')) return;
+
+  // Find the saved route — use editingRoute if available, otherwise most recent
+  const route = editingRoute || allRoutes[0];
+  const delivStops = Array.isArray(route.stops) ? route.stops.filter(s => !s.__final_dest) : [];
+  if (!delivStops.length) {
+    alert('No stops to preview. Save the route first.');
+    return;
+  }
+
+  const stopsWithCoords    = delivStops.filter(s => s.lat && s.lng);
+  const stopsWithoutCoords = delivStops.filter(s => !(s.lat && s.lng));
+
+  document.getElementById('routePreviewTitle').textContent =
+    route.route_name || 'Route Preview';
+  document.getElementById('routePreviewSub').textContent =
+    `${delivStops.length} stop${delivStops.length !== 1 ? 's' : ''}`;
+  document.getElementById('routePreviewInfoText').textContent =
+    `${stopsWithCoords.length} stop${stopsWithCoords.length !== 1 ? 's' : ''} with coordinates · tap a marker for details`;
+
+  const noCoords = document.getElementById('routePreviewNoCoords');
+  if (stopsWithoutCoords.length > 0) {
+    noCoords.classList.add('show');
+  } else {
+    noCoords.classList.remove('show');
+  }
+
+  document.getElementById('routePreviewOverlay').classList.add('open');
+  window.scrollTo(0, 0);
+
+  setTimeout(() => initRoutePreviewMap(route, stopsWithCoords), 80);
+}
+
+function closeRoutePreview() {
+  document.getElementById('routePreviewOverlay').classList.remove('open');
+  if (routePreviewMap) {
+    routePreviewMap.remove();
+    routePreviewMap = null;
+  }
+}
+
+function handleRoutePreviewOverlayClick(e) {
+  if (e.target === document.getElementById('routePreviewOverlay')) closeRoutePreview();
+}
+
+function initRoutePreviewMap(route, stopsWithCoords) {
+  const container = document.getElementById('routePreviewContainer');
+
+  if (routePreviewMap) {
+    routePreviewMap.remove();
+    routePreviewMap = null;
+  }
+
+  if (stopsWithCoords.length === 0) {
+    container.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;padding:40px;color:var(--text-muted);text-align:center;gap:14px;">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.25;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <p style="font-size:0.9rem;">No stops have address coordinates yet.<br>Add addresses via the Address Manager.</p>
+    </div>`;
+    return;
+  }
+
+  routePreviewMap = L.map('routePreviewContainer', { zoomControl: true, attributionControl: true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  }).addTo(routePreviewMap);
+
+  const coords = [];
+
+  // Depot start marker
+  const depotIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:30px;height:30px;border-radius:50%;
+      background:#00b86b;border:2.5px solid white;
+      box-shadow:0 2px 8px rgba(0,0,0,0.35);
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Barlow Condensed',sans-serif;font-size:0.65rem;font-weight:800;
+      color:white;text-align:center;line-height:1.1;
+    ">START</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    popupAnchor: [0, -18]
+  });
+  L.marker([config.depotLat, config.depotLng], { icon: depotIcon })
+    .addTo(routePreviewMap)
+    .bindPopup(`<div style="font-family:'Barlow',sans-serif;font-size:0.9rem;font-weight:700;color:#0d1b2a;">Lincoln Depot<br><span style="font-size:0.75rem;font-weight:400;color:#5a7a9a;">Start point</span></div>`);
+  coords.push([config.depotLat, config.depotLng]);
+
+  // Stop markers
+  stopsWithCoords.forEach((stop, idx) => {
+    const stopNum = idx + 1;
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:30px;height:30px;border-radius:50% 50% 50% 0;
+        background:#004b8e;border:2.5px solid white;
+        box-shadow:0 2px 8px rgba(0,0,0,0.35);
+        display:flex;align-items:center;justify-content:center;
+        font-family:'Barlow Condensed',sans-serif;font-size:0.8rem;font-weight:800;
+        color:white;transform:rotate(-45deg);
+      "><span style="transform:rotate(45deg)">${stopNum}</span></div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 30],
+      popupAnchor: [0, -32]
+    });
+    const latLng = [stop.lat, stop.lng];
+    coords.push(latLng);
+    L.marker(latLng, { icon })
+      .addTo(routePreviewMap)
+      .bindPopup(`
+        <div style="font-family:'Barlow',sans-serif;min-width:160px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#5a7a9a;margin-bottom:4px;">Stop ${stopNum}</div>
+          <div style="font-size:0.95rem;font-weight:700;color:#0d1b2a;margin-bottom:4px;">${stop.customer || '—'}</div>
+          ${stop.address_line ? `<div style="font-size:0.75rem;color:#5a7a9a;line-height:1.4;">${stop.address_line}${stop.postcode ? ', ' + stop.postcode : ''}</div>` : ''}
+          ${stop.docNumber ? `<div style="font-size:0.75rem;color:#5a7a9a;margin-top:4px;">Doc: ${stop.docNumber}</div>` : ''}
+        </div>
+      `, { maxWidth: 240 });
+  });
+
+  // Final destination marker
+  const finalDest = getFinalDest();
+  if (finalDest) {
+    const endIcon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:30px;height:30px;border-radius:50%;
+        background:#e03c3c;border:2.5px solid white;
+        box-shadow:0 2px 8px rgba(0,0,0,0.35);
+        display:flex;align-items:center;justify-content:center;
+        font-family:'Barlow Condensed',sans-serif;font-size:0.65rem;font-weight:800;
+        color:white;text-align:center;line-height:1.1;
+      ">END</div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      popupAnchor: [0, -18]
+    });
+    L.marker([finalDest.lat, finalDest.lng], { icon: endIcon })
+      .addTo(routePreviewMap)
+      .bindPopup(`<div style="font-family:'Barlow',sans-serif;font-size:0.9rem;font-weight:700;color:#0d1b2a;">${finalDest.label}<br><span style="font-size:0.75rem;font-weight:400;color:#5a7a9a;">Final destination</span></div>`);
+    coords.push([finalDest.lat, finalDest.lng]);
+  }
+
+  // Dashed route polyline
+  if (coords.length > 1) {
+    L.polyline(coords, {
+      color: '#0099ff', weight: 2.5, opacity: 0.7,
+      dashArray: '8, 8', dashOffset: '0'
+    }).addTo(routePreviewMap);
+  }
+
+  const bounds = L.latLngBounds(coords);
+  routePreviewMap.fitBounds(bounds, { padding: [40, 40] });
+}
+
+const DEPOT_LABEL = 'Lincoln Depot';
+const DEPOT_LAT   = config.depotLat;
+const DEPOT_LNG   = config.depotLng;
+
+function initFinalDest() {
+  document.getElementById('finalDestLabel').value = DEPOT_LABEL;
+  document.getElementById('finalDestLat').value   = DEPOT_LAT;
+  document.getElementById('finalDestLng').value   = DEPOT_LNG;
+  setFinalDestHint(DEPOT_LABEL, true);
+  closeFinalDestDropdown();
+}
+
+function resetFinalDest() {
+  initFinalDest();
+}
+
+function getFinalDest() {
+  const label = document.getElementById('finalDestLabel').value.trim() || DEPOT_LABEL;
+  const lat   = parseFloat(document.getElementById('finalDestLat').value);
+  const lng   = parseFloat(document.getElementById('finalDestLng').value);
+  if (isNaN(lat) || isNaN(lng)) return null;
+  return { label, lat, lng };
+}
+
+function setFinalDestHint(label, hasCoords) {
+  const hint = document.getElementById('finalDestHint');
+  if (!hint) return;
+  if (hasCoords) {
+    hint.textContent = `✓ ${label}`;
+    hint.className = 'final-dest-hint has-address';
+  } else {
+    hint.textContent = 'No coordinates found for this address — optimiser will ignore it.';
+    hint.className = 'final-dest-hint';
+  }
+}
+
+function onFinalDestCoordsManual() {
+  const lat = parseFloat(document.getElementById('finalDestLat').value);
+  const lng = parseFloat(document.getElementById('finalDestLng').value);
+  const label = document.getElementById('finalDestLabel').value.trim() || 'Custom location';
+  setFinalDestHint(label, !isNaN(lat) && !isNaN(lng));
+}
+
+function closeFinalDestDropdown() {
+  const dd = document.getElementById('finalDestDropdown');
+  if (dd) dd.classList.remove('open');
+}
+
+function selectFinalDestByIndex(i) {
+  const o = window._finalDestOptions && window._finalDestOptions[i];
+  if (!o) return;
+  selectFinalDestAddress(o.label, o.addressLine, o.postcode, o.lat, o.lng);
+}
+
+function selectFinalDestAddress(label, addressLine, postcode, lat, lng) {
+  document.getElementById('finalDestLabel').value = label;
+  document.getElementById('finalDestLat').value   = lat || '';
+  document.getElementById('finalDestLng').value   = lng || '';
+  const hasCoords = lat && lng;
+  const display = [label, addressLine, postcode].filter(Boolean).join(' · ');
+  setFinalDestHint(display, hasCoords);
+  closeFinalDestDropdown();
+}
+
+let _finalDestSearchTimer = null;
+
+function onFinalDestSearch() {
+  clearTimeout(_finalDestSearchTimer);
+  _finalDestSearchTimer = setTimeout(runFinalDestSearch, 260);
+}
+
+function onFinalDestFocus() {
+  const val = document.getElementById('finalDestLabel').value.trim();
+  if (val.length >= 2) runFinalDestSearch();
+}
+
+async function runFinalDestSearch() {
+  const query = document.getElementById('finalDestLabel').value.trim().toLowerCase();
+  const dd = document.getElementById('finalDestDropdown');
+  if (!dd) return;
+
+  // Always show depot as first option
+  const depotMatch = !query || DEPOT_LABEL.toLowerCase().includes(query);
+
+  if (query.length < 2 && !depotMatch) {
+    closeFinalDestDropdown();
+    return;
+  }
+
+  try {
+    // Search customer_addresses by label, address_line or postcode
+    const encoded = encodeURIComponent(query);
+    const res = await sbRequest(
+      `/rest/v1/customer_addresses?or=(label.ilike.*${encoded}*,address_line.ilike.*${encoded}*,postcode.ilike.*${encoded}*)&select=label,address_line,postcode,lat,lng&order=label.asc&limit=20`,
+      { headers: { 'Accept': 'application/json' } }
+    );
+    const rows = res.ok ? await res.json() : [];
+
+    const options = [];
+
+    if (depotMatch || query.length < 2) {
+      options.push({
+        label: DEPOT_LABEL,
+        addressLine: 'Lincoln',
+        postcode: '',
+        lat: DEPOT_LAT,
+        lng: DEPOT_LNG
+      });
+    }
+
+    rows.forEach(r => {
+      options.push({
+        label: r.label || r.address_line || r.postcode || 'Saved address',
+        addressLine: r.address_line || '',
+        postcode: r.postcode || '',
+        lat: r.lat,
+        lng: r.lng
+      });
+    });
+
+    if (options.length === 0) {
+      closeFinalDestDropdown();
+      return;
+    }
+
+    window._finalDestOptions = options;
+    dd.innerHTML = options.map((o, i) => {
+      const sub = [o.addressLine, o.postcode].filter(Boolean).join(', ');
+      const hasCoords = o.lat && o.lng;
+      const gpsBadge = hasCoords
+        ? `<span style="font-size:0.65rem;color:var(--success);font-weight:700;margin-left:5px;">&#x1F4CD; GPS</span>`
+        : `<span style="font-size:0.65rem;color:var(--error);font-weight:700;margin-left:5px;">No GPS</span>`;
+      return `<div class="final-dest-option" ontouchend="selectFinalDestByIndex(${i});event.preventDefault();" onclick="selectFinalDestByIndex(${i})">
+        <div class="final-dest-option-label">${escHtml(o.label)}${gpsBadge}</div>
+        ${sub ? `<div class="final-dest-option-sub">${escHtml(sub)}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    dd.classList.add('open');
+  } catch(e) {
+    console.warn('Final dest search error:', e.message);
+    closeFinalDestDropdown();
+  }
+}
+
+// Close dropdown when clicking outside — mousedown fires before touchend
+// so it won't race with and swallow the option tap
+document.addEventListener('mousedown', e => {
+  const wrap = document.querySelector('.final-dest-search-wrap');
+  if (wrap && !wrap.contains(e.target)) closeFinalDestDropdown();
+});
+
+function enableRouteMapPill() {
+  const pill = document.getElementById('routeMapPill');
+  if (!pill) return;
+  pill.classList.remove('disabled');
+  pill.title = 'Preview route on map';
+}
+
+async function _persistRoute(doOptimise) {
   const name = document.getElementById('routeEditorName').value.trim();
   const date = document.getElementById('routeEditorDate').value;
-  if (!date)                { alert('Please select a date for this route.'); return; }
-  if (!editorStops.length)  { alert('Please add at least one stop.'); return; }
+  if (!date)               { alert('Please select a date for this route.'); return; }
+  if (!editorStops.length) { alert('Please add at least one stop.'); return; }
 
+  const finalDest = getFinalDest();
+  // Store final_dest as a sentinel entry inside stops (no schema change needed)
+  const stopsWithDest = [
+    ...editorStops.filter(s => !s.__final_dest),
+    { __final_dest: true, label: finalDest.label, lat: finalDest.lat, lng: finalDest.lng }
+  ];
   const payload = {
     driver_name: loggedInDriver,
     route_name:  name || null,
     route_date:  date,
-    stops:       editorStops,
+    stops:       stopsWithDest,
     status:      editingRoute ? editingRoute.status : 'draft'
   };
   if (editingRoute) payload.id = editingRoute.id;
 
-  const btn = document.querySelector('.route-editor-save');
-  const origHTML = btn.innerHTML;
-  btn.innerHTML = 'Saving...';
-  btn.disabled  = true;
+  const saveBtn = document.getElementById('routeEditorSaveBtn');
+  const optBtn  = document.getElementById('routeEditorOptimiseBtn');
+  const activeBtn = doOptimise ? optBtn : saveBtn;
+  const origHTML  = activeBtn.innerHTML;
+  activeBtn.innerHTML = doOptimise ? 'Optimising...' : 'Saving...';
+  saveBtn.disabled = true;
+  optBtn.disabled  = true;
+
   try {
     const saved = await upsertRoute(payload);
     if (editingRoute) {
@@ -3753,42 +4764,58 @@ async function saveRoute() {
       allRoutes.unshift(saved);
     }
 
-    // ── Auto-optimise stop order using nearest-neighbour ──────
-    const { stops: optimisedStops, reorderedCount } = optimiseRouteStops(
-      editorStops,
-      config.depotLat,
-      config.depotLng
-    );
-
-    if (reorderedCount > 0) {
-      // Stops were reordered — patch the route with the optimised order
-      try {
-        const patched = await patchRoute(saved.id, { stops: optimisedStops });
-        const routeIdx = allRoutes.findIndex(r => r.id === saved.id);
-        if (routeIdx >= 0) allRoutes[routeIdx] = patched;
-      } catch(e) {
-        console.warn('Could not save optimised route order:', e.message);
+    if (doOptimise) {
+      const deliveryStops = editorStops.filter(s => !s.__final_dest);
+      const { stops: optimisedStops, reorderedCount } = optimiseRouteStops(
+        deliveryStops,
+        config.depotLat,
+        config.depotLng,
+        finalDest
+      );
+      const optimisedWithDest = [
+        ...optimisedStops.filter(s => !s.__final_dest),
+        { __final_dest: true, label: finalDest.label, lat: finalDest.lat, lng: finalDest.lng }
+      ];
+      if (reorderedCount > 0) {
+        try {
+          const patched = await patchRoute(saved.id, { stops: optimisedWithDest });
+          const routeIdx = allRoutes.findIndex(r => r.id === saved.id);
+          if (routeIdx >= 0) allRoutes[routeIdx] = patched;
+        } catch(e) {
+          console.warn('Could not save optimised route order:', e.message);
+        }
       }
+      if (reorderedCount > 0) {
+        showOptimiseToast(`Route optimised — ${reorderedCount} stop${reorderedCount !== 1 ? 's' : ''} reordered`);
+      } else if (editorStops.some(s => s.lat)) {
+        showOptimiseToast('Route saved — already in optimal order ✓');
+      } else {
+        showOptimiseToast('Route saved — no coordinates to optimise');
+      }
+    } else {
+      showOptimiseToast('Route saved');
     }
 
+    enableRouteMapPill();
     closeRouteEditor();
     renderRouteList();
     await loadActiveRoute();
 
-    // Show result toast
-    if (reorderedCount > 0) {
-      showOptimiseToast(`Route optimised — ${reorderedCount} stop${reorderedCount !== 1 ? 's' : ''} reordered`);
-    } else if (editorStops.some(s => s.lat)) {
-      showOptimiseToast('Route saved — already in optimal order ✓');
-    } else {
-      showOptimiseToast('Route saved');
-    }
   } catch(e) {
     alert('Could not save route: ' + e.message);
   } finally {
-    btn.innerHTML = origHTML;
-    btn.disabled  = false;
+    activeBtn.innerHTML = origHTML;
+    saveBtn.disabled = false;
+    optBtn.disabled  = false;
   }
+}
+
+async function saveRoute() {
+  await _persistRoute(false);
+}
+
+async function optimiseAndSaveRoute() {
+  await _persistRoute(true);
 }
 
 // ── Editor stops ─────────────────────────────────────────────────────────────
@@ -4084,20 +5111,19 @@ async function buildPODpdf(r) {
   doc.setFillColor(...ACCENT);
   doc.rect(0, 33, PAGE_W, 3, 'F');
 
-  // Logo mark
-  doc.setFillColor(255, 255, 255, 0.15);
-  doc.roundedRect(MARGIN, 7, 22, 22, 3, 3, 'F');
+  // Logo mark — FMF logo image
+  doc.addImage('data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAEqAnsDASIAAhEBAxEB/8QAHQABAAIDAQEBAQAAAAAAAAAAAAcIBQYJBAMCAf/EAFgQAAEDAwICBAkHCAgFAQMNAAEAAgMEBREGBxIhCDFRYRMUIkFxgZGUoRUWGDJV0dIjQlJykqKxwRczU1RWYoKTJENjssKVRNPhJSYoNEVGV2Rzo6Sz4v/EABsBAQACAwEBAAAAAAAAAAAAAAAEBQIDBgEH/8QAOhEAAQMCAgUKBQMEAwEAAAAAAQACAwQRBRITITFBURUyYXGBkaGx0fAUIlLB4QYjUxZCY/EkM3KS/9oADAMBAAIRAxEAPwC5aIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIvzI9kcbpJHNYxoJc5xwAB1klEX6Xku10ttppHVd0uFLQ07ebpaiVsbR6yVXrePpHR0NRPZtBtiqZWEskuUg4owfP4Nv536x5KDNOUmqd2NwKG1110q6+qqpMyTzvLhBGOb3AdTQB5hjngK4p8HkezSSnK3xVTPi0bH6OIZneCvRpTVen9VRVE2n7i24Q08ng5Jo43iPi7GvIDXf6SVm1i9KWG26Z0/R2O0U7YKOkjDGNHWe1x7STzJWUVU/LmOTYrRmbKM+1EXkvFyoLPbZ7ldKuGko6dhfLNK7DWgKrG7fSPulxlmtehQ630Qy018jfy0vewHkwfH0KRSUUtU60Y1cdyj1VZFTNu89itHXXqz0FXDR111oaapm/qopZ2se/0AnJXua4OALSCD1ELmfcKyruFXJV19VNVVEhy+WZ5e9x7yea2vRO5+uNISMFnv1T4u3/2Wod4WEjs4XdXqwreT9PuDfkfcqpZjzS75mWC6DIoF2v6SFhvckVu1dA2yVrsNFS1xdTPPeetnr5d6niGWOaJk0MjJI3tDmvYchwPUQR1hUlRTS07ssgsrmCpinbmjN1+kRFoW9ERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERFWvpgbk1FHwaCs1Q6J00YlucjDg8B+rFnv6z3Y7VZRc894bhNc91NT1k5JcbnPGM+ZrHljR6mtAVxgtO2WfM7+3X2qoxmodFBlb/ctTVquhNpiOGy3bV00f5apl8Tp3EdUbcF5HpcQP9Cqqr2dGCmjptk7CIxjwjZJXelz3Eq5xyQsprDebfdVGCxh9Rc7gpMXzqZoqankqJ5GxQxML5HuOA1oGSSewBfRQt0vtVTWLbZlppJDHUXmbwDnA8xE0cT/byHrK5SnhM8rYxvXUVEwhjdIdygXpB7rVmv78+goJZIdO0khFNEDjw7h/zXj+A8w71FSI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', 'JPEG', MARGIN, 8, 43, 20);
 
   // App name
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(...WHITE);
-  doc.text('FMF POD', MARGIN + 27, 17);
+  doc.text('FMF POD', MARGIN + 47, 17);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(180, 210, 240);
-  doc.text('PROOF OF DELIVERY', MARGIN + 27, 23);
+  doc.text('PROOF OF DELIVERY', MARGIN + 47, 23);
 
   // Doc title right-aligned
   doc.setFont('helvetica', 'bold');
@@ -4391,11 +5417,20 @@ function handleAddressPickerOverlayClick(e) {
  *
  * @returns {{ stops: Array, reorderedCount: number }}
  */
-function optimiseRouteStops(stops, depotLat, depotLng) {
+function optimiseRouteStops(stops, depotLat, depotLng, finalDest) {
   if (!stops || stops.length <= 1) return { stops: [...(stops || [])], reorderedCount: 0 };
 
-  const withCoords    = stops.filter(s => s.lat && s.lng);
-  const withoutCoords = stops.filter(s => !(s.lat && s.lng));
+  // If a valid finalDest is provided, separate it from the optimisable stops.
+  // It will always be appended last after optimisation.
+  let finalDestStop = null;
+  let stopsToOptimise = stops;
+
+  if (finalDest && finalDest.lat && finalDest.lng) {
+    stopsToOptimise = stops; // all delivery stops are optimised freely
+  }
+
+  const withCoords    = stopsToOptimise.filter(s => s.lat && s.lng);
+  const withoutCoords = stopsToOptimise.filter(s => !(s.lat && s.lng));
 
   if (withCoords.length <= 1) {
     return { stops: [...stops], reorderedCount: 0 };
@@ -4404,9 +5439,12 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
   // Snapshot original customer order for comparison at the end
   const originalOrder = withCoords.map(s => s.customer);
 
+  // Determine the effective return point for distance calculations.
+  // If a finalDest is given, optimise towards it; otherwise return to depot.
+  const returnLat = (finalDest && finalDest.lat) ? finalDest.lat : depotLat;
+  const returnLng = (finalDest && finalDest.lng) ? finalDest.lng : depotLng;
+
   // ── Phase 1: Nearest-neighbour seed ──────────────────────────────────────
-  // Produces a reasonable starting route by always visiting the closest
-  // unvisited stop next, starting from the depot.
   const unvisited = [...withCoords];
   const route     = [];
   let curLat = depotLat;
@@ -4425,22 +5463,16 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
   }
 
   // ── Phase 2: 2-opt improvement ───────────────────────────────────────────
-  // Repeatedly try reversing every sub-segment [i..k] of the route.
-  // If reversing produces a shorter total distance, keep it.
-  // The depot is treated as a fixed anchor at both ends (open route —
-  // we minimise depot→first + inter-stop + last→depot total distance).
-  //
-  // Runs until a full pass finds no improvement (convergence).
+  // Uses returnLat/returnLng as the fixed end anchor so the algorithm
+  // accounts for the final leg to the destination when scoring routes.
 
   function routeDistance(r) {
-    // Depot → first stop
     let d = haversineKm(depotLat, depotLng, r[0].lat, r[0].lng);
-    // Inter-stop legs
     for (let i = 0; i < r.length - 1; i++) {
       d += haversineKm(r[i].lat, r[i].lng, r[i+1].lat, r[i+1].lng);
     }
-    // Last stop → depot (important: avoids routes that end far from base)
-    d += haversineKm(r[r.length-1].lat, r[r.length-1].lng, depotLat, depotLng);
+    // Final leg: last delivery stop → final destination (or depot if none set)
+    d += haversineKm(r[r.length-1].lat, r[r.length-1].lng, returnLat, returnLng);
     return d;
   }
 
@@ -4451,14 +5483,13 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
     improved = false;
     for (let i = 0; i < route.length - 1; i++) {
       for (let k = i + 1; k < route.length; k++) {
-        // Reverse the sub-segment between i and k (inclusive)
         const newRoute = [
           ...route.slice(0, i),
           ...route.slice(i, k + 1).reverse(),
           ...route.slice(k + 1)
         ];
         const newDist = routeDistance(newRoute);
-        if (newDist < bestDist - 0.001) { // 1-metre threshold avoids float noise
+        if (newDist < bestDist - 0.001) {
           route.splice(0, route.length, ...newRoute);
           bestDist = newDist;
           improved = true;
@@ -4468,8 +5499,6 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
   }
 
   // ── Count genuinely reordered stops ──────────────────────────────────────
-  // Compare against the original driver-entered order.
-  // Report the number of stops that ended up in a different position.
   const newOrder = route.map(s => s.customer);
   let reorderedCount = 0;
   for (let i = 0; i < originalOrder.length; i++) {
@@ -4478,7 +5507,6 @@ function optimiseRouteStops(stops, depotLat, depotLng) {
 
   return { stops: [...route, ...withoutCoords], reorderedCount };
 }
-
 // ── Optimise Toast notification ───────────────────────────────────────────────
 let _toastTimeout = null;
 
@@ -4522,6 +5550,419 @@ function closeAddressManager() {
   if (!loggedInDriver) {
     document.getElementById('driverLoginScreen').classList.remove('hidden');
   }
+}
+
+// ══ OVERVIEW ══════════════════════════════════════════════════════════════
+
+function showOverview() {
+  document.getElementById('driverLoginScreen').classList.add('hidden');
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('successScreen').classList.remove('show');
+  document.getElementById('historyView').classList.remove('show');
+  document.getElementById('detailView').classList.remove('show');
+  document.getElementById('analyticsView').classList.remove('show');
+  document.getElementById('routeView').classList.remove('show');
+  document.getElementById('overviewView').classList.add('show');
+  window.scrollTo(0,0);
+  ovLoad();
+}
+
+// Driver colour palette — consistent per name
+const OV_COLORS = ['#004b8e','#e03c3c','#00b86b','#f0a500','#8b5cf6','#0099ff','#e8590c','#5a7a9a'];
+function ovColorForDriver(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return OV_COLORS[h % OV_COLORS.length];
+}
+
+let ovAllDriverData   = [];
+let ovCurrentFilter   = 'all';  // 'all' | 'active' | 'completed'
+let ovShowNoRoute     = false;   // toggle: show drivers with no routes
+let ovExpandedDrivers = new Set();
+let ovRefreshTimer    = null;
+
+async function ovLoad() {
+  const btn = document.getElementById('ovRefreshBtn');
+  if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
+  document.getElementById('ovRefreshText').textContent = 'Loading…';
+
+  try {
+    // ── 1. Fetch all active drivers ──────────────────────────────────────
+    const driversRes = await sbRequest('/rest/v1/drivers?select=name,pin&active=eq.true&order=name.asc');
+    if (!driversRes.ok) throw new Error(`Drivers fetch failed (${driversRes.status})`);
+    const driversRaw = await driversRes.json();
+
+    // ── 2. Fetch today's routes ──────────────────────────────────────────
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const routesRes = await sbRequest(
+      `/rest/v1/routes?select=id,driver_name,route_name,status,stops,route_date&route_date=eq.${todayISO}&order=created_at.asc`
+    );
+    if (!routesRes.ok) throw new Error(`Routes fetch failed (${routesRes.status})`);
+    const routesRaw = await routesRes.json();
+
+    // ── 3. Fetch today's deliveries ─────────────────────────────────────
+    const fromISO = todayISO + 'T00:00:00.000Z';
+    const toISO   = todayISO + 'T23:59:59.999Z';
+    const delivRes = await sbRequest(
+      `/rest/v1/deliveries?select=driver_name,customer_name,delivery_datetime&delivery_datetime=gte.${fromISO}&delivery_datetime=lte.${toISO}&order=delivery_datetime.asc`
+    );
+    if (!delivRes.ok) throw new Error(`Deliveries fetch failed (${delivRes.status})`);
+    const delivRaw = await delivRes.json();
+
+    // ── 4. Build per-driver data ─────────────────────────────────────────
+    ovAllDriverData = driversRaw.map(driver => {
+      const name  = driver.name;
+      const color = ovColorForDriver(name);
+
+      // Match ALL routes for this driver today (a driver may have multiple)
+      const driverRoutes = routesRaw.filter(r =>
+        (r.driver_name || '').toLowerCase() === name.toLowerCase()
+      );
+
+      // Deliveries this driver has made today
+      const myDeliveries = delivRaw.filter(d =>
+        (d.driver_name || '').toLowerCase() === name.toLowerCase()
+      );
+      const deliveredNames = new Set(
+        myDeliveries.map(d => (d.customer_name || '').toLowerCase())
+      );
+
+      // Last delivery time
+      const lastDel = myDeliveries.length > 0
+        ? myDeliveries[myDeliveries.length - 1]
+        : null;
+      const lastDelivery = lastDel
+        ? new Date(lastDel.delivery_datetime).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
+        : null;
+
+      // Build per-route data — one entry per route, kept separate
+      let overallStatus = 'no-route';
+      let routes = [];
+
+      if (driverRoutes.length > 0) {
+        routes = driverRoutes.map(route => {
+          const rawStops = Array.isArray(route.stops)
+            ? route.stops.filter(s => !s.__final_dest)
+            : [];
+          const stops = rawStops.map(s => {
+            const custName = s.customer || '';
+            const done = deliveredNames.has(custName.toLowerCase());
+            const matchDel = myDeliveries.find(d =>
+              (d.customer_name || '').toLowerCase() === custName.toLowerCase()
+            );
+            const time = matchDel
+              ? new Date(matchDel.delivery_datetime).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
+              : null;
+            return { name: custName, done, time };
+          });
+
+          let status = route.status || 'draft';
+          // If all stops delivered but route not yet marked completed, show as completed
+          if (stops.length > 0 && stops.every(s => s.done) && status === 'active') {
+            status = 'completed';
+          }
+
+          return {
+            id:        route.id,
+            routeName: route.route_name || null,
+            status,
+            stops,
+            rawRoute:  route   // keep original for map preview
+          };
+        });
+
+        // Sort: active first, then draft, then completed
+        const statusOrder = { active: 0, draft: 1, completed: 2 };
+        routes.sort((a, b) => (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3));
+
+        // Overall driver status for filtering/summary
+        if (routes.some(r => r.status === 'active'))          overallStatus = 'active';
+        else if (routes.every(r => r.status === 'completed')) overallStatus = 'completed';
+        else                                                   overallStatus = routes[0].status;
+      }
+
+      return { name, color, routes, status: overallStatus, lastDelivery };
+    });
+
+    // ── 5. Render ────────────────────────────────────────────────────────
+    ovRenderAll();
+
+    const now = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    document.getElementById('ovRefreshText').textContent = `Updated ${now} — refreshes every 60s`;
+
+    // Auto-refresh every 60s while overview is visible
+    clearTimeout(ovRefreshTimer);
+    ovRefreshTimer = setTimeout(() => {
+      if (document.getElementById('overviewView').classList.contains('show')) ovLoad();
+    }, 60000);
+
+  } catch(e) {
+    console.error('Overview load error:', e);
+    document.getElementById('ovRefreshText').textContent = `Error: ${e.message || 'check connection'} — tap Refresh to retry`;
+  } finally {
+    const b = document.getElementById('ovRefreshBtn');
+    if (b) { b.classList.remove('spinning'); b.disabled = false; }
+  }
+}
+
+function ovDoRefresh() {
+  clearTimeout(ovRefreshTimer);
+  ovLoad();
+}
+
+function ovRenderAll() {
+  ovRenderSummary();
+  ovRenderGrid();
+}
+
+function ovRenderSummary() {
+  const allStops = ovAllDriverData.flatMap(d => d.routes.flatMap(r => r.stops));
+  const totalDelivered = allStops.filter(st => st.done).length;
+  const totalRemaining = allStops.filter(st => !st.done).length;
+  const activeCount    = ovAllDriverData.filter(d => d.status === 'active').length;
+  const completedCount = ovAllDriverData.filter(d => d.status === 'completed').length;
+  const totalStops     = totalDelivered + totalRemaining;
+  const pct            = totalStops > 0 ? Math.round((totalDelivered / totalStops) * 100) : 0;
+
+  document.getElementById('ovSummaryStrip').innerHTML = `
+    <div class="ov-summary-card">
+      <div class="ov-summary-val">${totalDelivered}</div>
+      <div class="ov-summary-label">Delivered</div>
+      <div class="ov-summary-sub">${pct}% of ${totalStops} stops</div>
+    </div>
+    <div class="ov-summary-card">
+      <div class="ov-summary-val">${totalRemaining}</div>
+      <div class="ov-summary-label">Remaining</div>
+      <div class="ov-summary-sub">across all routes</div>
+    </div>
+    <div class="ov-summary-card">
+      <div class="ov-summary-val green">${activeCount}</div>
+      <div class="ov-summary-label">Active Routes</div>
+      <div class="ov-summary-sub">drivers on the road</div>
+    </div>
+    <div class="ov-summary-card">
+      <div class="ov-summary-val amber">${completedCount}</div>
+      <div class="ov-summary-label">Completed</div>
+      <div class="ov-summary-sub">all stops done</div>
+    </div>`;
+}
+
+function ovRenderGrid() {
+  // Filter by route-level status, not driver-level status
+  let filtered = ovAllDriverData.filter(driver => {
+    if (driver.routes.length === 0) return ovShowNoRoute; // respect toggle
+
+    if (ovCurrentFilter === 'all') return true;
+
+    // Show driver if ANY of their routes match the filter
+    return driver.routes.some(r => r.status === ovCurrentFilter);
+  });
+
+  document.getElementById('ovDriverCount').textContent = `${ovAllDriverData.length}`;
+  document.getElementById('ovRouteCount').textContent  = `${filtered.length} driver${filtered.length !== 1 ? 's' : ''}`;
+
+  const grid = document.getElementById('ovDriverGrid');
+  grid.innerHTML = '';
+  filtered.forEach((driver, idx) => {
+    const card = ovBuildCard(driver);
+    card.style.animation = `slideUp 0.3s ease ${idx * 0.04}s both`;
+    grid.appendChild(card);
+  });
+}
+
+function ovBuildCard(driver) {
+  const badgeMap  = { active:'Active', completed:'Complete', draft:'Draft', 'no-route':'No Route' };
+
+  // ── Helper: build one stop row ───────────────────────────────────────────
+  const stopHTML = (stop, type, globalIdx, nextIdx) => {
+    const isNext   = type === 'todo' && globalIdx === nextIdx;
+    const cls      = type === 'done' ? 'done' : (isNext ? 'next' : 'todo');
+    const numInner = type === 'done'
+      ? `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+      : (globalIdx + 1);
+    const shortName = stop.name.replace(/^[A-Z]\d+\s-\s/, '');
+    return `<div class="ov-stop-item ${cls}">
+      <div class="ov-stop-num ${cls}">${numInner}</div>
+      <div class="ov-stop-name" title="${escHtml(stop.name)}">${escHtml(shortName)}</div>
+      ${type === 'done' && stop.time ? `<div style="font-size:0.7rem;color:var(--text-muted);flex-shrink:0;font-weight:700;margin-left:auto;padding-left:4px;">${stop.time}</div>` : ''}
+    </div>`;
+  };
+
+  // ── Helper: build one route block ────────────────────────────────────────
+  const buildRouteBlock = (route, driverName) => {
+    const stops     = route.stops;
+    const done      = stops.filter(s => s.done).length;
+    const total     = stops.length;
+    const remaining = total - done;
+    const pct       = total > 0 ? Math.round((done / total) * 100) : 0;
+    const nextIdx   = stops.findIndex(s => !s.done);
+    const expKey    = driverName + '::' + route.id;
+    const isExp     = ovExpandedDrivers.has(expKey);
+    const progColor = route.status === 'completed' ? 'var(--success)' : driver.color;
+
+    // Check if any stops have coords for map btn
+    const rawStops      = Array.isArray(route.rawRoute.stops) ? route.rawRoute.stops.filter(s => !s.__final_dest) : [];
+    const hasCoords     = rawStops.some(s => s.lat && s.lng);
+    const mapBtnCls     = hasCoords ? 'ov-route-map-btn' : 'ov-route-map-btn no-coords';
+    const safeDriver    = escHtml(driverName).replace(/'/g, "\'");
+    const safeRouteId   = escHtml(route.id || '');
+
+    const routeLabel = route.routeName
+      ? escHtml(route.routeName)
+      : (route.status === 'draft' ? 'Draft Route' : 'Unnamed Route');
+
+    // Progress + stops
+    let stopsBody = '';
+    if (total === 0) {
+      stopsBody = `<div class="ov-no-route-body" style="padding:10px 16px 14px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        No stops added yet
+      </div>`;
+    } else {
+      const doneStops    = stops.filter(s => s.done);
+      const todoStops    = stops.filter(s => !s.done);
+      // Show all stops by default; collapse button appears only when list is very long
+      const maxVis       = isExp ? 999 : 8;
+      const doneVisible  = doneStops.slice(0, maxVis);
+      const todoVisible  = todoStops.slice(0, maxVis);
+      const doneOverflow = Math.max(0, doneStops.length - maxVis);
+      const todoOverflow = Math.max(0, todoStops.length - maxVis);
+      const needsExpand  = doneStops.length > maxVis || todoStops.length > maxVis;
+
+      stopsBody = `
+        <div class="ov-route-progress">
+          <div class="ov-progress-meta">
+            <span class="ov-progress-meta-left">${done} of ${total} stops delivered</span>
+            <span class="ov-progress-meta-right" style="color:${progColor};">${pct}%</span>
+          </div>
+          <div class="ov-progress-track">
+            <div class="ov-progress-fill" style="width:${pct}%;background:${progColor};"></div>
+          </div>
+        </div>
+        <div class="ov-stops-section" style="padding-top:0;">
+          <div class="ov-stops-cols">
+            <div>
+              <div class="ov-stops-col-label done-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                Done (${done})
+              </div>
+              ${doneVisible.map(s => stopHTML(s, 'done', stops.indexOf(s), nextIdx)).join('')}
+              ${!isExp && doneOverflow > 0 ? `<div style="font-size:0.7rem;color:var(--text-muted);padding:4px 8px;font-weight:600;">+${doneOverflow} more…</div>` : ''}
+            </div>
+            <div>
+              <div class="ov-stops-col-label todo-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                To Go (${remaining})
+              </div>
+              ${todoVisible.map(s => stopHTML(s, 'todo', stops.indexOf(s), nextIdx)).join('')}
+              ${!isExp && todoOverflow > 0 ? `<div style="font-size:0.7rem;color:var(--text-muted);padding:4px 8px;font-weight:600;">+${todoOverflow} more…</div>` : ''}
+            </div>
+          </div>
+        </div>
+        ${needsExpand ? `
+          <button class="ov-expand-btn ${isExp ? 'open' : ''}" onclick="ovToggleExpand('${escHtml(expKey).replace(/'/g, "\\'")}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            ${isExp ? 'Show less' : `Show all ${total} stops`}
+          </button>` : ''}`;
+    }
+
+    return `<div class="ov-route-block">
+      <div class="ov-route-block-header">
+        <span class="ov-route-block-name">${routeLabel}</span>
+        <span class="ov-status-badge ${route.status}" style="font-size:0.6rem;padding:3px 7px;">${badgeMap[route.status] || route.status}</span>
+        <button class="${mapBtnCls}" onclick="ovOpenRoutePreview('${safeRouteId}')" title="${hasCoords ? 'Preview route map' : 'No coordinates available'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+            <line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>
+          </svg>
+        </button>
+      </div>
+      ${stopsBody}
+    </div>`;
+  };
+
+  // ── Assemble full card ───────────────────────────────────────────────────
+  const allRouteBlocks = driver.routes.length > 0
+    ? driver.routes.map(r => buildRouteBlock(r, driver.name)).join('')
+    : `<div class="ov-no-route-body">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        No route assigned for today
+      </div>`;
+
+  const routeCountLabel = driver.routes.length === 0 ? 'No route today'
+    : driver.routes.length === 1 ? (driver.routes[0].routeName || 'Unnamed Route')
+    : `${driver.routes.length} routes today`;
+
+  const footerLeft = driver.lastDelivery
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Last delivery ${driver.lastDelivery}`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>No deliveries yet`;
+
+  const card = document.createElement('div');
+  card.className = 'ov-driver-card';
+  card.innerHTML = `
+    <div class="ov-driver-card-header">
+      <div class="ov-driver-avatar" style="background:${driver.color};">${escHtml(driver.name[0])}</div>
+      <div class="ov-driver-info">
+        <div class="ov-driver-name">${escHtml(driver.name)}</div>
+        <div class="ov-driver-route">${escHtml(routeCountLabel)}</div>
+      </div>
+      <span class="ov-status-badge ${driver.status}">${badgeMap[driver.status] || driver.status}</span>
+    </div>
+    ${allRouteBlocks}
+    <div class="ov-driver-footer">
+      <div class="ov-driver-footer-left">${footerLeft}</div>
+    </div>`;
+  return card;
+}
+
+function ovOpenRoutePreview(routeId) {
+  // Find the route across all drivers
+  let targetRoute = null;
+  for (const driver of ovAllDriverData) {
+    const match = driver.routes.find(r => r.id === routeId);
+    if (match) { targetRoute = match.rawRoute; break; }
+  }
+  if (!targetRoute) return;
+
+  const delivStops = Array.isArray(targetRoute.stops) ? targetRoute.stops.filter(s => !s.__final_dest) : [];
+  if (!delivStops.length) { alert('No stops on this route to preview.'); return; }
+
+  const stopsWithCoords    = delivStops.filter(s => s.lat && s.lng);
+  const stopsWithoutCoords = delivStops.filter(s => !(s.lat && s.lng));
+
+  document.getElementById('routePreviewTitle').textContent = targetRoute.route_name || 'Route Preview';
+  document.getElementById('routePreviewSub').textContent   = `${delivStops.length} stop${delivStops.length !== 1 ? 's' : ''}`;
+  document.getElementById('routePreviewInfoText').textContent =
+    `${stopsWithCoords.length} stop${stopsWithCoords.length !== 1 ? 's' : ''} with coordinates · tap a marker for details`;
+
+  const noCoords = document.getElementById('routePreviewNoCoords');
+  stopsWithoutCoords.length > 0 ? noCoords.classList.add('show') : noCoords.classList.remove('show');
+
+  document.getElementById('routePreviewOverlay').classList.add('open');
+  window.scrollTo(0, 0);
+  setTimeout(() => initRoutePreviewMap(targetRoute, stopsWithCoords), 80);
+}
+
+function ovSetFilter(f) {
+  ovCurrentFilter = f;
+  ['all','active','completed'].forEach(id => {
+    const el = document.getElementById('ovfc-' + id);
+    if (el) el.classList.toggle('active', id === f);
+  });
+  ovRenderGrid();
+}
+
+function ovToggleNoRoute() {
+  ovShowNoRoute = !ovShowNoRoute;
+  const track = document.getElementById('ovNoRouteTrack');
+  if (track) track.classList.toggle('on', ovShowNoRoute);
+  ovRenderGrid();
+}
+
+function ovToggleExpand(expKey) {
+  if (ovExpandedDrivers.has(expKey)) ovExpandedDrivers.delete(expKey);
+  else ovExpandedDrivers.add(expKey);
+  ovRenderGrid();
 }
 
 // ── Customer Search ──────────────────────────────────────────────────────────
@@ -4862,6 +6303,91 @@ function amShowFormErr(msg) {
   el.classList.add('show');
 }
 
+// ── NAVIGATION ────────────────────────────────────────────
+function openNavSheet(stop) {
+  const hasCoords  = stop.lat && stop.lng;
+  const hasAddr    = stop.address_line || stop.postcode;
+  const customer   = stop.customer || 'Stop';
+
+  // Build destination strings
+  const coordDest  = hasCoords  ? `${stop.lat},${stop.lng}` : null;
+  const queryDest  = hasAddr    ? encodeURIComponent([stop.address_line, stop.postcode].filter(Boolean).join(', ')) : null;
+  const dest       = coordDest || queryDest;
+
+  // Human-readable address for sheet header
+  const addrLine = [stop.address_line, stop.postcode].filter(Boolean).join(', ') || (hasCoords ? `${(+stop.lat).toFixed(5)}, ${(+stop.lng).toFixed(5)}` : 'No address on file');
+
+  document.getElementById('navSheetTitle').textContent = customer;
+  document.getElementById('navSheetAddr').textContent  = addrLine;
+
+  const appList = document.getElementById('navAppList');
+
+  if (!dest) {
+    appList.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:16px 0;">No address or coordinates stored for this stop.</p>';
+    document.getElementById('navSheet').classList.add('open');
+    return;
+  }
+
+  // Build URLs — prefer coordinates, fall back to query string
+  const gmapsUrl  = coordDest
+    ? `https://www.google.com/maps/dir/?api=1&destination=${coordDest}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${queryDest}`;
+  const appleUrl  = coordDest
+    ? `maps://?daddr=${coordDest}`
+    : `maps://?daddr=${queryDest}`;
+  const wazeUrl   = coordDest
+    ? `https://waze.com/ul?ll=${coordDest}&navigate=yes`
+    : `https://waze.com/ul?q=${queryDest}&navigate=yes`;
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+  appList.innerHTML = `
+    <button class="nav-app-btn primary" onclick="launchNav('${gmapsUrl}')">
+      <span class="nav-app-icon">
+        <svg viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+      </span>
+      <span>
+        <div class="nav-app-label">Google Maps</div>
+        <div class="nav-app-sub">Tap to open navigation</div>
+      </span>
+    </button>
+    ${isIOS ? `
+    <button class="nav-app-btn" onclick="launchNav('${appleUrl}')">
+      <span class="nav-app-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      </span>
+      <span>
+        <div class="nav-app-label">Apple Maps</div>
+        <div class="nav-app-sub">Opens in Apple Maps</div>
+      </span>
+    </button>` : ''}
+    <button class="nav-app-btn" onclick="launchNav('${wazeUrl}')">
+      <span class="nav-app-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="11" r="7"/><path d="M9 11a1 1 0 1 0 2 0 1 1 0 0 0-2 0M13 11a1 1 0 1 0 2 0 1 1 0 0 0-2 0M10 14.5s.8 1.5 2 1.5 2-1.5 2-1.5"/><path d="M12 18v3"/></svg>
+      </span>
+      <span>
+        <div class="nav-app-label">Waze</div>
+        <div class="nav-app-sub">Opens in Waze</div>
+      </span>
+    </button>`;
+
+  document.getElementById('navSheet').classList.add('open');
+}
+
+function launchNav(url) {
+  window.open(url, '_blank');
+  closeNavSheet();
+}
+
+function closeNavSheet() {
+  document.getElementById('navSheet').classList.remove('open');
+}
+
+// Close sheet on Escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeNavSheet();
+});
+
 // ── HELPERS ───────────────────────────────────────────────
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -4876,3 +6402,14 @@ updateSyncBar();
 </script>
 </body>
 </html>
+
+<!-- ── Navigation app-picker sheet ── -->
+<div id="navSheet" onclick="if(event.target===this)closeNavSheet()">
+  <div id="navSheetInner">
+    <div class="nav-sheet-handle"></div>
+    <div class="nav-sheet-title" id="navSheetTitle">Navigate to stop</div>
+    <div class="nav-sheet-addr" id="navSheetAddr"></div>
+    <div class="nav-app-list" id="navAppList"></div>
+    <button class="nav-cancel-btn" onclick="closeNavSheet()">Cancel</button>
+  </div>
+</div>
