@@ -4043,6 +4043,7 @@ function buildRouteCardHTML(route, delivSet) {
   let firstUndelivered = -1;
   stops.forEach((s, i) => { if (firstUndelivered === -1 && !delivSet.has((s.customer||'').toLowerCase())) firstUndelivered = i; });
 
+  registerNavStops(id, stops);
   const stopsHTML = stops.map((s, i) => {
     const done   = delivSet.has((s.customer||'').toLowerCase());
     const isNext = isActive && !done && i === firstUndelivered;
@@ -4055,16 +4056,13 @@ function buildRouteCardHTML(route, delivSet) {
       : (isNext ? '<svg class="route-stop-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' : '');
     const click = (!done && isActive) ? `onclick="prefillFromRoute('${s.customer.replace(/'/g,"\\'")}','${(s.doc_number||'').replace(/'/g,"\\'")}')"` : '';
     const docBadge = s.doc_number ? `<div class="route-stop-doc-badge">📄 ${escHtml(s.doc_number)}</div>` : '';
-    // Nav button — build a safe data attribute for the stop object
+    // Nav button — uses stop index to look up data safely (avoids inline JSON quoting issues)
     const navHasAddr = !!(s.lat || s.address_line || s.postcode);
-    const navData = encodeURIComponent(JSON.stringify({
-      customer: s.customer || '', lat: s.lat || null, lng: s.lng || null,
-      address_line: s.address_line || null, postcode: s.postcode || null
-    }));
+    const navIdx = i;
     const navBtn = (!done && isActive)
       ? `<button class="route-stop-nav-btn${navHasAddr ? '' : ' no-addr'}"
            title="${navHasAddr ? 'Navigate to this stop' : 'No address on file'}"
-           onclick="event.stopPropagation();openNavSheet(JSON.parse(decodeURIComponent('${navData}')))"
+           onclick="event.stopPropagation();openNavSheetByIndex('${escHtml(id)}',${navIdx})"
            ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></button>`
       : '';
     return `<div class="route-stop-item ${cls}" ${click}>
@@ -4076,6 +4074,7 @@ function buildRouteCardHTML(route, delivSet) {
       ${navBtn}
       ${right}
     </div>`;
+  }).join('');
 
   const delivCount = stops.filter(s => delivSet.has((s.customer||'').toLowerCase())).length;
   const allDone    = delivCount === stops.length && stops.length > 0;
@@ -6304,18 +6303,30 @@ function amShowFormErr(msg) {
 }
 
 // ── NAVIGATION ────────────────────────────────────────────
+// Route stop data store — populated when route cards are rendered
+const navStopRegistry = {};
+
+function registerNavStops(routeId, stops) {
+  navStopRegistry[routeId] = stops;
+}
+
+function openNavSheetByIndex(routeId, idx) {
+  const stops = navStopRegistry[routeId];
+  if (!stops || !stops[idx]) return;
+  openNavSheet(stops[idx]);
+}
+
 function openNavSheet(stop) {
-  const hasCoords  = stop.lat && stop.lng;
-  const hasAddr    = stop.address_line || stop.postcode;
-  const customer   = stop.customer || 'Stop';
+  const hasCoords = !!(stop.lat && stop.lng);
+  const hasAddr   = !!(stop.address_line || stop.postcode);
+  const customer  = stop.customer || 'Stop';
 
-  // Build destination strings
-  const coordDest  = hasCoords  ? `${stop.lat},${stop.lng}` : null;
-  const queryDest  = hasAddr    ? encodeURIComponent([stop.address_line, stop.postcode].filter(Boolean).join(', ')) : null;
-  const dest       = coordDest || queryDest;
+  const coordDest = hasCoords ? (stop.lat + ',' + stop.lng) : null;
+  const queryDest = hasAddr   ? encodeURIComponent([stop.address_line, stop.postcode].filter(Boolean).join(', ')) : null;
+  const dest      = coordDest || queryDest;
 
-  // Human-readable address for sheet header
-  const addrLine = [stop.address_line, stop.postcode].filter(Boolean).join(', ') || (hasCoords ? `${(+stop.lat).toFixed(5)}, ${(+stop.lng).toFixed(5)}` : 'No address on file');
+  const addrLine  = [stop.address_line, stop.postcode].filter(Boolean).join(', ')
+    || (hasCoords ? ((+stop.lat).toFixed(5) + ', ' + (+stop.lng).toFixed(5)) : 'No address on file');
 
   document.getElementById('navSheetTitle').textContent = customer;
   document.getElementById('navSheetAddr').textContent  = addrLine;
@@ -6328,54 +6339,39 @@ function openNavSheet(stop) {
     return;
   }
 
-  // Build URLs — prefer coordinates, fall back to query string
-  const gmapsUrl  = coordDest
-    ? `https://www.google.com/maps/dir/?api=1&destination=${coordDest}`
-    : `https://www.google.com/maps/dir/?api=1&destination=${queryDest}`;
-  const appleUrl  = coordDest
-    ? `maps://?daddr=${coordDest}`
-    : `maps://?daddr=${queryDest}`;
-  const wazeUrl   = coordDest
-    ? `https://waze.com/ul?ll=${coordDest}&navigate=yes`
-    : `https://waze.com/ul?q=${queryDest}&navigate=yes`;
+  const gmapsUrl = coordDest
+    ? 'https://www.google.com/maps/dir/?api=1&destination=' + coordDest
+    : 'https://www.google.com/maps/dir/?api=1&destination=' + queryDest;
+  const appleUrl = coordDest
+    ? 'maps://?daddr=' + coordDest
+    : 'maps://?daddr=' + queryDest;
+  const wazeUrl  = coordDest
+    ? 'https://waze.com/ul?ll=' + coordDest + '&navigate=yes'
+    : 'https://waze.com/ul?q=' + queryDest + '&navigate=yes';
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-  appList.innerHTML = `
-    <button class="nav-app-btn primary" onclick="launchNav('${gmapsUrl}')">
-      <span class="nav-app-icon">
-        <svg viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-      </span>
-      <span>
-        <div class="nav-app-label">Google Maps</div>
-        <div class="nav-app-sub">Tap to open navigation</div>
-      </span>
-    </button>
-    ${isIOS ? `
-    <button class="nav-app-btn" onclick="launchNav('${appleUrl}')">
-      <span class="nav-app-icon">
-        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
-      </span>
-      <span>
-        <div class="nav-app-label">Apple Maps</div>
-        <div class="nav-app-sub">Opens in Apple Maps</div>
-      </span>
-    </button>` : ''}
-    <button class="nav-app-btn" onclick="launchNav('${wazeUrl}')">
-      <span class="nav-app-icon">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="11" r="7"/><path d="M9 11a1 1 0 1 0 2 0 1 1 0 0 0-2 0M13 11a1 1 0 1 0 2 0 1 1 0 0 0-2 0M10 14.5s.8 1.5 2 1.5 2-1.5 2-1.5"/><path d="M12 18v3"/></svg>
-      </span>
-      <span>
-        <div class="nav-app-label">Waze</div>
-        <div class="nav-app-sub">Opens in Waze</div>
-      </span>
-    </button>`;
+  const appleBtn = isIOS
+    ? '<button class="nav-app-btn" onclick="launchNav(this)" data-url="' + appleUrl + '">'
+      + '<span class="nav-app-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg></span>'
+      + '<span><div class="nav-app-label">Apple Maps</div><div class="nav-app-sub">Opens in Apple Maps</div></span></button>'
+    : '';
+
+  appList.innerHTML =
+    '<button class="nav-app-btn primary" onclick="launchNav(this)" data-url="' + gmapsUrl + '">'
+    + '<span class="nav-app-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></span>'
+    + '<span><div class="nav-app-label">Google Maps</div><div class="nav-app-sub">Tap to open navigation</div></span></button>'
+    + appleBtn
+    + '<button class="nav-app-btn" onclick="launchNav(this)" data-url="' + wazeUrl + '">'
+    + '<span class="nav-app-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="11" r="7"/><circle cx="9.5" cy="10.5" r="1"/><circle cx="14.5" cy="10.5" r="1"/><path d="M9.5 14s1 1.5 2.5 1.5 2.5-1.5 2.5-1.5"/><path d="M12 18v3"/></svg></span>'
+    + '<span><div class="nav-app-label">Waze</div><div class="nav-app-sub">Opens in Waze</div></span></button>';
 
   document.getElementById('navSheet').classList.add('open');
 }
 
-function launchNav(url) {
-  window.open(url, '_blank');
+function launchNav(btn) {
+  const url = btn.dataset ? btn.dataset.url : btn;
+  if (url) window.open(url, '_blank');
   closeNavSheet();
 }
 
