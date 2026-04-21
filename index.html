@@ -2738,15 +2738,35 @@ let photoFile = null;
 function triggerPhoto() { document.getElementById('photoInput').click(); }
 function handlePhoto(e) {
   const file = e.target.files[0]; if (!file) return;
-  photoFile = file;
   const reader = new FileReader();
   reader.onload = ev => {
-    document.getElementById('photoPlaceholder').style.display = 'none';
-    const img = document.getElementById('photoPreview');
-    img.src = ev.target.result; img.style.display = 'block';
-    document.getElementById('retakeBtn').style.display = 'block';
-    document.getElementById('photoZone').classList.add('has-photo');
-    updateSteps();
+    const img = new Image();
+    img.onload = () => {
+      // Resize to max 1200px on longest side, compress to ~80% JPEG quality
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else        { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        photoFile = blob;
+        // Show preview
+        document.getElementById('photoPlaceholder').style.display = 'none';
+        const prev = document.getElementById('photoPreview');
+        prev.src = canvas.toDataURL('image/jpeg', 0.82);
+        prev.style.display = 'block';
+        document.getElementById('retakeBtn').style.display = 'block';
+        document.getElementById('photoZone').classList.add('has-photo');
+        updateSteps();
+        // Pre-warm GPS while driver reviews the photo
+        prewarmGPS();
+      }, 'image/jpeg', 0.82);
+    };
+    img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 }
@@ -2808,9 +2828,11 @@ async function uploadPhoto(filename, file) {
 }
 async function insertRecord(record) {
   const res = await sbRequest(`/rest/v1/${config.table}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify(record)
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' }, body: JSON.stringify(record)
   });
   if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `Database insert failed (${res.status})`); }
+  const rows = await res.json().catch(() => []);
+  return rows[0]?.id || null;
 }
 async function fetchRecords() {
   // In driver mode, lock the query to the logged-in driver server-side
@@ -2838,26 +2860,67 @@ function historyBack() {
 }
 
 // ── LOCATION ──────────────────────────────────────────────
+// ── GPS PRE-WARM ─────────────────────────────────────────────────────────────
+// Fired as soon as the driver takes a photo so GPS is ready by Record Delivery.
+let _prewarmPos = null;
+let _prewarmErr = null;
+let _prewarmDone = false;
+function prewarmGPS() {
+  if (!navigator.geolocation || _prewarmDone) return;
+  _prewarmDone = true; _prewarmPos = null; _prewarmErr = null;
+  navigator.geolocation.getCurrentPosition(
+    pos => { _prewarmPos = pos; },
+    err => { _prewarmErr = err; },
+    { timeout: 10000, enableHighAccuracy: true, maximumAge: 30000 }
+  );
+}
+function resetPrewarm() { _prewarmPos = null; _prewarmErr = null; _prewarmDone = false; }
+
+// Track last inserted record id so background geocode can patch it
+let _lastInsertedId = null;
+
 function getLocation() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) { resolve({ lat: null, lng: null, address: 'Geolocation not supported' }); return; }
+
+    function resolveFromPos(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      // Resolve immediately with raw coords — geocode runs in background
+      resolve({ lat, lng, address: `${lat.toFixed(5)}, ${lng.toFixed(5)}` });
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+        .then(r => r.json())
+        .then(d => {
+          if (d && d.display_name) {
+            document.getElementById('locationText').textContent = d.display_name;
+            if (_lastInsertedId) {
+              sbRequest(`/rest/v1/${config.table}?id=eq.${_lastInsertedId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                body: JSON.stringify({ address: d.display_name })
+              }).catch(() => {});
+              _lastInsertedId = null;
+            }
+          }
+        }).catch(() => {});
+    }
+
+    // Use pre-warmed position if available (happy path — zero wait)
+    if (_prewarmPos) { resolveFromPos(_prewarmPos); resetPrewarm(); return; }
+    if (_prewarmErr) {
+      const msgs = { 1: 'Location permission denied', 2: 'Location unavailable', 3: 'Location request timed out' };
+      resolve({ lat: null, lng: null, address: msgs[_prewarmErr.code] || 'Location error' });
+      resetPrewarm(); return;
+    }
+    // Fall back to fresh request if prewarm not done yet
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        let address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-        try {
-          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
-          const d = await r.json();
-          if (d && d.display_name) address = d.display_name;
-        } catch(e) {}
-        resolve({ lat, lng, address });
-      },
-      (err) => {
+      pos => { resetPrewarm(); resolveFromPos(pos); },
+      err => {
+        resetPrewarm();
         const msgs = { 1: 'Location permission denied', 2: 'Location unavailable', 3: 'Location request timed out' };
         resolve({ lat: null, lng: null, address: msgs[err.code] || 'Location error' });
       },
-      { timeout: 10000, enableHighAccuracy: true }
+      { timeout: 10000, enableHighAccuracy: true, maximumAge: 30000 }
     );
   });
 }
@@ -3048,7 +3111,7 @@ async function submitDelivery() {
       const photoUrl = await uploadPhoto(filename, photoFile);
       record.photo_url = photoUrl;
       setUploadStep(3);
-      await insertRecord(record);
+      _lastInsertedId = await insertRecord(record);
       setUploadStep(4);
       await new Promise(r => setTimeout(r, 350));
       document.getElementById('statusLoading').classList.remove('show');
@@ -3090,6 +3153,7 @@ function resetForm() {
   document.getElementById('locationCoords').textContent = '';
   document.getElementById('locationStatus').innerHTML = '<div class="ts-live-dot"></div>Auto';
   updateSteps(); window.scrollTo(0,0);
+  resetPrewarm();
   loadActiveRoute();
 }
 
