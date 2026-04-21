@@ -1887,8 +1887,7 @@
       New Route
     </button>
     <div class="route-filter-bar">
-      <button class="route-filter-chip active" onclick="setRouteFilter('all')" id="rfChip-all">All</button>
-      <button class="route-filter-chip" onclick="setRouteFilter('draft')" id="rfChip-draft">Drafts</button>
+      <button class="route-filter-chip active" onclick="setRouteFilter('draft')" id="rfChip-draft">Drafts</button>
       <button class="route-filter-chip" onclick="setRouteFilter('active')" id="rfChip-active">Active</button>
       <button class="route-filter-chip" onclick="setRouteFilter('completed')" id="rfChip-completed">Completed</button>
     </div>
@@ -3888,7 +3887,7 @@ function renderLineChart(records) {
 let allRoutes       = [];
 let editingRoute    = null;
 let editorStops     = [];
-let routeFilter     = 'all';
+let routeFilter     = 'draft';
 let activeRouteData = null;
 let dragSrcIndex    = null;
 
@@ -4121,10 +4120,8 @@ function renderRouteList() {
   const activeChip = document.getElementById('rfChip-' + routeFilter);
   if (activeChip) activeChip.classList.add('active');
 
-  // Apply filter
-  const filtered = routeFilter === 'all'
-    ? allRoutes
-    : allRoutes.filter(r => r.status === routeFilter);
+  // Apply filter — each chip maps directly to a status
+  const filtered = allRoutes.filter(r => r.status === routeFilter);
 
   if (!allRoutes.length) {
     c.innerHTML = `<div class="route-list-empty">
@@ -4133,11 +4130,11 @@ function renderRouteList() {
     return;
   }
 
+  const labelMap = { draft: 'draft', active: 'active', completed: 'completed' };
   if (!filtered.length) {
-    const label = routeFilter === 'all' ? '' : routeFilter;
     c.innerHTML = `<div class="route-list-empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
-      <p>No ${label} routes found.</p></div>`;
+      <p>No ${labelMap[routeFilter] || routeFilter} routes found.</p></div>`;
     return;
   }
 
