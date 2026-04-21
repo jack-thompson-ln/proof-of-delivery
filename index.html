@@ -724,6 +724,12 @@
     display: none;
   }
   .route-active-card.show { display: block; animation: slideUp 0.3s ease; }
+  #routeCardsContainer { display: flex; flex-direction: column; gap: 10px; margin-bottom: 0; }
+  #routeCardsContainer:empty { display: none; }
+  .route-collapse-btn { background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.3); border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; touch-action: manipulation; transition: background 0.15s; }
+  .route-collapse-btn:active { background: rgba(255,255,255,0.35); }
+  .route-collapse-btn svg { width: 14px; height: 14px; color: white; transition: transform 0.2s; }
+  .route-collapse-btn.collapsed svg { transform: rotate(-90deg); }
   .route-active-header {
     background: var(--brand); padding: 12px 16px;
     display: flex; align-items: center; gap: 10px;
@@ -1668,24 +1674,8 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
       <span>No connection — delivery will be saved and uploaded when you're back online.</span>
     </div>
-    <!-- Active route card -->
-    <div class="route-active-card" id="routeActiveCard">
-      <div class="route-active-header">
-        <div class="route-active-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
-        </div>
-        <div style="flex:1;min-width:0;">
-          <div class="route-active-title" id="routeCardTitle">Today's Route</div>
-          <div class="route-active-meta" id="routeCardMeta">0 stops</div>
-        </div>
-        <button class="route-card-map-btn" id="routeCardMapBtn" onclick="openActiveRoutePreview()" title="Preview route map">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
-        </button>
-        <span class="route-status-badge draft" id="routeCardBadge">Draft</span>
-      </div>
-      <div class="route-stops-list" id="routeCardStops"></div>
-      <div class="route-active-actions" id="routeCardActions"></div>
-    </div>
+    <!-- Route cards for today -->
+    <div id="routeCardsContainer"></div>
 
     <!-- Driver welcome strip -->
     <div class="driver-welcome">
@@ -3939,52 +3929,62 @@ async function fetchTodayDeliveries() {
   return data.map(d => d.customer_name);
 }
 
-// ── Active route card on delivery form ───────────────────────────────────────
+// ── Route cards on delivery form (all today's non-completed routes) ───────────
+let todayRoutes        = [];       // all routes fetched for today
+let collapsedRoutes    = new Set(); // IDs of collapsed cards
+
 async function loadActiveRoute() {
-  const card = document.getElementById('routeActiveCard');
-  if (!loggedInDriver) { card.classList.remove('show'); return; }
+  const container = document.getElementById('routeCardsContainer');
+  if (!loggedInDriver || !container) return;
   try {
     const today = todayStr();
     const res = await sbRequest(
-      `/rest/v1/routes?driver_name=eq.${encodeURIComponent(loggedInDriver)}&route_date=eq.${today}&status=neq.completed&order=created_at.desc&limit=10`,
+      `/rest/v1/routes?driver_name=eq.${encodeURIComponent(loggedInDriver)}&route_date=eq.${today}&status=neq.completed&order=created_at.asc`,
       { headers: { 'Accept': 'application/json' } }
     );
-    const routes = res.ok ? await res.json() : [];
-    const chosen = routes.find(r => r.status === 'active') || routes.find(r => r.status === 'draft') || null;
-    if (!chosen) { card.classList.remove('show'); activeRouteData = null; updateRoutePillBadge(); return; }
-    activeRouteData = chosen;
-    const delivered = chosen.status === 'active' ? await fetchTodayDeliveries() : [];
-    renderActiveRouteCard(chosen, delivered);
-    card.classList.add('show');
+    todayRoutes = res.ok ? await res.json() : [];
+
+    // activeRouteData = the running route (for prefill + pill badge)
+    activeRouteData = todayRoutes.find(r => r.status === 'active') || null;
+
+    const delivered = activeRouteData ? await fetchTodayDeliveries() : [];
+    renderAllRouteCards(delivered);
     updateRoutePillBadge();
   } catch(e) {
     console.warn('loadActiveRoute error:', e.message);
-    document.getElementById('routeActiveCard').classList.remove('show');
+    document.getElementById('routeCardsContainer').innerHTML = '';
   }
 }
 
-function renderActiveRouteCard(route, deliveredCustomers) {
+function renderAllRouteCards(deliveredCustomers) {
+  const container = document.getElementById('routeCardsContainer');
+  if (!container) return;
+  if (!todayRoutes.length) { container.innerHTML = ''; return; }
+
+  const delivSet = new Set(deliveredCustomers.map(n => n.toLowerCase()));
+
+  // Sort: active first, then drafts in creation order
+  const sorted = [...todayRoutes].sort((a, b) => {
+    const order = { active: 0, draft: 1 };
+    return (order[a.status] ?? 2) - (order[b.status] ?? 2);
+  });
+
+  container.innerHTML = sorted.map(route => buildRouteCardHTML(route, delivSet)).join('');
+}
+
+function buildRouteCardHTML(route, delivSet) {
+  const id        = route.id;
   const stops     = Array.isArray(route.stops) ? route.stops.filter(s => !s.__final_dest) : [];
   const isActive  = route.status === 'active';
   const isDraft   = route.status === 'draft';
-  const delivSet  = new Set(deliveredCustomers.map(n => n.toLowerCase()));
-
-  document.getElementById('routeCardTitle').textContent = route.route_name || formatRouteDate(route.route_date);
-  document.getElementById('routeCardMeta').textContent  = `${stops.length} stop${stops.length !== 1 ? 's' : ''}`;
-  const mapBtn = document.getElementById('routeCardMapBtn');
-  if (mapBtn) {
-    const hasCoords = stops.some(s => s.lat && s.lng);
-    mapBtn.classList.toggle('disabled', !hasCoords);
-    mapBtn.title = hasCoords ? 'Preview route map' : 'No coordinates on file for these stops';
-  }
-  const badge = document.getElementById('routeCardBadge');
-  badge.textContent = route.status.charAt(0).toUpperCase() + route.status.slice(1);
-  badge.className   = 'route-status-badge ' + route.status;
+  const collapsed = collapsedRoutes.has(id);
+  const hasCoords = stops.some(s => s.lat && s.lng);
+  const title     = route.route_name || formatRouteDate(route.route_date);
 
   let firstUndelivered = -1;
   stops.forEach((s, i) => { if (firstUndelivered === -1 && !delivSet.has((s.customer||'').toLowerCase())) firstUndelivered = i; });
 
-  document.getElementById('routeCardStops').innerHTML = stops.map((s, i) => {
+  const stopsHTML = stops.map((s, i) => {
     const done   = delivSet.has((s.customer||'').toLowerCase());
     const isNext = isActive && !done && i === firstUndelivered;
     const cls    = done ? 'delivered' : (isNext ? 'active-stop' : '');
@@ -4008,23 +4008,87 @@ function renderActiveRouteCard(route, deliveredCustomers) {
 
   const delivCount = stops.filter(s => delivSet.has((s.customer||'').toLowerCase())).length;
   const allDone    = delivCount === stops.length && stops.length > 0;
-  const actions    = document.getElementById('routeCardActions');
+  const metaText   = isActive
+    ? `${delivCount} of ${stops.length} delivered`
+    : `${stops.length} stop${stops.length !== 1 ? 's' : ''}`;
 
+  let actionsHTML = '';
   if (isDraft) {
-    actions.innerHTML = `
-      <button class="route-start-btn" onclick="startRoute('${route.id}')">
+    actionsHTML = `
+      <button class="route-start-btn" onclick="startRoute('${id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         Start Route
       </button>
-      <button class="route-edit-btn" onclick="openRouteEditor('${route.id}')">Edit</button>`;
+      <button class="route-edit-btn" onclick="openRouteEditor('${id}')">Edit</button>`;
   } else if (isActive) {
-    actions.innerHTML = `
-      <button class="route-finish-btn${allDone ? '' : ' early-finish'}" id="routeFinishBtn" onclick="finishRoute('${route.id}', ${allDone})">
+    actionsHTML = `
+      <button class="route-finish-btn${allDone ? '' : ' early-finish'}" onclick="finishRoute('${id}', ${allDone})">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         ${allDone ? 'Finish Route' : `Finish Early (${delivCount}/${stops.length})`}
       </button>
-      <button class="route-edit-btn" onclick="openRouteEditor('${route.id}')">Edit</button>`;
+      <button class="route-edit-btn" onclick="openRouteEditor('${id}')">Edit</button>`;
   }
+
+  return `<div class="route-active-card show" id="routeCard-${escHtml(id)}">
+    <div class="route-active-header">
+      <div class="route-active-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="route-active-title">${escHtml(title)}</div>
+        <div class="route-active-meta">${metaText}</div>
+      </div>
+      <button class="route-card-map-btn${hasCoords ? '' : ' disabled'}" onclick="openRouteCardPreview('${id}')" title="${hasCoords ? 'Preview route map' : 'No coordinates on file'}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+      </button>
+      <span class="route-status-badge ${route.status}">${route.status.charAt(0).toUpperCase() + route.status.slice(1)}</span>
+      <button class="route-collapse-btn${collapsed ? ' collapsed' : ''}" onclick="toggleRouteCardCollapse('${id}')" title="${collapsed ? 'Expand' : 'Collapse'}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+    <div style="display:${collapsed ? 'none' : 'block'};">
+      <div class="route-stops-list">${stopsHTML}</div>
+      ${actionsHTML ? `<div class="route-active-actions">${actionsHTML}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function toggleRouteCardCollapse(id) {
+  if (collapsedRoutes.has(id)) collapsedRoutes.delete(id);
+  else collapsedRoutes.add(id);
+  // Re-render without a fresh fetch
+  const delivered = activeRouteData ? [] : []; // stops colours already baked in
+  // We need delivSet — refetch from last known state
+  const container = document.getElementById('routeCardsContainer');
+  if (!container) return;
+  // Partial re-render: just rebuild the single card's body
+  const route = todayRoutes.find(r => r.id === id);
+  if (!route) return;
+  // Get last fetched delivered names from existing done stops in DOM
+  const doneCells = container.querySelectorAll('.route-stop-item.delivered .route-stop-name');
+  const delivSet  = new Set([...doneCells].map(el => el.textContent.trim().toLowerCase()));
+  const cardEl    = document.getElementById('routeCard-' + id);
+  if (cardEl) cardEl.outerHTML = buildRouteCardHTML(route, delivSet);
+}
+
+function openRouteCardPreview(id) {
+  const route = todayRoutes.find(r => r.id === id);
+  if (!route) return;
+  // Temporarily set editingRoute for the existing preview function
+  const prev  = editingRoute;
+  editingRoute = route;
+  openRoutePreview();
+  editingRoute = prev;
+}
+
+function renderActiveRouteCard(route, deliveredCustomers) {
+  // Legacy shim — now handled by renderAllRouteCards
+  const delivSet = new Set(deliveredCustomers.map(n => n.toLowerCase()));
+  // Update this specific card in todayRoutes
+  const idx = todayRoutes.findIndex(r => r.id === route.id);
+  if (idx >= 0) todayRoutes[idx] = route;
+  else todayRoutes.push(route);
+  renderAllRouteCards(deliveredCustomers);
 }
 
 function updateRoutePillBadge() {
@@ -4050,9 +4114,12 @@ function prefillFromRoute(customerName, docNumber) {
 async function startRoute(id) {
   try {
     const saved = await patchRoute(id, { status: 'active', started_at: new Date().toISOString() });
+    // Update in todayRoutes array
+    const idx = todayRoutes.findIndex(r => r.id === id);
+    if (idx >= 0) todayRoutes[idx] = saved;
     activeRouteData = saved;
     const delivered = await fetchTodayDeliveries();
-    renderActiveRouteCard(saved, delivered);
+    renderAllRouteCards(delivered);
     updateRoutePillBadge();
   } catch(e) { alert('Could not start route: ' + e.message); }
 }
@@ -4063,8 +4130,11 @@ async function finishRoute(id, allDone) {
   }
   try {
     await patchRoute(id, { status: 'completed', completed_at: new Date().toISOString() });
-    activeRouteData = null;
-    document.getElementById('routeActiveCard').classList.remove('show');
+    // Remove from todayRoutes so the card disappears
+    todayRoutes = todayRoutes.filter(r => r.id !== id);
+    activeRouteData = todayRoutes.find(r => r.status === 'active') || null;
+    const delivered = activeRouteData ? await fetchTodayDeliveries() : [];
+    renderAllRouteCards(delivered);
     updateRoutePillBadge();
   } catch(e) { alert('Could not finish route: ' + e.message); }
 }
@@ -4181,7 +4251,7 @@ function formatRouteDate(dateStr) {
 
 // ── Route editor ─────────────────────────────────────────────────────────────
 function openRouteEditor(routeId) {
-  editingRoute = routeId ? (allRoutes.find(r => r.id === routeId) || (activeRouteData && activeRouteData.id === routeId ? activeRouteData : null)) : null;
+  editingRoute = routeId ? (allRoutes.find(r => r.id === routeId) || todayRoutes.find(r => r.id === routeId) || null) : null;
   if (editingRoute) {
     document.getElementById('routeEditorTitle').textContent = editingRoute.route_name || 'Edit Route';
     document.getElementById('routeEditorName').value  = editingRoute.route_name || '';
