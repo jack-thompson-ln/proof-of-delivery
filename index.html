@@ -3947,6 +3947,13 @@ async function loadActiveRoute() {
     // activeRouteData = the running route (for prefill + pill badge)
     activeRouteData = todayRoutes.find(r => r.status === 'active') || null;
 
+    // Collapse all non-active routes by default; preserve any manual toggles on reload
+    todayRoutes.forEach(r => {
+      if (r.status !== 'active' && !collapsedRoutes.has(r.id)) {
+        collapsedRoutes.add(r.id);
+      }
+    });
+
     const delivered = activeRouteData ? await fetchTodayDeliveries() : [];
     renderAllRouteCards(delivered);
     updateRoutePillBadge();
