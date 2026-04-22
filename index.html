@@ -770,6 +770,58 @@
   .route-stop-item.delivered .route-stop-name { color: var(--text-muted); text-decoration: line-through; }
   .route-stop-tick  { width: 18px; height: 18px; color: var(--success); flex-shrink: 0; }
   .route-stop-arrow { width: 16px; height: 16px; color: var(--brand);   flex-shrink: 0; }
+  /* ── Navigation button on route stop items ── */
+  .route-stop-nav-btn {
+    width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    background: var(--brand); transition: background 0.15s, opacity 0.15s;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .route-stop-nav-btn svg { width: 15px; height: 15px; stroke: white; fill: none; stroke-width: 2; }
+  .route-stop-nav-btn:active { background: #003a70; }
+  .route-stop-nav-btn.no-addr { background: var(--border); cursor: default; }
+  .route-stop-nav-btn.no-addr svg { stroke: var(--text-muted); }
+  /* ── Nav app-picker sheet ── */
+  #navSheet {
+    display: none; position: fixed; inset: 0; z-index: 450;
+    background: rgba(0,20,50,0.55); align-items: flex-end; justify-content: center;
+  }
+  #navSheet.open { display: flex; }
+  #navSheetInner {
+    background: white; border-radius: 18px 18px 0 0; width: 100%; max-width: 480px;
+    padding-bottom: env(safe-area-inset-bottom, 0px); overflow: hidden;
+  }
+  .nav-sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 14px; }
+  .nav-sheet-title  { font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); text-align: center; margin-bottom: 4px; padding: 0 16px; }
+  .nav-sheet-addr   { font-size: 0.8rem; color: var(--text); font-weight: 600; text-align: center; padding: 0 20px 14px; line-height: 1.4; border-bottom: 1px solid var(--border); }
+  .nav-app-list     { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .nav-app-btn {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 11px 14px; border-radius: 11px; border: 1.5px solid var(--border);
+    background: var(--off-white); cursor: pointer; text-align: left;
+    font-family: 'Barlow', sans-serif; transition: background 0.12s;
+    touch-action: manipulation;
+  }
+  .nav-app-btn.primary { background: var(--brand); border-color: var(--brand); }
+  .nav-app-btn:active:not(.primary) { background: var(--border); }
+  .nav-app-btn.primary:active { background: #003a70; }
+  .nav-app-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .nav-app-btn.primary .nav-app-icon { background: rgba(255,255,255,0.15); }
+  .nav-app-btn:not(.primary) .nav-app-icon { background: rgba(0,75,142,0.08); }
+  .nav-app-icon svg { width: 20px; height: 20px; stroke-width: 1.8; fill: none; }
+  .nav-app-btn.primary .nav-app-icon svg { stroke: white; }
+  .nav-app-btn:not(.primary) .nav-app-icon svg { stroke: var(--brand); }
+  .nav-app-label { font-size: 0.88rem; font-weight: 700; color: var(--text); }
+  .nav-app-btn.primary .nav-app-label { color: white; }
+  .nav-app-sub   { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
+  .nav-app-btn.primary .nav-app-sub { color: rgba(255,255,255,0.65); }
+  .nav-cancel-btn {
+    display: block; width: calc(100% - 28px); margin: 0 14px 14px; padding: 11px;
+    border: 1.5px solid var(--border); border-radius: 11px; background: none;
+    font-family: 'Barlow', sans-serif; font-size: 0.85rem; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; touch-action: manipulation;
+  }
+  .nav-cancel-btn:active { background: var(--border); }
   .route-card-map-btn {
     display: flex; align-items: center; justify-content: center;
     background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4);
@@ -2113,6 +2165,7 @@
         <span class="filter-label">To</span>
         <input type="date" id="analyticsDateTo" onchange="onAnalyticsDateChange()">
       </div>
+      <div class="driver-chips" id="analyticsDriverChips" style="margin-top:6px;"></div>
     </div>
 
     <div class="stat-cards">
@@ -2129,10 +2182,10 @@
         <div class="stat-card-sub" id="statTopCustomerCount"></div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg></div>
-        <div class="stat-card-value" id="statEstMiles">—</div>
-        <div class="stat-card-label">Est. Miles</div>
-        <div class="stat-card-sub" id="statEstMilesSub">between drops</div>
+        <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="stat-card-value" id="statAvgTime">—</div>
+        <div class="stat-card-label">Avg. Time</div>
+        <div class="stat-card-sub" id="statAvgTimeSub">between drops</div>
       </div>
     </div>
 
@@ -2409,6 +2462,7 @@ function showAnalytics() {
   document.getElementById('historyView').classList.remove('show');
   document.getElementById('detailView').classList.remove('show');
   document.getElementById('analyticsView').classList.add('show');
+  activeAnalyticsDriver = null;
   window.scrollTo(0,0);
   loadAnalytics();
 }
@@ -2686,15 +2740,35 @@ let photoFile = null;
 function triggerPhoto() { document.getElementById('photoInput').click(); }
 function handlePhoto(e) {
   const file = e.target.files[0]; if (!file) return;
-  photoFile = file;
   const reader = new FileReader();
   reader.onload = ev => {
-    document.getElementById('photoPlaceholder').style.display = 'none';
-    const img = document.getElementById('photoPreview');
-    img.src = ev.target.result; img.style.display = 'block';
-    document.getElementById('retakeBtn').style.display = 'block';
-    document.getElementById('photoZone').classList.add('has-photo');
-    updateSteps();
+    const img = new Image();
+    img.onload = () => {
+      // Resize to max 1200px on longest side, compress to ~80% JPEG quality
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else        { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        photoFile = blob;
+        // Show preview
+        document.getElementById('photoPlaceholder').style.display = 'none';
+        const prev = document.getElementById('photoPreview');
+        prev.src = canvas.toDataURL('image/jpeg', 0.82);
+        prev.style.display = 'block';
+        document.getElementById('retakeBtn').style.display = 'block';
+        document.getElementById('photoZone').classList.add('has-photo');
+        updateSteps();
+        // Pre-warm GPS while driver reviews the photo
+        prewarmGPS();
+      }, 'image/jpeg', 0.82);
+    };
+    img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 }
@@ -2756,9 +2830,11 @@ async function uploadPhoto(filename, file) {
 }
 async function insertRecord(record) {
   const res = await sbRequest(`/rest/v1/${config.table}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify(record)
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' }, body: JSON.stringify(record)
   });
   if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `Database insert failed (${res.status})`); }
+  const rows = await res.json().catch(() => []);
+  return rows[0]?.id || null;
 }
 async function fetchRecords() {
   // In driver mode, lock the query to the logged-in driver server-side
@@ -2786,26 +2862,67 @@ function historyBack() {
 }
 
 // ── LOCATION ──────────────────────────────────────────────
+// ── GPS PRE-WARM ─────────────────────────────────────────────────────────────
+// Fired as soon as the driver takes a photo so GPS is ready by Record Delivery.
+let _prewarmPos = null;
+let _prewarmErr = null;
+let _prewarmDone = false;
+function prewarmGPS() {
+  if (!navigator.geolocation || _prewarmDone) return;
+  _prewarmDone = true; _prewarmPos = null; _prewarmErr = null;
+  navigator.geolocation.getCurrentPosition(
+    pos => { _prewarmPos = pos; },
+    err => { _prewarmErr = err; },
+    { timeout: 10000, enableHighAccuracy: true, maximumAge: 30000 }
+  );
+}
+function resetPrewarm() { _prewarmPos = null; _prewarmErr = null; _prewarmDone = false; }
+
+// Track last inserted record id so background geocode can patch it
+let _lastInsertedId = null;
+
 function getLocation() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) { resolve({ lat: null, lng: null, address: 'Geolocation not supported' }); return; }
+
+    function resolveFromPos(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      // Resolve immediately with raw coords — geocode runs in background
+      resolve({ lat, lng, address: `${lat.toFixed(5)}, ${lng.toFixed(5)}` });
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+        .then(r => r.json())
+        .then(d => {
+          if (d && d.display_name) {
+            document.getElementById('locationText').textContent = d.display_name;
+            if (_lastInsertedId) {
+              sbRequest(`/rest/v1/${config.table}?id=eq.${_lastInsertedId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                body: JSON.stringify({ address: d.display_name })
+              }).catch(() => {});
+              _lastInsertedId = null;
+            }
+          }
+        }).catch(() => {});
+    }
+
+    // Use pre-warmed position if available (happy path — zero wait)
+    if (_prewarmPos) { resolveFromPos(_prewarmPos); resetPrewarm(); return; }
+    if (_prewarmErr) {
+      const msgs = { 1: 'Location permission denied', 2: 'Location unavailable', 3: 'Location request timed out' };
+      resolve({ lat: null, lng: null, address: msgs[_prewarmErr.code] || 'Location error' });
+      resetPrewarm(); return;
+    }
+    // Fall back to fresh request if prewarm not done yet
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        let address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-        try {
-          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
-          const d = await r.json();
-          if (d && d.display_name) address = d.display_name;
-        } catch(e) {}
-        resolve({ lat, lng, address });
-      },
-      (err) => {
+      pos => { resetPrewarm(); resolveFromPos(pos); },
+      err => {
+        resetPrewarm();
         const msgs = { 1: 'Location permission denied', 2: 'Location unavailable', 3: 'Location request timed out' };
         resolve({ lat: null, lng: null, address: msgs[err.code] || 'Location error' });
       },
-      { timeout: 10000, enableHighAccuracy: true }
+      { timeout: 10000, enableHighAccuracy: true, maximumAge: 30000 }
     );
   });
 }
@@ -2996,7 +3113,7 @@ async function submitDelivery() {
       const photoUrl = await uploadPhoto(filename, photoFile);
       record.photo_url = photoUrl;
       setUploadStep(3);
-      await insertRecord(record);
+      _lastInsertedId = await insertRecord(record);
       setUploadStep(4);
       await new Promise(r => setTimeout(r, 350));
       document.getElementById('statusLoading').classList.remove('show');
@@ -3038,12 +3155,14 @@ function resetForm() {
   document.getElementById('locationCoords').textContent = '';
   document.getElementById('locationStatus').innerHTML = '<div class="ts-live-dot"></div>Auto';
   updateSteps(); window.scrollTo(0,0);
+  resetPrewarm();
   loadActiveRoute();
 }
 
 // ── HISTORY ───────────────────────────────────────────────
 let allRecords = [];
 let activeDriverFilter = null;
+let activeAnalyticsDriver = null;
 let historyMode = 'admin'; // 'admin' | 'driver'
 
 function todayStr() {
@@ -3531,13 +3650,32 @@ async function loadAnalytics() {
   try {
     const res = await sbRequest(query, { headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': '0-999' } });
     if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
-    const records = await res.json();
+    const allRecords = await res.json();
+    renderAnalyticsDriverChips(allRecords);
+    const records = activeAnalyticsDriver
+      ? allRecords.filter(r => r.driver_name === activeAnalyticsDriver)
+      : allRecords;
     renderPieChart(records);
     renderCustomerPieChart(records);
     renderLineChart(records);
   } catch(err) {
     document.getElementById('pieChartWrap').innerHTML = `<div class="chart-empty">Error loading data: ${err.message}</div>`;
   }
+}
+
+function renderAnalyticsDriverChips(records) {
+  const drivers = [...new Set(records.map(r => r.driver_name).filter(Boolean))].sort();
+  const wrap = document.getElementById('analyticsDriverChips');
+  if (!wrap) return;
+  const all = ['All', ...drivers];
+  wrap.innerHTML = all.map(d =>
+    `<button class="driver-chip${(d === 'All' && !activeAnalyticsDriver) || d === activeAnalyticsDriver ? ' active' : ''}" onclick="filterByAnalyticsDriver('${escHtml(d)}')">${escHtml(d)}</button>`
+  ).join('');
+}
+
+function filterByAnalyticsDriver(name) {
+  activeAnalyticsDriver = name === 'All' ? null : name;
+  loadAnalytics();
 }
 
 // ── HAVERSINE ─────────────────────────────────────────────
@@ -3551,33 +3689,25 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function calcEstimatedMiles(records) {
-  // Group by driver, sort each group chronologically, sum inter-drop distances
-  const byDriver = {};
-  records.forEach(r => {
-    if (!r.latitude || !r.longitude) return;
-    const d = r.driver_name || 'Unknown';
-    if (!byDriver[d]) byDriver[d] = [];
-    byDriver[d].push(r);
-  });
-
-  let totalKm = 0;
-  let segmentCount = 0;
-  Object.values(byDriver).forEach(drops => {
-    drops.sort((a, b) => new Date(a.delivery_datetime) - new Date(b.delivery_datetime));
-    for (let i = 1; i < drops.length; i++) {
-      const km = haversineKm(
-        drops[i-1].latitude, drops[i-1].longitude,
-        drops[i].latitude,   drops[i].longitude
-      );
-      // Sanity cap: ignore legs > 200km (likely a data anomaly or wrong GPS)
-      if (km <= 200) { totalKm += km; segmentCount++; }
+function calcAvgTimeBetweenDrops(records) {
+  // Only meaningful for a single driver — sort chronologically, average gaps between consecutive drops
+  // Returns rounded minutes, or null if fewer than 2 drops
+  if (!records || records.length < 2) return null;
+  const sorted = [...records].sort((a, b) => new Date(a.delivery_datetime) - new Date(b.delivery_datetime));
+  let totalMs = 0;
+  let gapCount = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = new Date(sorted[i-1].delivery_datetime);
+    const curr = new Date(sorted[i].delivery_datetime);
+    const diffMs = curr - prev;
+    // Sanity cap: ignore gaps > 3 hours (break, end of shift, data anomaly)
+    if (diffMs > 0 && diffMs <= 3 * 60 * 60 * 1000) {
+      totalMs += diffMs;
+      gapCount++;
     }
-  });
-
-  if (segmentCount === 0) return null;
-  const miles = totalKm * 0.621371;
-  return miles;
+  }
+  if (gapCount === 0) return null;
+  return Math.round(totalMs / gapCount / 60000);
 }
 
 function renderPieChart(records) {
@@ -3589,8 +3719,10 @@ function renderPieChart(records) {
     document.getElementById('statTopDriverCount').textContent = '';
     document.getElementById('statTopCustomer').textContent      = '—';
     document.getElementById('statTopCustomerCount').textContent = '';
-    document.getElementById('statEstMiles').textContent    = '—';
-    document.getElementById('statEstMilesSub').textContent = 'between drops';
+    document.getElementById('statEstMiles') && (document.getElementById('statEstMiles').textContent = '—');
+    document.getElementById('statEstMilesSub') && (document.getElementById('statEstMilesSub').textContent = 'between drops');
+    document.getElementById('statAvgTime').textContent    = '—';
+    document.getElementById('statAvgTimeSub').textContent = 'select one driver';
     document.getElementById('pieChartWrap').innerHTML    = '<div class="chart-empty">No deliveries in this date range.</div>';
     document.getElementById('customerPieWrap').innerHTML  = '<div class="chart-empty">No deliveries in this date range.</div>';
     document.getElementById('pieLegend').innerHTML         = '';
@@ -3632,15 +3764,19 @@ function renderPieChart(records) {
     document.getElementById('statTopCustomerCount').textContent = topCustomer ? `${topCustomerVal} drop${topCustomerVal !== 1 ? 's' : ''}` : '';
   }
 
-  // Est. miles covered
-  const miles = calcEstimatedMiles(records);
-  if (miles === null) {
-    document.getElementById('statEstMiles').textContent    = '—';
-    document.getElementById('statEstMilesSub').textContent = 'no GPS data';
+  // Avg time between drops (single driver only)
+  if (activeAnalyticsDriver) {
+    const avgMins = calcAvgTimeBetweenDrops(records);
+    if (avgMins === null) {
+      document.getElementById('statAvgTime').textContent    = '—';
+      document.getElementById('statAvgTimeSub').textContent = 'not enough drops';
+    } else {
+      document.getElementById('statAvgTime').textContent    = avgMins;
+      document.getElementById('statAvgTimeSub').textContent = 'min avg between drops';
+    }
   } else {
-    const display = miles < 10 ? miles.toFixed(1) : Math.round(miles);
-    document.getElementById('statEstMiles').textContent    = display;
-    document.getElementById('statEstMilesSub').textContent = 'est. miles driven';
+    document.getElementById('statAvgTime').textContent    = '—';
+    document.getElementById('statAvgTimeSub').textContent = 'select one driver';
   }
 
   // ── Pie chart ──
@@ -3991,6 +4127,7 @@ function buildRouteCardHTML(route, delivSet) {
   let firstUndelivered = -1;
   stops.forEach((s, i) => { if (firstUndelivered === -1 && !delivSet.has((s.customer||'').toLowerCase())) firstUndelivered = i; });
 
+  registerNavStops(id, stops);
   const stopsHTML = stops.map((s, i) => {
     const done   = delivSet.has((s.customer||'').toLowerCase());
     const isNext = isActive && !done && i === firstUndelivered;
@@ -4003,12 +4140,22 @@ function buildRouteCardHTML(route, delivSet) {
       : (isNext ? '<svg class="route-stop-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' : '');
     const click = (!done && isActive) ? `onclick="prefillFromRoute('${s.customer.replace(/'/g,"\\'")}','${(s.doc_number||'').replace(/'/g,"\\'")}')"` : '';
     const docBadge = s.doc_number ? `<div class="route-stop-doc-badge">📄 ${escHtml(s.doc_number)}</div>` : '';
+    // Nav button — uses stop index to look up data safely (avoids inline JSON quoting issues)
+    const navHasAddr = !!(s.lat || s.address_line || s.postcode);
+    const navIdx = i;
+    const navBtn = (!done && isActive)
+      ? `<button class="route-stop-nav-btn${navHasAddr ? '' : ' no-addr'}"
+           title="${navHasAddr ? 'Navigate to this stop' : 'No address on file'}"
+           onclick="event.stopPropagation();openNavSheetByIndex('${escHtml(id)}',${navIdx})"
+           ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></button>`
+      : '';
     return `<div class="route-stop-item ${cls}" ${click}>
       <div class="route-stop-num">${numInner}</div>
       <div class="route-stop-name-wrap" style="flex:1;min-width:0;overflow:hidden;">
         <div class="route-stop-name">${escHtml(s.customer||'')}</div>
         ${docBadge}
       </div>
+      ${navBtn}
       ${right}
     </div>`;
   }).join('');
@@ -6239,6 +6386,88 @@ function amShowFormErr(msg) {
   el.classList.add('show');
 }
 
+// ── NAVIGATION ────────────────────────────────────────────
+// Route stop data store — populated when route cards are rendered
+const navStopRegistry = {};
+
+function registerNavStops(routeId, stops) {
+  navStopRegistry[routeId] = stops;
+}
+
+function openNavSheetByIndex(routeId, idx) {
+  const stops = navStopRegistry[routeId];
+  if (!stops || !stops[idx]) return;
+  openNavSheet(stops[idx]);
+}
+
+function openNavSheet(stop) {
+  const hasCoords = !!(stop.lat && stop.lng);
+  const hasAddr   = !!(stop.address_line || stop.postcode);
+  const customer  = stop.customer || 'Stop';
+
+  const coordDest = hasCoords ? (stop.lat + ',' + stop.lng) : null;
+  const queryDest = hasAddr   ? encodeURIComponent([stop.address_line, stop.postcode].filter(Boolean).join(', ')) : null;
+  const dest      = coordDest || queryDest;
+
+  const addrLine  = [stop.address_line, stop.postcode].filter(Boolean).join(', ')
+    || (hasCoords ? ((+stop.lat).toFixed(5) + ', ' + (+stop.lng).toFixed(5)) : 'No address on file');
+
+  document.getElementById('navSheetTitle').textContent = customer;
+  document.getElementById('navSheetAddr').textContent  = addrLine;
+
+  const appList = document.getElementById('navAppList');
+
+  if (!dest) {
+    appList.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:16px 0;">No address or coordinates stored for this stop.</p>';
+    document.getElementById('navSheet').classList.add('open');
+    return;
+  }
+
+  const gmapsUrl = coordDest
+    ? 'https://www.google.com/maps/dir/?api=1&destination=' + coordDest
+    : 'https://www.google.com/maps/dir/?api=1&destination=' + queryDest;
+  const appleUrl = coordDest
+    ? 'maps://?daddr=' + coordDest
+    : 'maps://?daddr=' + queryDest;
+  const wazeUrl  = coordDest
+    ? 'https://waze.com/ul?ll=' + coordDest + '&navigate=yes'
+    : 'https://waze.com/ul?q=' + queryDest + '&navigate=yes';
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+  const appleBtn = isIOS
+    ? '<button class="nav-app-btn" onclick="launchNav(this)" data-url="' + appleUrl + '">'
+      + '<span class="nav-app-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg></span>'
+      + '<span><div class="nav-app-label">Apple Maps</div><div class="nav-app-sub">Opens in Apple Maps</div></span></button>'
+    : '';
+
+  appList.innerHTML =
+    '<button class="nav-app-btn primary" onclick="launchNav(this)" data-url="' + gmapsUrl + '">'
+    + '<span class="nav-app-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></span>'
+    + '<span><div class="nav-app-label">Google Maps</div><div class="nav-app-sub">Tap to open navigation</div></span></button>'
+    + appleBtn
+    + '<button class="nav-app-btn" onclick="launchNav(this)" data-url="' + wazeUrl + '">'
+    + '<span class="nav-app-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="11" r="7"/><circle cx="9.5" cy="10.5" r="1"/><circle cx="14.5" cy="10.5" r="1"/><path d="M9.5 14s1 1.5 2.5 1.5 2.5-1.5 2.5-1.5"/><path d="M12 18v3"/></svg></span>'
+    + '<span><div class="nav-app-label">Waze</div><div class="nav-app-sub">Opens in Waze</div></span></button>';
+
+  document.getElementById('navSheet').classList.add('open');
+}
+
+function launchNav(btn) {
+  const url = btn.dataset ? btn.dataset.url : btn;
+  if (url) window.open(url, '_blank');
+  closeNavSheet();
+}
+
+function closeNavSheet() {
+  document.getElementById('navSheet').classList.remove('open');
+}
+
+// Close sheet on Escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeNavSheet();
+});
+
 // ── HELPERS ───────────────────────────────────────────────
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -6253,3 +6482,14 @@ updateSyncBar();
 </script>
 </body>
 </html>
+
+<!-- ── Navigation app-picker sheet ── -->
+<div id="navSheet" onclick="if(event.target===this)closeNavSheet()">
+  <div id="navSheetInner">
+    <div class="nav-sheet-handle"></div>
+    <div class="nav-sheet-title" id="navSheetTitle">Navigate to stop</div>
+    <div class="nav-sheet-addr" id="navSheetAddr"></div>
+    <div class="nav-app-list" id="navAppList"></div>
+    <button class="nav-cancel-btn" onclick="closeNavSheet()">Cancel</button>
+  </div>
+</div>
