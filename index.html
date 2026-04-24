@@ -4057,17 +4057,18 @@ async function patchRoute(id, patch) {
 async function fetchTodayDeliveries() {
   const today = todayStr();
   const res = await sbRequest(
-    `/rest/v1/deliveries?driver_name=eq.${encodeURIComponent(loggedInDriver)}&delivery_datetime=gte.${today}T00:00:00&delivery_datetime=lte.${today}T23:59:59&select=customer_name`,
+    `/rest/v1/deliveries?driver_name=eq.${encodeURIComponent(loggedInDriver)}&delivery_datetime=gte.${today}T00:00:00&delivery_datetime=lte.${today}T23:59:59&select=customer_name,delivery_datetime`,
     { headers: { 'Accept': 'application/json' } }
   );
   if (!res.ok) return [];
-  const data = await res.json();
-  return data.map(d => d.customer_name);
+  // Return full objects so callers can scope by route start time
+  return await res.json();
 }
 
 // ── Route cards on delivery form (all today's non-completed routes) ───────────
 let todayRoutes        = [];       // all routes fetched for today
 let collapsedRoutes    = new Set(); // IDs of collapsed cards
+let lastFetchedDeliveries = [];       // cache of last fetchTodayDeliveries() result (full objects)
 
 async function loadActiveRoute() {
   const container = document.getElementById('routeCardsContainer');
@@ -4090,8 +4091,8 @@ async function loadActiveRoute() {
       }
     });
 
-    const delivered = activeRouteData ? await fetchTodayDeliveries() : [];
-    renderAllRouteCards(delivered);
+    lastFetchedDeliveries = activeRouteData ? await fetchTodayDeliveries() : [];
+    renderAllRouteCards(lastFetchedDeliveries);
     updateRoutePillBadge();
   } catch(e) {
     console.warn('loadActiveRoute error:', e.message);
@@ -4099,12 +4100,10 @@ async function loadActiveRoute() {
   }
 }
 
-function renderAllRouteCards(deliveredCustomers) {
+function renderAllRouteCards(todayDeliveries) {
   const container = document.getElementById('routeCardsContainer');
   if (!container) return;
   if (!todayRoutes.length) { container.innerHTML = ''; return; }
-
-  const delivSet = new Set(deliveredCustomers.map(n => n.toLowerCase()));
 
   // Sort: active first, then drafts in creation order
   const sorted = [...todayRoutes].sort((a, b) => {
@@ -4112,7 +4111,32 @@ function renderAllRouteCards(deliveredCustomers) {
     return (order[a.status] ?? 2) - (order[b.status] ?? 2);
   });
 
-  container.innerHTML = sorted.map(route => buildRouteCardHTML(route, delivSet)).join('');
+  container.innerHTML = sorted.map(route => {
+    // Scope deliveries to this route: only count deliveries made at or after
+    // this route's started_at time. This prevents a completed route's
+    // deliveries from marking stops as done on a subsequent route for the
+    // same customer on the same day.
+    const routeStart = route.started_at ? new Date(route.started_at) : null;
+
+    // Find the NEXT route's started_at so we can cap this route's window
+    // (deliveries after the next route started belong to the next route)
+    const nextRoute = sorted.find(r =>
+      r.started_at && r.id !== route.id &&
+      (!routeStart || new Date(r.started_at) > routeStart)
+    );
+    const nextStart = nextRoute?.started_at ? new Date(nextRoute.started_at) : null;
+
+    const scopedDeliveries = todayDeliveries.filter(d => {
+      if (!routeStart) return false; // draft routes show nothing delivered
+      const dt = new Date(d.delivery_datetime);
+      if (dt < routeStart) return false;
+      if (nextStart && dt >= nextStart) return false;
+      return true;
+    });
+
+    const delivSet = new Set(scopedDeliveries.map(d => (d.customer_name || '').toLowerCase()));
+    return buildRouteCardHTML(route, delivSet);
+  }).join('');
 }
 
 function buildRouteCardHTML(route, delivSet) {
@@ -4210,19 +4234,8 @@ function buildRouteCardHTML(route, delivSet) {
 function toggleRouteCardCollapse(id) {
   if (collapsedRoutes.has(id)) collapsedRoutes.delete(id);
   else collapsedRoutes.add(id);
-  // Re-render without a fresh fetch
-  const delivered = activeRouteData ? [] : []; // stops colours already baked in
-  // We need delivSet — refetch from last known state
-  const container = document.getElementById('routeCardsContainer');
-  if (!container) return;
-  // Partial re-render: just rebuild the single card's body
-  const route = todayRoutes.find(r => r.id === id);
-  if (!route) return;
-  // Get last fetched delivered names from existing done stops in DOM
-  const doneCells = container.querySelectorAll('.route-stop-item.delivered .route-stop-name');
-  const delivSet  = new Set([...doneCells].map(el => el.textContent.trim().toLowerCase()));
-  const cardEl    = document.getElementById('routeCard-' + id);
-  if (cardEl) cardEl.outerHTML = buildRouteCardHTML(route, delivSet);
+  // Re-render all cards using the cached delivery data (no network call needed)
+  renderAllRouteCards(lastFetchedDeliveries);
 }
 
 function openRouteCardPreview(id) {
@@ -4236,13 +4249,14 @@ function openRouteCardPreview(id) {
 }
 
 function renderActiveRouteCard(route, deliveredCustomers) {
-  // Legacy shim — now handled by renderAllRouteCards
-  const delivSet = new Set(deliveredCustomers.map(n => n.toLowerCase()));
-  // Update this specific card in todayRoutes
+  // Legacy shim — now handled by renderAllRouteCards.
+  // deliveredCustomers is ignored; renderAllRouteCards re-scopes per route.
   const idx = todayRoutes.findIndex(r => r.id === route.id);
   if (idx >= 0) todayRoutes[idx] = route;
   else todayRoutes.push(route);
-  renderAllRouteCards(deliveredCustomers);
+  // Pass empty array — renderAllRouteCards will use fetchTodayDeliveries results
+  // from the last load; a full reload (loadActiveRoute) is preferred for accuracy.
+  renderAllRouteCards([]);
 }
 
 function updateRoutePillBadge() {
@@ -4272,8 +4286,8 @@ async function startRoute(id) {
     const idx = todayRoutes.findIndex(r => r.id === id);
     if (idx >= 0) todayRoutes[idx] = saved;
     activeRouteData = saved;
-    const delivered = await fetchTodayDeliveries();
-    renderAllRouteCards(delivered);
+    lastFetchedDeliveries = await fetchTodayDeliveries();
+    renderAllRouteCards(lastFetchedDeliveries);
     updateRoutePillBadge();
   } catch(e) { alert('Could not start route: ' + e.message); }
 }
@@ -4287,8 +4301,8 @@ async function finishRoute(id, allDone) {
     // Remove from todayRoutes so the card disappears
     todayRoutes = todayRoutes.filter(r => r.id !== id);
     activeRouteData = todayRoutes.find(r => r.status === 'active') || null;
-    const delivered = activeRouteData ? await fetchTodayDeliveries() : [];
-    renderAllRouteCards(delivered);
+    lastFetchedDeliveries = activeRouteData ? await fetchTodayDeliveries() : [];
+    renderAllRouteCards(lastFetchedDeliveries);
     updateRoutePillBadge();
   } catch(e) { alert('Could not finish route: ' + e.message); }
 }
@@ -5723,14 +5737,38 @@ async function ovLoad() {
       let routes = [];
 
       if (driverRoutes.length > 0) {
-        routes = driverRoutes.map(route => {
+        // Sort routes by started_at so we can determine time windows
+        const sortedDriverRoutes = [...driverRoutes].sort((a, b) => {
+          if (!a.started_at && !b.started_at) return 0;
+          if (!a.started_at) return 1;
+          if (!b.started_at) return -1;
+          return new Date(a.started_at) - new Date(b.started_at);
+        });
+
+        routes = sortedDriverRoutes.map((route, routeIdx) => {
           const rawStops = Array.isArray(route.stops)
             ? route.stops.filter(s => !s.__final_dest)
             : [];
+
+          // Scope deliveries to this route's time window
+          // (at or after started_at, before the next route's started_at)
+          const routeStart = route.started_at ? new Date(route.started_at) : null;
+          const nextRoute  = sortedDriverRoutes[routeIdx + 1];
+          const nextStart  = nextRoute?.started_at ? new Date(nextRoute.started_at) : null;
+
+          const scopedDeliveries = myDeliveries.filter(d => {
+            if (!routeStart) return false;
+            const dt = new Date(d.delivery_datetime);
+            if (dt < routeStart) return false;
+            if (nextStart && dt >= nextStart) return false;
+            return true;
+          });
+          const scopedNames = new Set(scopedDeliveries.map(d => (d.customer_name || '').toLowerCase()));
+
           const stops = rawStops.map(s => {
             const custName = s.customer || '';
-            const done = deliveredNames.has(custName.toLowerCase());
-            const matchDel = myDeliveries.find(d =>
+            const done = scopedNames.has(custName.toLowerCase());
+            const matchDel = scopedDeliveries.find(d =>
               (d.customer_name || '').toLowerCase() === custName.toLowerCase()
             );
             const time = matchDel
