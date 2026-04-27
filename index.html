@@ -3085,7 +3085,8 @@ async function submitDelivery() {
       doc_number:        docNumber || null,
       latitude:          loc.lat,
       longitude:         loc.lng,
-      address:           loc.address
+      address:           loc.address,
+      route_id:          (activeRouteData && activeRouteData.status === 'active') ? activeRouteData.id : null
     };
 
     if (!navigator.onLine) {
@@ -4057,7 +4058,7 @@ async function patchRoute(id, patch) {
 async function fetchTodayDeliveries() {
   const today = todayStr();
   const res = await sbRequest(
-    `/rest/v1/deliveries?driver_name=eq.${encodeURIComponent(loggedInDriver)}&delivery_datetime=gte.${today}T00:00:00&delivery_datetime=lte.${today}T23:59:59&select=customer_name,delivery_datetime`,
+    `/rest/v1/deliveries?driver_name=eq.${encodeURIComponent(loggedInDriver)}&delivery_datetime=gte.${today}T00:00:00&delivery_datetime=lte.${today}T23:59:59&select=customer_name,delivery_datetime,route_id`,
     { headers: { 'Accept': 'application/json' } }
   );
   if (!res.ok) return [];
@@ -4112,22 +4113,22 @@ function renderAllRouteCards(todayDeliveries) {
   });
 
   container.innerHTML = sorted.map(route => {
-    // Scope deliveries to this route: only count deliveries made at or after
-    // this route's started_at time. This prevents a completed route's
-    // deliveries from marking stops as done on a subsequent route for the
-    // same customer on the same day.
+    // Match deliveries to this route using route_id where available (most reliable).
+    // Fall back to time-window scoping for legacy delivery records that pre-date
+    // the route_id column (route_id will be null on those records).
+    const routeId    = route.id;
     const routeStart = route.started_at ? new Date(route.started_at) : null;
-
-    // Find the NEXT route's started_at so we can cap this route's window
-    // (deliveries after the next route started belong to the next route)
-    const nextRoute = sorted.find(r =>
-      r.started_at && r.id !== route.id &&
+    const nextRoute  = sorted.find(r =>
+      r.started_at && r.id !== routeId &&
       (!routeStart || new Date(r.started_at) > routeStart)
     );
     const nextStart = nextRoute?.started_at ? new Date(nextRoute.started_at) : null;
 
     const scopedDeliveries = todayDeliveries.filter(d => {
-      if (!routeStart) return false; // draft routes show nothing delivered
+      // Prefer route_id match (new records)
+      if (d.route_id) return d.route_id === routeId;
+      // Legacy fallback: time-window scoping
+      if (!routeStart) return false;
       const dt = new Date(d.delivery_datetime);
       if (dt < routeStart) return false;
       if (nextStart && dt >= nextStart) return false;
@@ -5692,7 +5693,7 @@ async function ovLoad() {
     // ── 2. Fetch today's routes ──────────────────────────────────────────
     const todayISO = new Date().toISOString().slice(0, 10);
     const routesRes = await sbRequest(
-      `/rest/v1/routes?select=id,driver_name,route_name,status,stops,route_date&route_date=eq.${todayISO}&order=created_at.asc`
+      `/rest/v1/routes?select=id,driver_name,route_name,status,stops,route_date,started_at,completed_at&route_date=eq.${todayISO}&order=created_at.asc`
     );
     if (!routesRes.ok) throw new Error(`Routes fetch failed (${routesRes.status})`);
     const routesRaw = await routesRes.json();
@@ -5701,7 +5702,7 @@ async function ovLoad() {
     const fromISO = todayISO + 'T00:00:00.000Z';
     const toISO   = todayISO + 'T23:59:59.999Z';
     const delivRes = await sbRequest(
-      `/rest/v1/deliveries?select=driver_name,customer_name,delivery_datetime&delivery_datetime=gte.${fromISO}&delivery_datetime=lte.${toISO}&order=delivery_datetime.asc`
+      `/rest/v1/deliveries?select=driver_name,customer_name,delivery_datetime,route_id&delivery_datetime=gte.${fromISO}&delivery_datetime=lte.${toISO}&order=delivery_datetime.asc`
     );
     if (!delivRes.ok) throw new Error(`Deliveries fetch failed (${delivRes.status})`);
     const delivRaw = await delivRes.json();
@@ -5757,6 +5758,9 @@ async function ovLoad() {
           const nextStart  = nextRoute?.started_at ? new Date(nextRoute.started_at) : null;
 
           const scopedDeliveries = myDeliveries.filter(d => {
+            // Prefer route_id match (new records)
+            if (d.route_id) return d.route_id === route.id;
+            // Legacy fallback: time-window scoping
             if (!routeStart) return false;
             const dt = new Date(d.delivery_datetime);
             if (dt < routeStart) return false;
