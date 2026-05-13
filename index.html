@@ -1620,7 +1620,7 @@
       </div>
       <div>
         <div class="header-driver-chip-name" id="headerDriverName"></div>
-        <div class="header-driver-chip-sub">Logged in as driver</div>
+        <div class="header-driver-chip-sub" id="headerDriverChipSub">Logged in as driver</div>
       </div>
     </div>
     <div class="header-right">
@@ -1797,13 +1797,13 @@
       <div class="photo-zone" id="photoZone" onclick="triggerPhoto()">
         <div class="photo-placeholder" id="photoPlaceholder">
           <div class="photo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
-          <p>Tap to capture photo</p>
-          <span>Take a photo or choose from gallery</span>
+          <p>Tap to add photo</p>
+          <span>Use camera or choose from gallery</span>
         </div>
         <img id="photoPreview" style="display:none;" alt="Delivery photo">
         <button class="photo-retake" id="retakeBtn" style="display:none;" onclick="retakePhoto(event)">Retake</button>
       </div>
-      <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handlePhoto(event)">
+      <input type="file" id="photoInput" accept="image/*" onchange="handlePhoto(event)">
       <p class="field-note" style="margin-top:8px;">Saved as YYYYMMDD_HHMMSS_CustomerName.jpg</p>
     </div>
 
@@ -2400,12 +2400,18 @@ function checkPin() {
   }
 }
 
+function setHeaderChipSub(text) {
+  const el = document.getElementById('headerDriverChipSub');
+  if (el) el.textContent = text;
+}
+
 // ── VIEW SWITCHING ────────────────────────────────────────
 function showForm() {
   // If no driver logged in, show login screen instead
   if (!loggedInDriver) {
     document.getElementById('driverLoginScreen').classList.remove('hidden');
   }
+  setHeaderChipSub('Logged in as driver');
   document.getElementById('formSection').style.display = 'block';
   document.getElementById('successScreen').classList.remove('show');
   document.getElementById('historyView').classList.remove('show');
@@ -2432,6 +2438,7 @@ function showDriverHistory() {
   document.getElementById('historyViewTitle').textContent = 'My Deliveries';
   document.getElementById('filterSearch').placeholder = 'Search by customer...';
   document.getElementById('driverChips').style.display = 'none';
+  setHeaderChipSub('Logged in as driver');
   window.scrollTo(0,0);
   loadHistory();
 }
@@ -2452,6 +2459,7 @@ function showHistory() {
   document.getElementById('historyViewTitle').textContent = 'History';
   document.getElementById('filterSearch').placeholder = 'Search customer or driver...';
   document.getElementById('driverChips').style.display = '';
+  setHeaderChipSub('Logged in as Admin');
   window.scrollTo(0,0);
   loadHistory();
 }
@@ -2463,6 +2471,7 @@ function showAnalytics() {
   document.getElementById('detailView').classList.remove('show');
   document.getElementById('analyticsView').classList.add('show');
   activeAnalyticsDriver = null;
+  setHeaderChipSub('Logged in as Admin');
   window.scrollTo(0,0);
   loadAnalytics();
 }
@@ -5634,6 +5643,7 @@ function showAddressManager() {
   // Hide login screen if visible
   document.getElementById('driverLoginScreen').classList.add('hidden');
   document.getElementById('addressManagerOverlay').classList.add('open');
+  setHeaderChipSub('Logged in as Admin');
   // Reset to search state
   amSelectedCustomer = null;
   document.getElementById('amSearch').value = '';
@@ -5661,6 +5671,7 @@ function showOverview() {
   document.getElementById('analyticsView').classList.remove('show');
   document.getElementById('routeView').classList.remove('show');
   document.getElementById('overviewView').classList.add('show');
+  setHeaderChipSub('Logged in as Admin');
   window.scrollTo(0,0);
   ovLoad();
 }
