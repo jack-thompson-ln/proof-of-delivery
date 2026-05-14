@@ -1715,6 +1715,44 @@
     <input type="password" id="cfgPin" placeholder="****" maxlength="4" readonly>
     <p class="field-note">PIN required to access History, Analytics and Configuration. To change it, edit the <code>config.pin</code> value in the HTML source file.</p>
     <button class="save-config-btn" onclick="saveConfig()">Done</button>
+
+    <!-- ── DIAGNOSTIC LOG ── -->
+    <div style="margin-top:22px;border-top:2px solid var(--border);padding-top:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:0.85rem;font-weight:800;color:var(--brand);letter-spacing:0.06em;text-transform:uppercase;">Diagnostic Log</div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="renderDiagLog()" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:4px 10px;font-family:'Barlow',sans-serif;font-size:0.75rem;font-weight:600;color:var(--brand);cursor:pointer;">↻ Refresh</button>
+          <button onclick="diagClear()" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:4px 10px;font-family:'Barlow',sans-serif;font-size:0.75rem;font-weight:600;color:var(--text-muted);cursor:pointer;">Clear queue</button>
+        </div>
+      </div>
+      <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">Live from Supabase — records photo processing, submissions, and JS errors across all drivers. Queued offline entries upload automatically on reconnect.</p>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <select onchange="diagSetDriverFilter(this.value)" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Barlow',sans-serif;font-size:0.78rem;background:var(--off-white);color:var(--text);outline:none;">
+          <option value="">All drivers</option>
+          <option value="Paddy">Paddy</option>
+          <option value="Becky">Becky</option>
+          <option value="Ben">Ben</option>
+          <option value="Ian">Ian</option>
+          <option value="Ken">Ken</option>
+          <option value="Nick">Nick</option>
+          <option value="Sam">Sam</option>
+          <option value="James">James</option>
+        </select>
+        <select onchange="diagSetTypeFilter(this.value)" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Barlow',sans-serif;font-size:0.78rem;background:var(--off-white);color:var(--text);outline:none;">
+          <option value="">All types</option>
+          <option value="js_error">JS errors</option>
+          <option value="promise_error">Promise errors</option>
+          <option value="photo_error">Photo errors</option>
+          <option value="submit_error">Submit errors</option>
+          <option value="photo_ok">Photo OK</option>
+          <option value="submit_ok">Submit OK</option>
+          <option value="submit_offline">Offline submits</option>
+        </select>
+      </div>
+      <div id="diagLogBody" style="border:1.5px solid var(--border);border-radius:10px;max-height:340px;overflow-y:auto;background:var(--off-white);">
+        <div style="padding:12px;text-align:center;color:var(--text-muted);font-size:0.82rem;">Open config panel to load logs.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2299,7 +2337,10 @@ function saveConfig() {
   document.getElementById('configPanel').classList.remove('open');
   alert('Configuration is hardcoded in this build. Edit the HTML file to change settings.');
 }
-function toggleConfig() { document.getElementById('configPanel').classList.toggle('open'); }
+function toggleConfig() {
+  document.getElementById('configPanel').classList.toggle('open');
+  if (document.getElementById('configPanel').classList.contains('open')) renderDiagLog();
+}
 function handleConfigOverlayClick(e) { if (e.target === document.getElementById('configPanel')) toggleConfig(); }
 
 // ── CLOCK ─────────────────────────────────────────────────
@@ -2440,7 +2481,6 @@ function showDriverHistory() {
   document.getElementById('driverChips').style.display = 'none';
   setHeaderChipSub('Logged in as driver');
   window.scrollTo(0,0);
-  loadHistory();
 }
 
 function showHistory() {
@@ -2746,14 +2786,88 @@ function clearCustomer() {
 
 // ── PHOTO ─────────────────────────────────────────────────
 let photoFile = null;
+let _photoObjectURL = null; // track preview object URL so we can revoke it
+
 function triggerPhoto() { document.getElementById('photoInput').click(); }
+
+function _revokePhotoPreview() {
+  // Release any previous preview object URL from memory immediately
+  if (_photoObjectURL) {
+    URL.revokeObjectURL(_photoObjectURL);
+    _photoObjectURL = null;
+  }
+  // Also clear the src so the browser releases the decoded image
+  const prev = document.getElementById('photoPreview');
+  if (prev) { prev.src = ''; }
+}
+
 function handlePhoto(e) {
-  const file = e.target.files[0]; if (!file) return;
+  const file = e.target.files[0];
+  if (!file) return;
+
+  diagLog('photo_start', `File: ${file.name}, size: ${(file.size/1024).toFixed(0)}KB, type: ${file.type}`);
+
+  // Release previous photo memory before processing a new one
+  _revokePhotoPreview();
+  photoFile = null;
+
+  // Use createImageBitmap where available — much more memory-efficient than
+  // FileReader → Image, avoids holding a full base64 DataURL in memory
+  if (typeof createImageBitmap !== 'undefined') {
+    createImageBitmap(file).then(bitmap => {
+      const MAX = 1200;
+      let w = bitmap.width, h = bitmap.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else        { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      bitmap.close(); // release bitmap memory immediately
+
+      canvas.toBlob(blob => {
+        // Release canvas memory — set to 0×0 so GPU/CPU buffers are freed
+        canvas.width = 0; canvas.height = 0;
+
+        if (!blob) {
+          diagLog('photo_error', 'canvas.toBlob returned null');
+          alert('Could not process photo — please try again.');
+          return;
+        }
+        photoFile = blob;
+        diagLog('photo_ok', `Processed blob: ${(blob.size/1024).toFixed(0)}KB, ${w}×${h}px`);
+
+        // Use object URL for preview — tiny pointer vs huge DataURL string
+        _photoObjectURL = URL.createObjectURL(blob);
+        const prev = document.getElementById('photoPreview');
+        prev.src = _photoObjectURL;
+        prev.style.display = 'block';
+        document.getElementById('photoPlaceholder').style.display = 'none';
+        document.getElementById('retakeBtn').style.display = 'block';
+        document.getElementById('photoZone').classList.add('has-photo');
+        updateSteps();
+        prewarmGPS();
+      }, 'image/jpeg', 0.82);
+    }).catch(err => {
+      diagLog('photo_error', `createImageBitmap failed: ${err.message}`);
+      // Fall back to FileReader path
+      _handlePhotoFallback(file);
+    });
+  } else {
+    // Fallback for browsers without createImageBitmap (older Safari)
+    _handlePhotoFallback(file);
+  }
+}
+
+function _handlePhotoFallback(file) {
+  diagLog('photo_fallback', 'Using FileReader fallback path');
   const reader = new FileReader();
   reader.onload = ev => {
+    const dataUrl = ev.target.result;
     const img = new Image();
     img.onload = () => {
-      // Resize to max 1200px on longest side, compress to ~80% JPEG quality
       const MAX = 1200;
       let w = img.width, h = img.height;
       if (w > MAX || h > MAX) {
@@ -2763,26 +2877,42 @@ function handlePhoto(e) {
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      // Null out the image and dataUrl references before toBlob
+      img.src = '';
       canvas.toBlob(blob => {
+        canvas.width = 0; canvas.height = 0;
+        if (!blob) {
+          diagLog('photo_error', 'Fallback: canvas.toBlob returned null');
+          alert('Could not process photo — please try again.');
+          return;
+        }
         photoFile = blob;
-        // Show preview
-        document.getElementById('photoPlaceholder').style.display = 'none';
+        diagLog('photo_ok_fallback', `Fallback processed: ${(blob.size/1024).toFixed(0)}KB`);
+        _photoObjectURL = URL.createObjectURL(blob);
         const prev = document.getElementById('photoPreview');
-        prev.src = canvas.toDataURL('image/jpeg', 0.82);
+        prev.src = _photoObjectURL;
         prev.style.display = 'block';
+        document.getElementById('photoPlaceholder').style.display = 'none';
         document.getElementById('retakeBtn').style.display = 'block';
         document.getElementById('photoZone').classList.add('has-photo');
         updateSteps();
-        // Pre-warm GPS while driver reviews the photo
         prewarmGPS();
       }, 'image/jpeg', 0.82);
     };
-    img.src = ev.target.result;
+    img.onerror = () => {
+      diagLog('photo_error', 'Fallback: Image decode failed');
+      alert('Could not decode photo — please try again.');
+    };
+    img.src = dataUrl;
   };
+  reader.onerror = () => diagLog('photo_error', 'FileReader failed');
   reader.readAsDataURL(file);
 }
+
 function retakePhoto(e) {
-  e.stopPropagation(); photoFile = null;
+  e.stopPropagation();
+  _revokePhotoPreview(); // free memory before accepting new photo
+  photoFile = null;
   document.getElementById('photoInput').value = '';
   document.getElementById('photoPreview').style.display = 'none';
   document.getElementById('retakeBtn').style.display = 'none';
@@ -2790,6 +2920,216 @@ function retakePhoto(e) {
   document.getElementById('photoZone').classList.remove('has-photo');
   updateSteps();
 }
+
+// ── DIAGNOSTIC LOGGER ─────────────────────────────────────
+// Writes to Supabase app_logs table in the background.
+// Falls back to localStorage queue when offline — flushed on reconnect.
+// Never throws — logging must never break the app.
+
+const DIAG_QUEUE_KEY = 'fmf_diag_queue'; // localStorage key for offline queue
+const DIAG_MAX_QUEUE = 200;              // max entries to hold offline
+
+// ── Write a log entry ─────────────────────────────────────
+function diagLog(type, detail) {
+  try {
+    const entry = {
+      ts:          new Date().toISOString(),
+      driver_name: loggedInDriver || '(no driver)',
+      type:        String(type),
+      detail:      String(detail).slice(0, 500),
+      user_agent:  navigator.userAgent.slice(0, 200)
+    };
+    // Always queue locally first (instantaneous, no await)
+    _diagEnqueue(entry);
+    // Then attempt to flush in the background (fire-and-forget)
+    _diagFlush();
+  } catch(_) {}
+}
+
+// ── Add entry to local queue ──────────────────────────────
+function _diagEnqueue(entry) {
+  try {
+    let q = [];
+    try { q = JSON.parse(localStorage.getItem(DIAG_QUEUE_KEY) || '[]'); } catch(_) {}
+    q.push(entry);
+    if (q.length > DIAG_MAX_QUEUE) q = q.slice(-DIAG_MAX_QUEUE); // keep newest
+    localStorage.setItem(DIAG_QUEUE_KEY, JSON.stringify(q));
+  } catch(_) {}
+}
+
+// ── Flush queue to Supabase (called on log + on reconnect) ─
+let _diagFlushing = false;
+async function _diagFlush() {
+  if (_diagFlushing || !navigator.onLine) return;
+  _diagFlushing = true;
+  try {
+    let q = [];
+    try { q = JSON.parse(localStorage.getItem(DIAG_QUEUE_KEY) || '[]'); } catch(_) {}
+    if (q.length === 0) { _diagFlushing = false; return; }
+
+    // Insert all queued entries in one batch POST
+    const res = await fetch(`${config.url}/rest/v1/app_logs`, {
+      method:  'POST',
+      headers: {
+        'apikey':       config.key,
+        'Authorization': `Bearer ${config.key}`,
+        'Content-Type': 'application/json',
+        'Prefer':       'return=minimal'
+      },
+      body: JSON.stringify(q)
+    });
+
+    if (res.ok) {
+      // Clear only the entries we successfully sent
+      let remaining = [];
+      try { remaining = JSON.parse(localStorage.getItem(DIAG_QUEUE_KEY) || '[]'); } catch(_) {}
+      // Remove the entries we just sent (they were at the front; q.length items)
+      remaining = remaining.slice(q.length);
+      localStorage.setItem(DIAG_QUEUE_KEY, JSON.stringify(remaining));
+    }
+    // If not ok (e.g. table doesn't exist yet) — silently leave in queue
+  } catch(_) {
+    // Network error — entries stay in queue for next flush
+  } finally {
+    _diagFlushing = false;
+  }
+}
+
+// ── Flush on reconnect (piggybacks on existing online handler) ─
+const _origUpdateOnlineStatus = typeof updateOnlineStatus === 'function' ? updateOnlineStatus : null;
+window.addEventListener('online', () => { _diagFlush(); });
+
+// ── Config panel: load logs from Supabase ─────────────────
+let _diagFilter = { driver: '', type: '' };
+
+async function renderDiagLog() {
+  const el = document.getElementById('diagLogBody');
+  if (!el) return;
+
+  el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:8px;"><div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>Loading logs...</div>';
+
+  try {
+    // Build query — newest first, up to 200 rows
+    let path = `/rest/v1/app_logs?order=ts.desc&limit=200`;
+    if (_diagFilter.driver) path += `&driver_name=eq.${encodeURIComponent(_diagFilter.driver)}`;
+    if (_diagFilter.type)   path += `&type=eq.${encodeURIComponent(_diagFilter.type)}`;
+
+    const res = await fetch(`${config.url}${path}`, {
+      headers: {
+        'apikey':        config.key,
+        'Authorization': `Bearer ${config.key}`,
+        'Accept':        'application/json'
+      }
+    });
+
+    if (!res.ok) {
+      // Table likely doesn't exist yet
+      el.innerHTML = `<div style="padding:14px 16px;font-size:0.8rem;color:var(--error);line-height:1.6;">
+        <strong>app_logs table not found.</strong><br>
+        Run the SQL below in your Supabase SQL editor to create it, then reload this panel.<br><br>
+        <code style="display:block;background:#f4f7fb;border-radius:8px;padding:10px;font-size:0.72rem;white-space:pre-wrap;color:var(--text);">CREATE TABLE app_logs (
+  id          uuid primary key default gen_random_uuid(),
+  ts          timestamptz not null default now(),
+  driver_name text,
+  type        text,
+  detail      text,
+  user_agent  text
+);
+ALTER TABLE app_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon insert" ON app_logs FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "anon select" ON app_logs FOR SELECT TO anon USING (true);</code></div>`;
+      return;
+    }
+
+    const logs = await res.json();
+
+    // Also check for any locally queued (not yet flushed) entries
+    let queued = [];
+    try { queued = JSON.parse(localStorage.getItem(DIAG_QUEUE_KEY) || '[]'); } catch(_) {}
+
+    _renderDiagRows(el, logs, queued.length);
+
+  } catch(err) {
+    el.innerHTML = `<div style="padding:12px;text-align:center;color:var(--error);font-size:0.8rem;">Failed to load logs: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function _renderDiagRows(el, logs, pendingCount) {
+  const colours = {
+    photo_start:        '#0099ff',
+    photo_ok:           '#00b86b',
+    photo_ok_fallback:  '#00b86b',
+    photo_error:        '#e03c3c',
+    photo_fallback:     '#f0a500',
+    submit_ok:          '#00b86b',
+    submit_error:       '#e03c3c',
+    submit_offline:     '#f0a500',
+    js_error:           '#e03c3c',
+    promise_error:      '#e03c3c',
+    memory_warn:        '#f0a500'
+  };
+
+  let html = '';
+
+  // Show pending-queue notice if there are unsent local entries
+  if (pendingCount > 0) {
+    html += `<div style="padding:8px 12px;background:rgba(240,165,0,0.1);border-bottom:1px solid rgba(240,165,0,0.25);font-size:0.75rem;color:#7a5800;display:flex;align-items:center;gap:6px;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      ${pendingCount} entr${pendingCount === 1 ? 'y' : 'ies'} queued locally — will upload when online
+    </div>`;
+  }
+
+  if (logs.length === 0 && pendingCount === 0) {
+    el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.82rem;">No events recorded yet.</div>';
+    return;
+  }
+
+  html += logs.map(e => {
+    const colour = colours[e.type] || 'var(--text-muted)';
+    const time   = e.ts ? new Date(e.ts).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }) : '—';
+    const isError = e.type && (e.type.includes('error') || e.type.includes('Error'));
+    return `<div style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:0.75rem;line-height:1.5;${isError ? 'background:rgba(224,60,60,0.03);' : ''}">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0;"></span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;color:${colour};letter-spacing:0.04em;text-transform:uppercase;font-size:0.7rem;">${escHtml(e.type||'')}</span>
+        <span style="color:var(--text-muted);font-weight:600;font-size:0.7rem;">${escHtml(e.driver_name||'')}</span>
+        <span style="color:var(--text-muted);margin-left:auto;white-space:nowrap;font-size:0.68rem;">${time}</span>
+      </div>
+      <div style="color:var(--text);padding-left:14px;word-break:break-word;">${escHtml(e.detail||'')}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = html;
+}
+
+// ── Filter helpers ────────────────────────────────────────
+function diagSetDriverFilter(val) {
+  _diagFilter.driver = val;
+  renderDiagLog();
+}
+function diagSetTypeFilter(val) {
+  _diagFilter.type = val;
+  renderDiagLog();
+}
+
+// ── Clear: removes local queue only (DB records are permanent) ─
+function diagClear() {
+  if (!confirm('Clear the local offline queue?\n\nEntries already synced to Supabase are not affected.')) return;
+  localStorage.removeItem(DIAG_QUEUE_KEY);
+  renderDiagLog();
+}
+
+// ── Catch uncaught JS errors globally ────────────────────
+window.addEventListener('error', function(ev) {
+  diagLog('js_error', `${ev.message} @ ${ev.filename ? ev.filename.split('/').pop() : '?'}:${ev.lineno}`);
+});
+window.addEventListener('unhandledrejection', function(ev) {
+  const msg = ev.reason ? (ev.reason.message || String(ev.reason)) : 'Unknown rejection';
+  diagLog('promise_error', msg);
+});
 
 // ── STEPS ─────────────────────────────────────────────────
 function updateSteps() {
@@ -3117,6 +3457,7 @@ async function submitDelivery() {
       const ss = document.getElementById('successScreen');
       ss.classList.add('show');
       document.getElementById('successRef').textContent = `📴 Saved offline — will sync when online`;
+      diagLog('submit_offline', `Queued offline: ${customerName} / ${filename}`);
     } else {
       // ── ONLINE: upload immediately ──
       setUploadStep(2);
@@ -3130,9 +3471,11 @@ async function submitDelivery() {
       document.getElementById('formSection').style.display = 'none';
       document.getElementById('successScreen').classList.add('show');
       document.getElementById('successRef').textContent = `📁 ${filename}`;
+      diagLog('submit_ok', `Saved online: ${customerName} / ${filename}`);
     }
   } catch(err) {
     console.error(err);
+    diagLog('submit_error', `${err.message} | customer: ${customerName}`);
     document.getElementById('statusLoading').classList.remove('show');
     document.getElementById('statusErrorText').innerHTML = `<strong>Error saving record</strong>${err.message}`;
     document.getElementById('statusError').classList.add('show');
