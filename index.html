@@ -3902,7 +3902,7 @@ function renderDetail(r) {
         <div class="detail-label">Location</div>
         <div class="detail-value" id="detailAddressText">${escHtml(r.address)}</div>
         ${r.latitude ? `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}</div>` : ''}
-        ${r.latitude ? `<button onclick="regeocodeDetail('${r.id}',${r.latitude},${r.longitude})" id="regeocodeBtn" style="margin-top:8px;padding:5px 11px;font-size:0.72rem;font-family:'Barlow',sans-serif;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;background:transparent;border:1.5px solid var(--brand);color:var(--brand);border-radius:8px;cursor:pointer;">Re-geocode</button>` : ''}
+        ${r.latitude && historyMode === 'admin' ? `<button onclick="regeocodeDetail('${r.id}',${r.latitude},${r.longitude})" id="regeocodeBtn" style="margin-top:8px;padding:5px 11px;font-size:0.72rem;font-family:'Barlow',sans-serif;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;background:transparent;border:1.5px solid var(--brand);color:var(--brand);border-radius:8px;cursor:pointer;">Re-geocode</button>` : ''}
         <div id="regeocodeStatus" style="font-size:0.72rem;margin-top:5px;display:none;"></div>
       </div>
     </div>` : ''}
@@ -3944,6 +3944,11 @@ async function regeocodeDetail(recordId, lat, lng) {
       body: JSON.stringify({ address: newAddress })
     });
     addressEl.textContent = newAddress;
+    // Patch the in-memory record so navigating back doesn't revert to stale data
+    const mem = allRecords.find(r => r.id === recordId);
+    if (mem) mem.address = newAddress;
+    const filt = (window._filteredRecords || []).find(r => r.id === recordId);
+    if (filt) filt.address = newAddress;
     status.textContent = '✓ Address updated';
     status.style.color = 'var(--success)';
     status.style.display = 'block';
