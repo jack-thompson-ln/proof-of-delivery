@@ -3223,7 +3223,7 @@ function prewarmGPS() {
   navigator.geolocation.getCurrentPosition(
     pos => { _prewarmPos = pos; },
     err => { _prewarmErr = err; },
-    { timeout: 10000, enableHighAccuracy: true, maximumAge: 30000 }
+    { timeout: 10000, enableHighAccuracy: true, maximumAge: 5000 }
   );
 }
 function resetPrewarm() { _prewarmPos = null; _prewarmErr = null; _prewarmDone = false; }
@@ -3272,7 +3272,7 @@ function getLocation() {
         const msgs = { 1: 'Location permission denied', 2: 'Location unavailable', 3: 'Location request timed out' };
         resolve({ lat: null, lng: null, address: msgs[err.code] || 'Location error' });
       },
-      { timeout: 10000, enableHighAccuracy: true, maximumAge: 30000 }
+      { timeout: 10000, enableHighAccuracy: true, maximumAge: 5000 }
     );
   });
 }
@@ -3898,7 +3898,13 @@ function renderDetail(r) {
     </div>
     ${r.address ? `<div class="detail-row">
       <div class="detail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
-      <div><div class="detail-label">Location</div><div class="detail-value">${escHtml(r.address)}</div>${r.latitude ? `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}</div>` : ''}</div>
+      <div style="flex:1">
+        <div class="detail-label">Location</div>
+        <div class="detail-value" id="detailAddressText">${escHtml(r.address)}</div>
+        ${r.latitude ? `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}</div>` : ''}
+        ${r.latitude ? `<button onclick="regeocodeDetail('${r.id}',${r.latitude},${r.longitude})" id="regeocodeBtn" style="margin-top:8px;padding:5px 11px;font-size:0.72rem;font-family:'Barlow',sans-serif;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;background:transparent;border:1.5px solid var(--brand);color:var(--brand);border-radius:8px;cursor:pointer;">Re-geocode</button>` : ''}
+        <div id="regeocodeStatus" style="font-size:0.72rem;margin-top:5px;display:none;"></div>
+      </div>
     </div>` : ''}
     ${r.doc_number ? `<div class="detail-row">
       <div class="detail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
@@ -3913,6 +3919,43 @@ function renderDetail(r) {
       <div><div class="detail-label">Filename</div><div class="detail-value" style="font-size:0.78rem;word-break:break-all;">${escHtml(r.photo_filename)}</div></div>
     </div>` : ''}
   `;
+}
+
+// ── RE-GEOCODE DETAIL ─────────────────────────────────────
+async function regeocodeDetail(recordId, lat, lng) {
+  const btn = document.getElementById('regeocodeBtn');
+  const status = document.getElementById('regeocodeStatus');
+  const addressEl = document.getElementById('detailAddressText');
+  if (!btn || !status || !addressEl) return;
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+  status.style.display = 'none';
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1`,
+      { headers: { 'Accept-Language': 'en-GB' } }
+    );
+    const d = await r.json();
+    if (!d || !d.display_name) throw new Error('No result returned');
+    const newAddress = d.display_name;
+    await sbRequest(`/rest/v1/${config.table}?id=eq.${recordId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ address: newAddress })
+    });
+    addressEl.textContent = newAddress;
+    status.textContent = '✓ Address updated';
+    status.style.color = 'var(--success)';
+    status.style.display = 'block';
+    btn.textContent = 'Re-geocode';
+    btn.disabled = false;
+  } catch (e) {
+    status.textContent = '✗ Failed — ' + e.message;
+    status.style.color = 'var(--error)';
+    status.style.display = 'block';
+    btn.textContent = 'Re-geocode';
+    btn.disabled = false;
+  }
 }
 
 // ── LIGHTBOX ──────────────────────────────────────────────
