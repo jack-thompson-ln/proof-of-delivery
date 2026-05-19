@@ -5550,7 +5550,15 @@ function onRcSearch() { openRcDropdown(); }
 function openRcDropdown() {
   const query   = document.getElementById('rcSearch').value.trim().toLowerCase();
   const dd      = document.getElementById('rcDropdown');
-  const addedSet = new Set(editorStops.map(s => (s.customer||'').toLowerCase()));
+
+  // Build a map of customer name (lowercase) -> Set of address_ids already on this route
+  // null means the stop was added without a stored address
+  const addedAddressIds = {};
+  editorStops.forEach(s => {
+    const key = (s.customer||'').toLowerCase();
+    if (!addedAddressIds[key]) addedAddressIds[key] = new Set();
+    addedAddressIds[key].add(s.address_id || null);
+  });
 
   const pool = query
     ? allCustomers.filter(n => query.split(/\s+/).filter(Boolean).every(w => n.toLowerCase().includes(w))).slice(0,80)
@@ -5560,12 +5568,23 @@ function openRcDropdown() {
     dd.innerHTML = '<div class="route-customer-option" style="color:var(--text-muted);font-style:italic;">No customers found</div>';
   } else {
     dd.innerHTML = pool.map(name => {
-      const added = addedSet.has(name.toLowerCase());
-      let label   = escHtml(name);
+      const key        = name.toLowerCase();
+      const addedIds   = addedAddressIds[key];
+      const addedCount = addedIds ? addedIds.size : 0;
+      // Block re-adding only if the stop was added without any stored address
+      // (no address_id to distinguish a second stop by)
+      const fullyBlocked = addedIds && addedIds.has(null);
+      let label = escHtml(name);
       if (query) query.split(/\s+/).filter(Boolean).forEach(w => {
         label = label.replace(new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')', 'gi'), '<mark>$1</mark>');
       });
-      return `<div class="route-customer-option${added?' already-added':''}" ${added?'':('onclick="addStop(\''+name.replace(/'/g,"\\'")+'\')"')}>${label}${added?' ✓':''}</div>`;
+      if (fullyBlocked) {
+        return `<div class="route-customer-option already-added">${label} <span style="opacity:0.6">✓ added</span></div>`;
+      } else if (addedCount > 0) {
+        return `<div class="route-customer-option" onclick="addStop('${name.replace(/'/g,"\\'")}')"> ${label} <span style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-left:4px;">+${addedCount} on route</span></div>`;
+      } else {
+        return `<div class="route-customer-option" onclick="addStop('${name.replace(/'/g,"\\'")}')"> ${label}</div>`;
+      }
     }).join('');
   }
   dd.classList.add('open');
@@ -5597,15 +5616,26 @@ async function addStop(name) {
     renderEditorStops();
   };
 
+  // Filter out addresses already used for this customer on this route
+  const usedIds = new Set(
+    editorStops.filter(s => (s.customer||'').toLowerCase() === name.toLowerCase())
+               .map(s => s.address_id || null)
+  );
+  const availableAddresses = addresses.filter(a => !usedIds.has(a.id || null));
+
   if (addresses.length === 0) {
     // No addresses on file — add without coords
     doAdd(null);
-  } else if (addresses.length === 1) {
-    // Exactly one address — auto-select silently
-    doAdd(addresses[0]);
+  } else if (availableAddresses.length === 0) {
+    // All stored addresses already on the route — nothing new to offer
+    // (fullyBlocked case in dropdown should prevent reaching here, but guard anyway)
+    showOptimiseToast('All stored addresses for this customer are already on the route');
+  } else if (availableAddresses.length === 1 && addresses.length === 1) {
+    // Exactly one address and it hasn't been used — auto-select silently
+    doAdd(availableAddresses[0]);
   } else {
-    // Multiple addresses — show picker sheet
-    showAddressPicker(name, addresses, doAdd);
+    // Multiple available addresses (or re-adding with some already used) — show picker
+    showAddressPicker(name, availableAddresses, doAdd);
   }
 }
 
