@@ -5,6 +5,73 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 <title>FMF POD</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script>
+// ── SERVICE WORKER REGISTRATION ───────────────────────────
+// Registers a service worker that caches the app shell and CDN scripts
+// so the app works correctly even when the device loses signal mid-session.
+if ('serviceWorker' in navigator) {
+  // Build the SW as a Blob so we don't need a separate sw.js file
+  const swCode = `
+const CACHE = 'fmf-pod-v1';
+const CDN_ASSETS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
+  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
+  'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap'
+];
+
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(cache => cache.addAll(CDN_ASSETS).catch(() => {}))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', e => {
+  const url = e.request.url;
+  // Cache-first for CDN assets and fonts
+  const isCDN = url.includes('cdnjs.cloudflare.com') || url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com');
+  // Network-first for the app itself (GitHub Pages)
+  const isAppShell = url.includes('jack-thompson-ln.github.io') || url.includes('proof-of-delivery');
+
+  if (isCDN) {
+    e.respondWith(
+      caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
+        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        return res;
+      }).catch(() => cached))
+    );
+    return;
+  }
+
+  if (isAppShell) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+  // Everything else (Supabase API, Nominatim) — network only, never cache
+});
+`;
+  const swBlob = new Blob([swCode], { type: 'application/javascript' });
+  const swURL  = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL, { scope: '/' })
+    .catch(() => {}); // silently ignore if SW fails (e.g. Firefox private mode)
+}
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -2548,32 +2615,55 @@ let loggedInDriver    = '';
 let allDrivers        = [];
 let loginSelectedName = '';
 let loginPinEntry     = '';
+const DRIVER_CACHE_KEY = 'fmf_drivers_v1';
 
 async function fetchDrivers() {
   const res = await sbRequest(`/rest/v1/drivers?select=name,pin&active=eq.true&order=name.asc`, {
     headers: { 'Accept': 'application/json' }
   });
   if (!res.ok) throw new Error(`Failed to load drivers (${res.status})`);
-  return await res.json();
+  const drivers = await res.json();
+  // Cache for offline use
+  try { localStorage.setItem(DRIVER_CACHE_KEY, JSON.stringify(drivers)); } catch(_) {}
+  return drivers;
 }
 
 async function initDriverLogin() {
-  // Check localStorage for remembered driver
+  // Check localStorage for remembered driver session
   const saved = localStorage.getItem('fmf_driver');
   if (saved) {
     loggedInDriver = saved;
+    // Restore driver list from cache so PIN check works offline
+    try {
+      const cached = localStorage.getItem(DRIVER_CACHE_KEY);
+      if (cached) allDrivers = JSON.parse(cached);
+    } catch(_) {}
     showAppAsDriver(saved);
     return;
   }
-  // Load drivers and show login screen
+
+  // Load drivers — try cache first, then network
   try {
-    allDrivers = await fetchDrivers();
+    const cached = localStorage.getItem(DRIVER_CACHE_KEY);
+    if (cached) allDrivers = JSON.parse(cached);
+  } catch(_) {}
+
+  if (navigator.onLine) {
+    try {
+      allDrivers = await fetchDrivers();
+    } catch(e) {
+      console.warn('Could not load drivers from network:', e.message);
+      diagLog('drivers_error', `Network load failed: ${e.message}`);
+    }
+  }
+
+  if (allDrivers.length > 0) {
     buildDriverLoginGrid();
-  } catch(e) {
-    console.warn('Could not load drivers:', e.message);
-    // Show grid with error
+  } else {
     document.getElementById('driverLoginGrid').innerHTML =
-      '<div style="grid-column:span 3;text-align:center;color:var(--error);font-size:0.82rem;padding:10px;">Could not load drivers. Check connection.</div>';
+      `<div style="grid-column:span 3;text-align:center;color:var(--error);font-size:0.82rem;padding:10px;">
+        ${navigator.onLine ? 'Could not load drivers. Check connection.' : 'No connection. Please reconnect to log in.'}
+      </div>`;
   }
 }
 
@@ -2668,6 +2758,7 @@ function logoutDriver() {
 // ── CUSTOMER SEARCH ───────────────────────────────────────
 let allCustomers = [];
 let customerSelected = false;
+const CUSTOMER_CACHE_KEY = 'fmf_customers_v1';
 
 async function fetchCustomers() {
   let all = [];
@@ -2684,14 +2775,31 @@ async function fetchCustomers() {
     if (page.length < pageSize) break;
     from += pageSize;
   }
-  return all.map(r => r.name);
+  const names = all.map(r => r.name);
+  // Persist to localStorage so we have them offline
+  try { localStorage.setItem(CUSTOMER_CACHE_KEY, JSON.stringify(names)); } catch(_) {}
+  return names;
 }
 
 async function initCustomers() {
+  // Always try to serve from cache immediately (works offline)
   try {
-    allCustomers = await fetchCustomers();
-  } catch(e) {
-    console.warn('Could not load customers:', e.message);
+    const cached = localStorage.getItem(CUSTOMER_CACHE_KEY);
+    if (cached) {
+      allCustomers = JSON.parse(cached);
+      diagLog('customers_cache', `Loaded ${allCustomers.length} customers from local cache`);
+    }
+  } catch(_) {}
+
+  // Then refresh from network in background (updates cache silently)
+  if (navigator.onLine) {
+    try {
+      allCustomers = await fetchCustomers();
+      diagLog('customers_fetch', `Refreshed ${allCustomers.length} customers from network`);
+    } catch(e) {
+      diagLog('customers_error', `Network refresh failed: ${e.message} — using cache`);
+      console.warn('Could not refresh customers from network:', e.message);
+    }
   }
 }
 
@@ -2711,11 +2819,23 @@ function openCustomerDropdown() {
   const dropdown = document.getElementById('customerDropdown');
 
   if (allCustomers.length === 0) {
+    if (!navigator.onLine) {
+      // Offline and no cached customers — show clear message, don't retry
+      dropdown.innerHTML = `<div class="customer-loading" style="color:var(--error);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+        No connection &amp; no cached customers. Please reconnect to load the customer list.
+      </div>`;
+      dropdown.classList.add('open');
+      return;
+    }
+    // Online but not yet loaded — fetch and retry once
     dropdown.innerHTML = `<div class="customer-loading"><div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>Loading customers...</div>`;
     dropdown.classList.add('open');
     fetchCustomers().then(names => {
       allCustomers = names;
       openCustomerDropdown();
+    }).catch(() => {
+      dropdown.innerHTML = `<div class="customer-loading" style="color:var(--error);">Could not load customers. Please check your connection and try again.</div>`;
     });
     return;
   }
@@ -2923,12 +3043,14 @@ function retakePhoto(e) {
 }
 
 // ── DIAGNOSTIC LOGGER ─────────────────────────────────────
-// Writes to Supabase app_logs table in the background.
-// Falls back to localStorage queue when offline — flushed on reconnect.
+// Dual-write: local readable log (localStorage) + Supabase upload queue.
+// Local log is always available even offline. Supabase log shows all drivers.
 // Never throws — logging must never break the app.
 
-const DIAG_QUEUE_KEY = 'fmf_diag_queue'; // localStorage key for offline queue
-const DIAG_MAX_QUEUE = 200;              // max entries to hold offline
+const DIAG_QUEUE_KEY = 'fmf_diag_queue'; // entries waiting to upload to Supabase
+const DIAG_LOCAL_KEY = 'fmf_diag_local'; // local readable log (always available)
+const DIAG_MAX_QUEUE = 200;
+const DIAG_MAX_LOCAL = 150;
 
 // ── Write a log entry ─────────────────────────────────────
 function diagLog(type, detail) {
@@ -2940,25 +3062,35 @@ function diagLog(type, detail) {
       detail:      String(detail).slice(0, 500),
       user_agent:  navigator.userAgent.slice(0, 200)
     };
-    // Always queue locally first (instantaneous, no await)
-    _diagEnqueue(entry);
-    // Then attempt to flush in the background (fire-and-forget)
-    _diagFlush();
+    _diagWriteLocal(entry);  // always write locally first
+    _diagEnqueue(entry);     // add to upload queue
+    _diagFlush();            // attempt background upload (no-op if offline)
   } catch(_) {}
 }
 
-// ── Add entry to local queue ──────────────────────────────
+// ── Write to local readable log ───────────────────────────
+function _diagWriteLocal(entry) {
+  try {
+    let log = [];
+    try { log = JSON.parse(localStorage.getItem(DIAG_LOCAL_KEY) || '[]'); } catch(_) {}
+    log.unshift(entry); // newest first
+    if (log.length > DIAG_MAX_LOCAL) log = log.slice(0, DIAG_MAX_LOCAL);
+    localStorage.setItem(DIAG_LOCAL_KEY, JSON.stringify(log));
+  } catch(_) {}
+}
+
+// ── Add entry to Supabase upload queue ───────────────────
 function _diagEnqueue(entry) {
   try {
     let q = [];
     try { q = JSON.parse(localStorage.getItem(DIAG_QUEUE_KEY) || '[]'); } catch(_) {}
     q.push(entry);
-    if (q.length > DIAG_MAX_QUEUE) q = q.slice(-DIAG_MAX_QUEUE); // keep newest
+    if (q.length > DIAG_MAX_QUEUE) q = q.slice(-DIAG_MAX_QUEUE);
     localStorage.setItem(DIAG_QUEUE_KEY, JSON.stringify(q));
   } catch(_) {}
 }
 
-// ── Flush queue to Supabase (called on log + on reconnect) ─
+// ── Flush queue to Supabase (background, fire-and-forget) ─
 let _diagFlushing = false;
 async function _diagFlush() {
   if (_diagFlushing || !navigator.onLine) return;
@@ -2968,66 +3100,61 @@ async function _diagFlush() {
     try { q = JSON.parse(localStorage.getItem(DIAG_QUEUE_KEY) || '[]'); } catch(_) {}
     if (q.length === 0) { _diagFlushing = false; return; }
 
-    // Insert all queued entries in one batch POST
     const res = await fetch(`${config.url}/rest/v1/app_logs`, {
       method:  'POST',
       headers: {
-        'apikey':       config.key,
+        'apikey':        config.key,
         'Authorization': `Bearer ${config.key}`,
-        'Content-Type': 'application/json',
-        'Prefer':       'return=minimal'
+        'Content-Type':  'application/json',
+        'Prefer':        'return=minimal'
       },
       body: JSON.stringify(q)
     });
 
     if (res.ok) {
-      // Clear only the entries we successfully sent
       let remaining = [];
       try { remaining = JSON.parse(localStorage.getItem(DIAG_QUEUE_KEY) || '[]'); } catch(_) {}
-      // Remove the entries we just sent (they were at the front; q.length items)
-      remaining = remaining.slice(q.length);
+      remaining = remaining.slice(q.length); // remove what we sent
       localStorage.setItem(DIAG_QUEUE_KEY, JSON.stringify(remaining));
     }
-    // If not ok (e.g. table doesn't exist yet) — silently leave in queue
   } catch(_) {
-    // Network error — entries stay in queue for next flush
+    // Network error — leave in queue for next flush
   } finally {
     _diagFlushing = false;
   }
 }
 
-// ── Flush on reconnect (piggybacks on existing online handler) ─
-const _origUpdateOnlineStatus = typeof updateOnlineStatus === 'function' ? updateOnlineStatus : null;
+// Flush on reconnect
 window.addEventListener('online', () => { _diagFlush(); });
 
-// ── Config panel: load logs from Supabase ─────────────────
+// ── Config panel: show logs ───────────────────────────────
 let _diagFilter = { driver: '', type: '' };
 
 async function renderDiagLog() {
   const el = document.getElementById('diagLogBody');
   if (!el) return;
 
-  el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:8px;"><div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>Loading logs...</div>';
+  if (!navigator.onLine) {
+    // Offline — show local log immediately
+    _renderDiagOffline(el);
+    return;
+  }
+
+  el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:8px;"><div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>Loading logs from Supabase...</div>';
 
   try {
-    // Build query — newest first, up to 200 rows
     let path = `/rest/v1/app_logs?order=ts.desc&limit=200`;
     if (_diagFilter.driver) path += `&driver_name=eq.${encodeURIComponent(_diagFilter.driver)}`;
     if (_diagFilter.type)   path += `&type=eq.${encodeURIComponent(_diagFilter.type)}`;
 
     const res = await fetch(`${config.url}${path}`, {
-      headers: {
-        'apikey':        config.key,
-        'Authorization': `Bearer ${config.key}`,
-        'Accept':        'application/json'
-      }
+      headers: { 'apikey': config.key, 'Authorization': `Bearer ${config.key}`, 'Accept': 'application/json' }
     });
 
     if (!res.ok) {
-      // Table likely doesn't exist yet
       el.innerHTML = `<div style="padding:14px 16px;font-size:0.8rem;color:var(--error);line-height:1.6;">
         <strong>app_logs table not found.</strong><br>
-        Run the SQL below in your Supabase SQL editor to create it, then reload this panel.<br><br>
+        Run the SQL below in your Supabase SQL editor, then reload this panel.<br><br>
         <code style="display:block;background:#f4f7fb;border-radius:8px;padding:10px;font-size:0.72rem;white-space:pre-wrap;color:var(--text);">CREATE TABLE app_logs (
   id          uuid primary key default gen_random_uuid(),
   ts          timestamptz not null default now(),
@@ -3043,54 +3170,70 @@ CREATE POLICY "anon select" ON app_logs FOR SELECT TO anon USING (true);</code><
     }
 
     const logs = await res.json();
-
-    // Also check for any locally queued (not yet flushed) entries
     let queued = [];
     try { queued = JSON.parse(localStorage.getItem(DIAG_QUEUE_KEY) || '[]'); } catch(_) {}
-
-    _renderDiagRows(el, logs, queued.length);
+    _renderDiagRows(el, logs, queued.length, false);
 
   } catch(err) {
-    el.innerHTML = `<div style="padding:12px;text-align:center;color:var(--error);font-size:0.8rem;">Failed to load logs: ${escHtml(err.message)}</div>`;
+    // Network fetch failed — fall back to local log
+    _renderDiagOffline(el);
   }
 }
 
-function _renderDiagRows(el, logs, pendingCount) {
+function _renderDiagOffline(el) {
+  let local = [];
+  try { local = JSON.parse(localStorage.getItem(DIAG_LOCAL_KEY) || '[]'); } catch(_) {}
+  let queued = [];
+  try { queued = JSON.parse(localStorage.getItem(DIAG_QUEUE_KEY) || '[]'); } catch(_) {}
+
+  // Add offline banner
+  const banner = `<div style="padding:8px 12px;background:rgba(240,165,0,0.1);border-bottom:1px solid rgba(240,165,0,0.25);font-size:0.75rem;color:#7a5800;display:flex;align-items:center;gap:6px;">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+    Offline — showing local log for this device. ${queued.length} entr${queued.length === 1 ? 'y' : 'ies'} queued for upload.
+  </div>`;
+
+  if (local.length === 0) {
+    el.innerHTML = banner + '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.82rem;">No local events recorded yet.</div>';
+    return;
+  }
+
+  // Apply filters locally
+  let filtered = local;
+  if (_diagFilter.driver) filtered = filtered.filter(e => e.driver_name === _diagFilter.driver);
+  if (_diagFilter.type)   filtered = filtered.filter(e => e.type === _diagFilter.type);
+
+  _renderDiagRows(el, filtered, 0, true, banner);
+}
+
+function _renderDiagRows(el, logs, pendingCount, isLocal, prepend = '') {
   const colours = {
-    photo_start:        '#0099ff',
-    photo_ok:           '#00b86b',
-    photo_ok_fallback:  '#00b86b',
-    photo_error:        '#e03c3c',
-    photo_fallback:     '#f0a500',
-    submit_ok:          '#00b86b',
-    submit_error:       '#e03c3c',
-    submit_offline:     '#f0a500',
-    js_error:           '#e03c3c',
-    promise_error:      '#e03c3c',
-    memory_warn:        '#f0a500'
+    photo_start: '#0099ff', photo_ok: '#00b86b', photo_ok_fallback: '#00b86b',
+    photo_error: '#e03c3c', photo_fallback: '#f0a500',
+    submit_ok: '#00b86b', submit_error: '#e03c3c', submit_offline: '#f0a500',
+    sync_item_ok: '#00b86b', sync_item_error: '#e03c3c', sync_paused: '#f0a500',
+    sync_error: '#e03c3c', route_load_error: '#e03c3c',
+    customers_cache: '#5a7a9a', customers_fetch: '#00b86b', customers_error: '#e03c3c',
+    drivers_error: '#e03c3c',
+    js_error: '#e03c3c', promise_error: '#e03c3c', memory_warn: '#f0a500'
   };
 
-  let html = '';
+  let html = prepend;
 
-  // Show pending-queue notice if there are unsent local entries
-  if (pendingCount > 0) {
+  if (!isLocal && pendingCount > 0) {
     html += `<div style="padding:8px 12px;background:rgba(240,165,0,0.1);border-bottom:1px solid rgba(240,165,0,0.25);font-size:0.75rem;color:#7a5800;display:flex;align-items:center;gap:6px;">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      ${pendingCount} entr${pendingCount === 1 ? 'y' : 'ies'} queued locally — will upload when online
+      ${pendingCount} entr${pendingCount === 1 ? 'y' : 'ies'} queued locally — uploading now
     </div>`;
   }
 
-  if (logs.length === 0 && pendingCount === 0) {
-    el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.82rem;">No events recorded yet.</div>';
+  if (logs.length === 0) {
+    el.innerHTML = html + '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.82rem;">No matching events.</div>';
     return;
   }
 
   html += logs.map(e => {
-    const colour = colours[e.type] || 'var(--text-muted)';
-    const time   = e.ts ? new Date(e.ts).toLocaleString('en-GB', {
-      day: '2-digit', month: 'short',
-      hour: '2-digit', minute: '2-digit', second: '2-digit'
-    }) : '—';
+    const colour  = colours[e.type] || 'var(--text-muted)';
+    const time    = e.ts ? new Date(e.ts).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '—';
     const isError = e.type && (e.type.includes('error') || e.type.includes('Error'));
     return `<div style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:0.75rem;line-height:1.5;${isError ? 'background:rgba(224,60,60,0.03);' : ''}">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
@@ -3107,19 +3250,14 @@ function _renderDiagRows(el, logs, pendingCount) {
 }
 
 // ── Filter helpers ────────────────────────────────────────
-function diagSetDriverFilter(val) {
-  _diagFilter.driver = val;
-  renderDiagLog();
-}
-function diagSetTypeFilter(val) {
-  _diagFilter.type = val;
-  renderDiagLog();
-}
+function diagSetDriverFilter(val) { _diagFilter.driver = val; renderDiagLog(); }
+function diagSetTypeFilter(val)   { _diagFilter.type   = val; renderDiagLog(); }
 
-// ── Clear: removes local queue only (DB records are permanent) ─
+// ── Clear local queue (DB records permanent) ──────────────
 function diagClear() {
-  if (!confirm('Clear the local offline queue?\n\nEntries already synced to Supabase are not affected.')) return;
+  if (!confirm('Clear the local offline queue and local log?\n\nEntries already synced to Supabase are not affected.')) return;
   localStorage.removeItem(DIAG_QUEUE_KEY);
+  localStorage.removeItem(DIAG_LOCAL_KEY);
   renderDiagLog();
 }
 
@@ -3340,22 +3478,34 @@ async function updateSyncBar() {
   text.textContent  = `${queued.length} deliver${queued.length === 1 ? 'y' : 'ies'} queued — waiting for connection`;
 }
 
+let _syncing = false; // prevent concurrent sync runs
+
 async function syncQueue() {
-  const queued = await getQueuedRecords();
-  if (queued.length === 0) return;
+  if (_syncing) return; // already running
+  _syncing = true;
+
+  let queued;
+  try { queued = await getQueuedRecords(); } catch(e) {
+    diagLog('sync_error', `getQueuedRecords failed: ${e.message}`);
+    _syncing = false; return;
+  }
+  if (queued.length === 0) { _syncing = false; return; }
 
   const bar  = document.getElementById('syncBar');
   const text = document.getElementById('syncBarText');
   const icon = document.getElementById('syncIcon');
-  bar.classList.add('show','syncing');
-  bar.classList.remove('success');
-  text.textContent = `Syncing ${queued.length} queued deliver${queued.length === 1 ? 'y' : 'ies'}...`;
-  icon.innerHTML   = '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>';
+  if (bar) { bar.classList.add('show','syncing'); bar.classList.remove('success'); }
+  if (text) text.textContent = `Syncing ${queued.length} queued deliver${queued.length === 1 ? 'y' : 'ies'}...`;
+  if (icon) icon.innerHTML   = '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>';
 
   let synced = 0;
   for (const item of queued) {
+    // Re-check connectivity before each item — stop immediately if gone offline
+    if (!navigator.onLine) {
+      diagLog('sync_paused', `Went offline mid-sync after ${synced} items`);
+      break;
+    }
     try {
-      // Re-upload photo from base64
       const { id, photoBase64, photoMime, photoFilename, record } = item;
       const blob     = base64ToBlob(photoBase64, photoMime);
       const photoUrl = await uploadPhoto(photoFilename, blob);
@@ -3363,24 +3513,27 @@ async function syncQueue() {
       await insertRecord(record);
       await deleteQueuedRecord(id);
       synced++;
+      diagLog('sync_item_ok', `Synced: ${record.customer_name} / ${photoFilename}`);
     } catch(e) {
+      diagLog('sync_item_error', `Failed item ${item.id}: ${e.message}`);
       console.warn('Sync failed for item', item.id, e.message);
-      break; // Stop if still offline
+      break; // Stop on first failure — avoid hammering a flaky connection
     }
   }
 
-  const remaining = await getQueuedRecords();
+  let remaining;
+  try { remaining = await getQueuedRecords(); } catch(_) { remaining = []; }
+
+  _syncing = false;
+
   if (remaining.length === 0) {
-    bar.classList.remove('syncing');
-    bar.classList.add('success');
-    text.textContent = `${synced} deliver${synced === 1 ? 'y' : 'ies'} synced successfully!`;
-    document.getElementById('syncBarCount').textContent = '';
-    icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
-    setTimeout(() => {
-      bar.classList.remove('show','success');
-    }, 3000);
+    if (bar)  { bar.classList.remove('syncing'); bar.classList.add('success'); }
+    if (text) text.textContent = `${synced} deliver${synced === 1 ? 'y' : 'ies'} synced successfully!`;
+    if (document.getElementById('syncBarCount')) document.getElementById('syncBarCount').textContent = '';
+    if (icon) icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+    setTimeout(() => { if (bar) bar.classList.remove('show','success'); }, 3000);
   } else {
-    bar.classList.remove('syncing','success');
+    if (bar) bar.classList.remove('syncing','success');
     await updateSyncBar();
   }
 }
@@ -3395,7 +3548,10 @@ function base64ToBlob(base64, mime) {
 function updateOnlineStatus() {
   const offline = !navigator.onLine;
   document.getElementById('offlineNotice').classList.toggle('show', offline);
-  if (!offline) syncQueue();
+  if (!offline) {
+    syncQueue();
+    _diagFlush(); // also flush any queued log entries
+  }
 }
 
 window.addEventListener('online',  updateOnlineStatus);
@@ -4475,6 +4631,9 @@ let lastFetchedDeliveries = [];       // cache of last fetchTodayDeliveries() re
 async function loadActiveRoute() {
   const container = document.getElementById('routeCardsContainer');
   if (!loggedInDriver || !container) return;
+
+  const ROUTE_CACHE_KEY = `fmf_route_${loggedInDriver}`;
+
   try {
     const today = todayStr();
     const res = await sbRequest(
@@ -4483,10 +4642,11 @@ async function loadActiveRoute() {
     );
     todayRoutes = res.ok ? await res.json() : [];
 
-    // activeRouteData = the running route (for prefill + pill badge)
+    // Cache routes for offline
+    try { localStorage.setItem(ROUTE_CACHE_KEY, JSON.stringify({ date: today, routes: todayRoutes })); } catch(_) {}
+
     activeRouteData = todayRoutes.find(r => r.status === 'active') || null;
 
-    // Collapse all non-active routes by default; preserve any manual toggles on reload
     todayRoutes.forEach(r => {
       if (r.status !== 'active' && !collapsedRoutes.has(r.id)) {
         collapsedRoutes.add(r.id);
@@ -4497,7 +4657,31 @@ async function loadActiveRoute() {
     renderAllRouteCards(lastFetchedDeliveries);
     updateRoutePillBadge();
   } catch(e) {
-    console.warn('loadActiveRoute error:', e.message);
+    diagLog('route_load_error', e.message);
+    console.warn('loadActiveRoute network error:', e.message);
+
+    // Offline fallback — restore from cache
+    try {
+      const ROUTE_CACHE_KEY = `fmf_route_${loggedInDriver}`;
+      const cached = localStorage.getItem(ROUTE_CACHE_KEY);
+      if (cached) {
+        const { date, routes } = JSON.parse(cached);
+        if (date === todayStr()) {
+          todayRoutes     = routes;
+          activeRouteData = routes.find(r => r.status === 'active') || null;
+          lastFetchedDeliveries = [];
+          renderAllRouteCards([]);
+          updateRoutePillBadge();
+          // Show a subtle offline banner on the route card
+          const banner = document.createElement('div');
+          banner.style.cssText = 'font-size:0.75rem;color:var(--text-muted);text-align:center;padding:6px 0;';
+          banner.textContent = '📴 Showing cached route — reconnect to refresh';
+          container.prepend(banner);
+          return;
+        }
+      }
+    } catch(_) {}
+    // Nothing cached — show nothing (don't show error, just empty)
     document.getElementById('routeCardsContainer').innerHTML = '';
   }
 }
@@ -6924,6 +7108,8 @@ initCustomers();
 initDriverLogin();
 updateOnlineStatus();
 updateSyncBar();
+// Log every app open — useful for diagnosing intermittent issues
+diagLog('app_start', `Online: ${navigator.onLine}, UA: ${navigator.userAgent.slice(0,80)}`);
 </script>
 </body>
 </html>
