@@ -4720,12 +4720,20 @@ function renderAllRouteCards(todayDeliveries) {
       return true;
     });
 
-    const delivSet = new Set(scopedDeliveries.map(d => (d.customer_name || '').toLowerCase()));
-    return buildRouteCardHTML(route, delivSet);
+    // Build a delivery count map: customer name (lower) -> number of deliveries recorded.
+    // Using a count rather than a Set means two stops for the same customer are
+    // marked done independently — the first delivery ticks off stop 1, the second
+    // ticks off stop 2, rather than both being marked done at once.
+    const delivCountMap = {};
+    scopedDeliveries.forEach(d => {
+      const key = (d.customer_name || '').toLowerCase();
+      delivCountMap[key] = (delivCountMap[key] || 0) + 1;
+    });
+    return buildRouteCardHTML(route, delivCountMap);
   }).join('');
 }
 
-function buildRouteCardHTML(route, delivSet) {
+function buildRouteCardHTML(route, delivCountMap) {
   const id        = route.id;
   const stops     = Array.isArray(route.stops) ? route.stops.filter(s => !s.__final_dest) : [];
   const isActive  = route.status === 'active';
@@ -4735,11 +4743,27 @@ function buildRouteCardHTML(route, delivSet) {
   const title     = route.route_name || formatRouteDate(route.route_date);
 
   let firstUndelivered = -1;
-  stops.forEach((s, i) => { if (firstUndelivered === -1 && !delivSet.has((s.customer||'').toLowerCase())) firstUndelivered = i; });
+  // Walk stops in order, consuming one delivery count per stop — same logic as
+  // the done calculation below — so firstUndelivered is accurate for duplicate customers.
+  const _remaining = Object.assign({}, delivCountMap);
+  stops.forEach((s, i) => {
+    const key = (s.customer || '').toLowerCase();
+    if (_remaining[key] > 0) {
+      _remaining[key]--;
+    } else if (firstUndelivered === -1) {
+      firstUndelivered = i;
+    }
+  });
 
   registerNavStops(id, stops);
+  // Track remaining unmatched deliveries per customer as we walk stops in order.
+  // This ensures stop 1 is marked done after delivery 1, and stop 2 (same customer)
+  // only becomes done after delivery 2 — rather than both flipping at once.
+  const remainingDeliveries = Object.assign({}, delivCountMap);
   const stopsHTML = stops.map((s, i) => {
-    const done   = delivSet.has((s.customer||'').toLowerCase());
+    const key  = (s.customer || '').toLowerCase();
+    let done   = false;
+    if (remainingDeliveries[key] > 0) { done = true; remainingDeliveries[key]--; }
     const isNext = isActive && !done && i === firstUndelivered;
     const cls    = done ? 'delivered' : (isNext ? 'active-stop' : '');
     const numInner = done
@@ -4770,7 +4794,13 @@ function buildRouteCardHTML(route, delivSet) {
     </div>`;
   }).join('');
 
-  const delivCount = stops.filter(s => delivSet.has((s.customer||'').toLowerCase())).length;
+  // Count delivered stops using the same consume-in-order logic
+  const _rem2 = Object.assign({}, delivCountMap);
+  const delivCount = stops.filter(s => {
+    const key = (s.customer || '').toLowerCase();
+    if (_rem2[key] > 0) { _rem2[key]--; return true; }
+    return false;
+  }).length;
   const allDone    = delivCount === stops.length && stops.length > 0;
   const metaText   = isActive
     ? `${delivCount} of ${stops.length} delivered`
