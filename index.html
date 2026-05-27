@@ -3304,10 +3304,19 @@ function setUploadStep(n) {
 
 // ── SUPABASE ──────────────────────────────────────────────
 async function sbRequest(path, options = {}) {
-  return fetch(`${config.url}${path}`, {
-    ...options,
-    headers: { 'apikey': config.key, 'Authorization': `Bearer ${config.key}`, ...(options.headers || {}) }
-  });
+  // 15-second timeout so weak-signal hangs fail fast and fall back to cache
+  // Photo uploads are exempt (they pass signal via options and manage their own timeout)
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    return await fetch(`${config.url}${path}`, {
+      ...options,
+      signal: options.signal || controller.signal,
+      headers: { 'apikey': config.key, 'Authorization': `Bearer ${config.key}`, ...(options.headers || {}) }
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 async function uploadPhoto(filename, file) {
   const res = await sbRequest(`/storage/v1/object/${encodeURIComponent(config.bucket)}/${encodeURIComponent(filename)}`, {
@@ -3551,11 +3560,23 @@ function updateOnlineStatus() {
   if (!offline) {
     syncQueue();
     _diagFlush(); // also flush any queued log entries
+    // Refresh route card and customer list when connectivity is restored
+    if (loggedInDriver) loadActiveRoute();
+    if (allCustomers.length === 0) initCustomers();
   }
 }
 
 window.addEventListener('online',  updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
+
+// Refresh route and customers when the driver returns to the tab/app
+// (e.g. after switching to camera, maps, or locking/unlocking their phone)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && navigator.onLine && loggedInDriver) {
+    loadActiveRoute();
+    if (allCustomers.length === 0) initCustomers();
+  }
+});
 
 // ── SUBMIT ────────────────────────────────────────────────
 async function submitDelivery() {
