@@ -95,7 +95,7 @@ self.addEventListener('fetch', e => {
   body { font-family: 'Barlow', sans-serif; background: var(--off-white); color: var(--text); min-height: 100dvh; }
 
   /* ── HEADER ── */
-  header { background: var(--brand); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 16px rgba(0,0,0,0.18); }
+  header { background: var(--brand); position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 16px rgba(0,0,0,0.18); }
   .header-inner { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
   .logo-mark { width: 38px; height: 38px; background: rgba(255,255,255,0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .logo-mark svg { width: 20px; height: 20px; }
@@ -145,8 +145,8 @@ self.addEventListener('fetch', e => {
   .step.done .step-label { color: var(--brand); }
 
   /* ── CARDS ── */
-  .card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); overflow: visible; position: relative; z-index: 1; }
-  .card.customer-card { z-index: 100; }
+  .card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); overflow: visible; position: relative; z-index: auto; }
+  .card.customer-card { z-index: 10; }
   @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .card-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
@@ -240,7 +240,7 @@ self.addEventListener('fetch', e => {
   .input-wrap.valid input { border-color: rgba(0,184,107,0.5); }
 
   /* Customer search */
-  .customer-search-wrap { position: relative; z-index: 300; }
+  .customer-search-wrap { position: relative; z-index: 20; }
   .customer-search-wrap .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; }
   .customer-search-wrap input { padding-left: 36px; padding-right: 40px; }
   .customer-search-wrap input.selected-state { border-color: rgba(0,184,107,0.5); background: white; }
@@ -251,7 +251,7 @@ self.addEventListener('fetch', e => {
     position: absolute; top: calc(100% + 6px); left: 0; right: 0;
     background: white; border: 2px solid var(--brand);
     border-radius: 12px; box-shadow: 0 8px 30px rgba(0,75,142,0.18);
-    z-index: 200; max-height: 240px; overflow-y: auto;
+    z-index: 15; max-height: 240px; overflow-y: auto;
     display: none;
   }
   .customer-dropdown.open { display: block; animation: slideUp 0.15s ease; }
