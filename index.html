@@ -197,7 +197,7 @@ self.addEventListener('fetch', e => {
   /* ── SUBMIT ── */
   .submit-btn { width: 100%; padding: 17px; background: var(--brand); color: white; border: none; border-radius: 14px; font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; box-shadow: 0 6px 24px rgba(0,75,142,0.35); display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; }
   .submit-btn:active { transform: scale(0.98); background: var(--brand-dark); }
-  .submit-btn:disabled { background: #a0b8cc; box-shadow: none; cursor: not-allowed; }
+  .submit-btn:disabled { background: #a0b8cc; box-shadow: none; cursor: pointer; pointer-events: auto; }
 
   /* ── STATUS ── */
   .status-bar { border-radius: 12px; padding: 14px 18px; margin-bottom: 14px; display: none; align-items: flex-start; gap: 12px; }
@@ -1944,7 +1944,13 @@ self.addEventListener('fetch', e => {
       <div class="status-text" id="statusErrorText"><strong>Error saving record</strong>Please try again.</div>
     </div>
 
-    <button class="submit-btn" id="submitBtn" onclick="submitDelivery()" disabled>
+    <!-- Validation hint — shown when submit tapped while form incomplete -->
+    <div id="submitHint" style="display:none;background:#fff3cd;border:1.5px solid #f0c040;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:0.88rem;color:#7a5800;line-height:1.5;">
+      <strong style="display:block;margin-bottom:4px;">Before you can record this delivery:</strong>
+      <span id="submitHintText"></span>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="handleSubmitClick()" disabled>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>
       Record Delivery
     </button>
@@ -3279,6 +3285,26 @@ function updateSteps() {
   if (c && p) document.getElementById('step2').classList.add('done'); else if (c) document.getElementById('step2').classList.add('active');
   if (c && p) document.getElementById('step3').classList.add('active');
   document.getElementById('submitBtn').disabled = !(c && p);
+  // Hide validation hint whenever form state changes
+  document.getElementById('submitHint').style.display = 'none';
+}
+
+// ── SUBMIT CLICK HANDLER ───────────────────────────────────
+// Called on every tap of the Record Delivery button.
+// If the form is complete, submits immediately.
+// If incomplete, reveals a specific hint listing what is missing.
+function handleSubmitClick() {
+  const c = document.getElementById('customerName').value.trim().length > 1;
+  const p = photoFile !== null;
+  if (c && p) {
+    submitDelivery();
+    return;
+  }
+  const missing = [];
+  if (!c) missing.push('Select a customer');
+  if (!p) missing.push('Take a delivery photo');
+  document.getElementById('submitHintText').innerHTML = missing.map(m => '• ' + m).join('<br>');
+  document.getElementById('submitHint').style.display = 'block';
 }
 
 // ── FILENAME ──────────────────────────────────────────────
@@ -3897,6 +3923,12 @@ document.addEventListener('keydown', e => {
     closeLightbox();
     closePinModal();
     document.getElementById('configPanel').classList.remove('open');
+  }
+  // ── PIN modal — keyboard & numpad support ──────────────────
+  const pinModal = document.getElementById('pinModal');
+  if (pinModal && pinModal.classList.contains('open')) {
+    if (e.key >= '0' && e.key <= '9') { e.preventDefault(); pinPress(e.key); }
+    else if (e.key === 'Backspace')    { e.preventDefault(); pinBackspace(); }
   }
 });
 
@@ -7191,6 +7223,26 @@ updateOnlineStatus();
 updateSyncBar();
 // Log every app open — useful for diagnosing intermittent issues
 diagLog('app_start', `Online: ${navigator.onLine}, UA: ${navigator.userAgent.slice(0,80)}`);
+
+// ── HASH ROUTING — deep-link support ──────────────────────
+// Allows admin screens to be opened directly via URL hash.
+// Supported: #history  #analytics  #addresses  #overview
+// PIN protection is unchanged — openPinModal() is called exactly
+// as if the user tapped the icon on the login screen.
+(function handleHashRouting() {
+  const hash = window.location.hash.toLowerCase();
+  if (!hash) return;
+  const map = {
+    '#history':   'history',
+    '#analytics': 'analytics',
+    '#addresses': 'addresses',
+    '#overview':  'overview'
+  };
+  const dest = map[hash];
+  if (!dest) return;
+  // Delay so the login screen has fully rendered before the PIN modal opens
+  setTimeout(() => openPinModal(dest), 300);
+})();
 </script>
 </body>
 </html>
