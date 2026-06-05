@@ -4827,6 +4827,7 @@ function buildRouteCardHTML(route, delivCountMap) {
       : (isNext ? '<svg class="route-stop-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' : '');
     const click = (!done && isActive) ? `onclick="prefillFromRoute('${s.customer.replace(/'/g,"\\'")}','${(s.doc_number||'').replace(/'/g,"\\'")}')"` : '';
     const docBadge = s.doc_number ? `<div class="route-stop-doc-badge">📄 ${escHtml(s.doc_number)}</div>` : '';
+    const labelBadge = s.address_label ? `<div class="route-stop-doc-badge" style="color:var(--accent);font-style:normal;font-weight:600;">📍 ${escHtml(s.address_label)}</div>` : '';
     // Nav button — uses stop index to look up data safely (avoids inline JSON quoting issues)
     const navHasAddr = !!(s.lat || s.address_line || s.postcode);
     const navIdx = i;
@@ -4840,6 +4841,7 @@ function buildRouteCardHTML(route, delivCountMap) {
       <div class="route-stop-num">${numInner}</div>
       <div class="route-stop-name-wrap" style="flex:1;min-width:0;overflow:hidden;">
         <div class="route-stop-name">${escHtml(s.customer||'')}</div>
+        ${labelBadge}
         ${docBadge}
       </div>
       ${navBtn}
