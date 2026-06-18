@@ -1908,7 +1908,7 @@ self.addEventListener('fetch', e => {
         <img id="photoPreview" style="display:none;" alt="Delivery photo">
         <button class="photo-retake" id="retakeBtn" style="display:none;" onclick="retakePhoto(event)">Retake</button>
       </div>
-      <input type="file" id="photoInput" accept="image/*" onchange="handlePhoto(event)">
+    <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handlePhoto(event)">
       <p class="field-note" style="margin-top:8px;">Saved as YYYYMMDD_HHMMSS_CustomerName.jpg</p>
     </div>
 
