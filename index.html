@@ -1166,6 +1166,31 @@ self.addEventListener('fetch', e => {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
   }
   .stop-address-label.has-addr { color: var(--success); }
+  .stop-address-label.no-addr {
+    color: #b45309; font-weight: 600;
+    background: #fef3c7; border: 1px solid #fcd34d;
+    border-radius: 6px; padding: 2px 7px;
+    display: inline-flex; align-items: center; gap: 4px;
+    white-space: normal;
+  }
+  .rcaa-inline-btn {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 800;
+    letter-spacing: 0.04em; color: white; background: #b45309;
+    border: none; border-radius: 5px; padding: 2px 7px;
+    cursor: pointer; touch-action: manipulation; flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .rcaa-inline-btn:active { background: #92400e; }
+
+  /* Banner shown at top of stop list when any stops lack an address */
+  .missing-addr-banner {
+    display: flex; align-items: center; gap: 8px;
+    background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px;
+    padding: 9px 12px; margin-bottom: 10px;
+    font-family: 'Barlow', sans-serif; font-size: 0.8rem;
+    color: #92400e; font-weight: 600; line-height: 1.3;
+  }
+  .missing-addr-banner svg { flex-shrink: 0; }
 
   /* ══ OPTIMISE TOAST ══ */
   .optimise-toast {
@@ -1390,6 +1415,36 @@ self.addEventListener('fetch', e => {
     font-size: 0.72rem; color: #f59e0b; display: flex; align-items: center; gap: 4px;
   }
   .am-addr-no-coords svg { width: 11px; height: 11px; flex-shrink: 0; }
+
+  /* ── Route editor quick-add address overlay ── */
+  #rcAddAddrOverlay {
+    display: none; position: fixed; inset: 0; z-index: 620;
+    background: rgba(0,20,50,0.6); backdrop-filter: blur(4px);
+    align-items: flex-end; justify-content: center;
+  }
+  #rcAddAddrOverlay.open { display: flex; }
+  .rcaa-sheet {
+    background: white; border-radius: 20px 20px 0 0; width: 100%; max-width: 560px;
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.2); animation: slideUp 0.25s ease;
+    max-height: 92vh; overflow-y: auto; padding: 20px 20px 36px;
+  }
+  .rcaa-header {
+    display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px;
+  }
+  .rcaa-title {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 1.1rem; color: var(--brand);
+  }
+  .rcaa-close {
+    width: 30px; height: 30px; border: none; background: var(--off-white); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+    touch-action: manipulation;
+  }
+  .rcaa-close svg { width: 14px; height: 14px; stroke: var(--text-muted); }
+  .rcaa-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 20px; }
+  .rcaa-warn {
+    background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px;
+    padding: 9px 12px; margin-bottom: 16px; font-size: 0.78rem; color: #92400e; font-weight: 600;
+  }
 
   /* Address form drawer */
   #amFormOverlay {
@@ -2179,6 +2234,58 @@ self.addEventListener('fetch', e => {
           </button>
         </div>
         <div class="am-addr-list" id="amAddrList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROUTE EDITOR: QUICK-ADD ADDRESS SHEET -->
+  <div id="rcAddAddrOverlay" onclick="handleRcAddAddrOverlayClick(event)">
+    <div class="rcaa-sheet">
+      <div class="rcaa-header">
+        <div class="rcaa-title" id="rcaaTitle">Add Address</div>
+        <button class="rcaa-close" onclick="closeStopAddressForm()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="rcaa-sub" id="rcaaSub">Enter the delivery address details</div>
+      <div class="rcaa-warn">This address will be saved to the Address Manager and applied to this route stop.</div>
+      <div class="am-form-group">
+        <label class="am-form-label">Label <span style="opacity:0.5;font-weight:400">(e.g. Head Office, Warehouse)</span></label>
+        <input type="text" class="am-form-input" id="rcaaFieldLabel" placeholder="Main Entrance" autocomplete="off">
+      </div>
+      <div class="am-form-group">
+        <label class="am-form-label">Address Line</label>
+        <input type="text" class="am-form-input" id="rcaaFieldAddress" placeholder="12 High Street" autocomplete="off">
+      </div>
+      <div class="am-form-row">
+        <div class="am-form-group" style="margin-bottom:0;">
+          <label class="am-form-label">Postcode</label>
+          <input type="text" class="am-form-input" id="rcaaFieldPostcode" placeholder="LN1 1AA" autocomplete="off" style="text-transform:uppercase;">
+        </div>
+        <div class="am-form-group" style="margin-bottom:0;"></div>
+      </div>
+      <button class="am-geocode-btn" onclick="rcAddAddrGeocode()" id="rcaaGeocodeBtn" style="margin-top:14px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z" opacity="0.3"/><path d="M12 8v4l3 3"/></svg>
+        Geocode Address → Get Coordinates
+      </button>
+      <div class="am-geocode-result" id="rcaaGeocodeResult">
+        <strong>✓ COORDINATES FOUND</strong>
+        <span id="rcaaGeocodeResultText"></span>
+      </div>
+      <div class="am-form-row">
+        <div class="am-form-group" style="margin-bottom:0;">
+          <label class="am-form-label">Latitude <span style="opacity:0.5;font-weight:400">(auto or manual)</span></label>
+          <input type="number" class="am-form-input" id="rcaaFieldLat" placeholder="53.2307" step="any" autocomplete="off">
+        </div>
+        <div class="am-form-group" style="margin-bottom:0;">
+          <label class="am-form-label">Longitude</label>
+          <input type="number" class="am-form-input" id="rcaaFieldLng" placeholder="-0.5390" step="any" autocomplete="off">
+        </div>
+      </div>
+      <div class="am-form-err" id="rcaaFormErr"></div>
+      <div class="am-form-actions" style="margin-top:18px;">
+        <button class="am-form-cancel" onclick="closeStopAddressForm()">Cancel</button>
+        <button class="am-form-save" id="rcaaFormSave" onclick="rcAddAddrSave()">Save &amp; Apply to Stop</button>
       </div>
     </div>
   </div>
@@ -5594,7 +5701,15 @@ function renderEditorStops() {
     list.innerHTML = '<div class="route-stops-empty-msg">No stops added yet. Search for customers above.</div>';
     return;
   }
-  list.innerHTML = editorStops.map((s, i) => `
+  const missingCount = editorStops.filter(s => !s.lat).length;
+  const banner = missingCount > 0
+    ? `<div class="missing-addr-banner">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        ${missingCount} stop${missingCount !== 1 ? 's' : ''} missing an address — navigation and auto-optimisation won't work for ${missingCount !== 1 ? 'these stops' : 'this stop'}. Add addresses in the Address Manager.
+      </div>`
+    : '';
+
+  list.innerHTML = banner + editorStops.map((s, i) => `
     <div class="route-stop-drag-item" draggable="true" data-index="${i}"
       ondragstart="onDragStart(event,${i})" ondragover="onDragOver(event,${i})"
       ondrop="onDrop(event,${i})" ondragend="onDragEnd()"
@@ -5608,8 +5723,14 @@ function renderEditorStops() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <div class="stop-address-label ${s.lat ? 'has-addr' : ''}" style="padding-left:0;">${
-          s.lat ? `📍 ${escHtml(s.address_label || 'Address saved')}` : 'No address on file'
+        <div class="stop-address-label ${s.lat ? 'has-addr' : 'no-addr'}" style="padding-left:0;">${
+          s.lat
+            ? `📍 ${escHtml(s.address_label || 'Address saved')}`
+            : `⚠ No address on file &nbsp;<button
+                class="rcaa-inline-btn"
+                onclick="openStopAddressForm(${i})"
+                ontouchstart="event.stopPropagation()"
+                ondragstart="event.stopPropagation()">+ Add address</button>`
         }</div>
         <div class="stop-doc-row" style="padding-left:0;" ontouchstart="event.stopPropagation()" ondragstart="event.stopPropagation()">
           <span class="stop-doc-label">Doc No.</span>
@@ -7128,6 +7249,182 @@ async function amDeleteAddress(id, label) {
 
 function amShowFormErr(msg) {
   const el = document.getElementById('amFormErr');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+// ── ROUTE EDITOR: QUICK-ADD ADDRESS ──────────────────────────────────────────
+// Allows adding a delivery address to a customer directly from a route stop
+// that currently has no address. Saves to Supabase, patches editorStops,
+// updates addressCache, and re-renders the stop list.
+
+let _rcaaStopIndex  = null;   // which stop index we're adding for
+let _rcaaCoords     = null;   // geocode result: { lat, lng }
+
+function openStopAddressForm(stopIndex) {
+  _rcaaStopIndex = stopIndex;
+  _rcaaCoords    = null;
+
+  const stop       = editorStops[stopIndex];
+  const code       = extractCustomerCode(stop.customer || '');
+  const displayName = (stop.customer || '').includes(' - ')
+    ? (stop.customer || '').split(' - ').slice(1).join(' - ').trim()
+    : (stop.customer || '');
+
+  document.getElementById('rcaaTitle').textContent   = `Add Address — ${code}`;
+  document.getElementById('rcaaSub').textContent      = `New delivery address for ${displayName}`;
+  document.getElementById('rcaaFieldLabel').value     = '';
+  document.getElementById('rcaaFieldAddress').value   = '';
+  document.getElementById('rcaaFieldPostcode').value  = '';
+  document.getElementById('rcaaFieldLat').value       = '';
+  document.getElementById('rcaaFieldLng').value       = '';
+  document.getElementById('rcaaGeocodeResult').classList.remove('show');
+  document.getElementById('rcaaFormErr').classList.remove('show');
+  document.getElementById('rcaaFormSave').disabled    = false;
+  document.getElementById('rcaaFormSave').textContent = 'Save & Apply to Stop';
+
+  document.getElementById('rcAddAddrOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('rcaaFieldLabel').focus(), 120);
+}
+
+function closeStopAddressForm() {
+  document.getElementById('rcAddAddrOverlay').classList.remove('open');
+  _rcaaStopIndex = null;
+  _rcaaCoords    = null;
+}
+
+function handleRcAddAddrOverlayClick(e) {
+  if (e.target === document.getElementById('rcAddAddrOverlay')) closeStopAddressForm();
+}
+
+async function rcAddAddrGeocode() {
+  const addressLine = document.getElementById('rcaaFieldAddress').value.trim();
+  const postcode    = document.getElementById('rcaaFieldPostcode').value.trim();
+
+  if (!addressLine && !postcode) {
+    rcaaShowErr('Enter an address line or postcode to geocode');
+    return;
+  }
+
+  const btn = document.getElementById('rcaaGeocodeBtn');
+  btn.textContent = 'Searching…';
+  btn.disabled    = true;
+  document.getElementById('rcaaGeocodeResult').classList.remove('show');
+  document.getElementById('rcaaFormErr').classList.remove('show');
+
+  const headers = { 'Accept': 'application/json', 'User-Agent': 'FMF-POD-App/1.0' };
+
+  try {
+    let found = null;
+
+    if (postcode) {
+      const pcRes  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gb&q=${encodeURIComponent(postcode + ', UK')}`, { headers });
+      const pcData = await pcRes.json();
+      if (pcData && pcData.length > 0) found = pcData[0];
+    }
+
+    if (!found) {
+      const fullQuery = [addressLine, postcode, 'UK'].filter(Boolean).join(', ');
+      const fullRes   = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gb&q=${encodeURIComponent(fullQuery)}`, { headers });
+      const fullData  = await fullRes.json();
+      if (fullData && fullData.length > 0) found = fullData[0];
+    }
+
+    if (!found) {
+      rcaaShowErr('No location found — try a more specific address or enter coordinates manually');
+    } else {
+      _rcaaCoords = { lat: parseFloat(found.lat), lng: parseFloat(found.lon) };
+      document.getElementById('rcaaFieldLat').value = _rcaaCoords.lat.toFixed(6);
+      document.getElementById('rcaaFieldLng').value = _rcaaCoords.lng.toFixed(6);
+      document.getElementById('rcaaGeocodeResultText').textContent = found.display_name;
+      document.getElementById('rcaaGeocodeResult').classList.add('show');
+    }
+  } catch(e) {
+    rcaaShowErr('Geocode failed — check your connection');
+  } finally {
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z" opacity="0.3"/><path d="M12 8v4l3 3"/></svg>Geocode Address → Get Coordinates`;
+    btn.disabled = false;
+  }
+}
+
+async function rcAddAddrSave() {
+  const label    = document.getElementById('rcaaFieldLabel').value.trim();
+  const addrLine = document.getElementById('rcaaFieldAddress').value.trim();
+  const postcode = document.getElementById('rcaaFieldPostcode').value.trim().toUpperCase();
+  const latVal   = document.getElementById('rcaaFieldLat').value.trim();
+  const lngVal   = document.getElementById('rcaaFieldLng').value.trim();
+
+  document.getElementById('rcaaFormErr').classList.remove('show');
+
+  if (!label)                   { rcaaShowErr('Please enter a label for this address'); return; }
+  if (!addrLine && !postcode)   { rcaaShowErr('Please enter an address line or postcode'); return; }
+
+  const lat = latVal !== '' ? parseFloat(latVal) : null;
+  const lng = lngVal !== '' ? parseFloat(lngVal) : null;
+  if (latVal !== '' && isNaN(lat)) { rcaaShowErr('Latitude must be a valid number'); return; }
+  if (lngVal !== '' && isNaN(lng)) { rcaaShowErr('Longitude must be a valid number'); return; }
+
+  if (_rcaaStopIndex === null || !editorStops[_rcaaStopIndex]) {
+    rcaaShowErr('Stop not found — please close and try again'); return;
+  }
+
+  const stop = editorStops[_rcaaStopIndex];
+  const code = extractCustomerCode(stop.customer || '');
+  if (!code) { rcaaShowErr('Could not determine customer code'); return; }
+
+  const btn = document.getElementById('rcaaFormSave');
+  btn.disabled    = true;
+  btn.textContent = 'Saving…';
+
+  const payload = {
+    customer_code: code,
+    label:         label,
+    address_line:  addrLine || null,
+    postcode:      postcode || null,
+    lat:           lat,
+    lng:           lng,
+    geocoded:      (lat !== null && lng !== null)
+  };
+
+  try {
+    // INSERT into Supabase — return the new record so we get its id
+    const res = await sbRequest('/rest/v1/customer_addresses', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body:    JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || 'Save failed');
+    }
+
+    const [newAddr] = await res.json();
+
+    // ── Patch the stop in editorStops ──────────────────────────────────────
+    stop.address_id    = newAddr.id;
+    stop.address_label = label;
+    stop.address_line  = addrLine || null;
+    stop.postcode      = postcode || null;
+    stop.lat           = lat;
+    stop.lng           = lng;
+
+    // ── Update addressCache so the address picker reflects the new entry ───
+    if (!addressCache[code]) addressCache[code] = [];
+    addressCache[code].push(newAddr);
+
+    closeStopAddressForm();
+    renderEditorStops();
+
+  } catch(e) {
+    rcaaShowErr('Save failed — ' + (e.message || 'check your connection'));
+    btn.disabled    = false;
+    btn.textContent = 'Save & Apply to Stop';
+  }
+}
+
+function rcaaShowErr(msg) {
+  const el = document.getElementById('rcaaFormErr');
   el.textContent = msg;
   el.classList.add('show');
 }
