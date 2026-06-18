@@ -1167,30 +1167,30 @@ self.addEventListener('fetch', e => {
   }
   .stop-address-label.has-addr { color: var(--success); }
   .stop-address-label.no-addr {
-    color: #b45309; font-weight: 600;
-    background: #fef3c7; border: 1px solid #fcd34d;
-    border-radius: 6px; padding: 2px 7px;
-    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--text-muted); font-weight: 700;
+    display: inline-flex; align-items: center; gap: 6px;
     white-space: normal;
   }
   .rcaa-inline-btn {
-    font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 800;
-    letter-spacing: 0.04em; color: white; background: #b45309;
-    border: none; border-radius: 5px; padding: 2px 7px;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--brand); background: rgba(0,75,142,0.08);
+    border: 1.5px solid var(--brand); border-radius: 5px; padding: 1px 7px;
     cursor: pointer; touch-action: manipulation; flex-shrink: 0;
     transition: background 0.15s;
   }
-  .rcaa-inline-btn:active { background: #92400e; }
+  .rcaa-inline-btn:active { background: rgba(0,75,142,0.18); }
 
+  /* Banner shown at top of stop list when any stops lack an address */
   /* Banner shown at top of stop list when any stops lack an address */
   .missing-addr-banner {
     display: flex; align-items: center; gap: 8px;
-    background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px;
-    padding: 9px 12px; margin-bottom: 10px;
-    font-family: 'Barlow', sans-serif; font-size: 0.8rem;
-    color: #92400e; font-weight: 600; line-height: 1.3;
+    background: var(--off-white); border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 8px 10px; margin-bottom: 6px;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 0.02em; color: var(--text-muted); line-height: 1.4;
   }
-  .missing-addr-banner svg { flex-shrink: 0; }
+  .missing-addr-banner svg { flex-shrink: 0; stroke: var(--text-muted); }
 
   /* ══ OPTIMISE TOAST ══ */
   .optimise-toast {
@@ -5704,8 +5704,8 @@ function renderEditorStops() {
   const missingCount = editorStops.filter(s => !s.lat).length;
   const banner = missingCount > 0
     ? `<div class="missing-addr-banner">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        ${missingCount} stop${missingCount !== 1 ? 's' : ''} missing an address — navigation and auto-optimisation won't work for ${missingCount !== 1 ? 'these stops' : 'this stop'}. Add addresses in the Address Manager.
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        ${missingCount} stop${missingCount !== 1 ? 's' : ''} missing an address — navigation and auto-optimisation won't work for ${missingCount !== 1 ? 'these stops' : 'this stop'}.
       </div>`
     : '';
 
@@ -7351,13 +7351,48 @@ async function rcAddAddrSave() {
   const label    = document.getElementById('rcaaFieldLabel').value.trim();
   const addrLine = document.getElementById('rcaaFieldAddress').value.trim();
   const postcode = document.getElementById('rcaaFieldPostcode').value.trim().toUpperCase();
-  const latVal   = document.getElementById('rcaaFieldLat').value.trim();
-  const lngVal   = document.getElementById('rcaaFieldLng').value.trim();
+  let   latVal   = document.getElementById('rcaaFieldLat').value.trim();
+  let   lngVal   = document.getElementById('rcaaFieldLng').value.trim();
 
   document.getElementById('rcaaFormErr').classList.remove('show');
 
   if (!label)                   { rcaaShowErr('Please enter a label for this address'); return; }
   if (!addrLine && !postcode)   { rcaaShowErr('Please enter an address line or postcode'); return; }
+
+  // ── Auto-geocode if coords are missing but address/postcode is present ────
+  if (!latVal && !lngVal && (addrLine || postcode)) {
+    const btn = document.getElementById('rcaaFormSave');
+    btn.disabled    = true;
+    btn.textContent = 'Geocoding…';
+
+    const headers = { 'Accept': 'application/json', 'User-Agent': 'FMF-POD-App/1.0' };
+    try {
+      let found = null;
+      if (postcode) {
+        const pcRes  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gb&q=${encodeURIComponent(postcode + ', UK')}`, { headers });
+        const pcData = await pcRes.json();
+        if (pcData && pcData.length > 0) found = pcData[0];
+      }
+      if (!found) {
+        const fullQuery = [addrLine, postcode, 'UK'].filter(Boolean).join(', ');
+        const fullRes   = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gb&q=${encodeURIComponent(fullQuery)}`, { headers });
+        const fullData  = await fullRes.json();
+        if (fullData && fullData.length > 0) found = fullData[0];
+      }
+      if (found) {
+        latVal = parseFloat(found.lat).toFixed(6);
+        lngVal = parseFloat(found.lon).toFixed(6);
+        document.getElementById('rcaaFieldLat').value = latVal;
+        document.getElementById('rcaaFieldLng').value = lngVal;
+        document.getElementById('rcaaGeocodeResultText').textContent = found.display_name;
+        document.getElementById('rcaaGeocodeResult').classList.add('show');
+      }
+      // If geocode finds nothing, we continue and save without coords — not a blocker
+    } catch(e) {
+      // Geocode failed — continue without coords rather than blocking the save
+    }
+    btn.textContent = 'Saving…';
+  }
 
   const lat = latVal !== '' ? parseFloat(latVal) : null;
   const lng = lngVal !== '' ? parseFloat(lngVal) : null;
