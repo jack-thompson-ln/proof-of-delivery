@@ -6842,6 +6842,8 @@ async function amRunSearch() {
         <div class="am-customer-addr-count">${addrLabel}</div>
       </div>`;
     }).join('');
+    // Dismiss the keyboard so it doesn't intercept taps on the result rows
+    document.getElementById('amSearch').blur();
   } catch(e) {
     resultsEl.innerHTML = `<div class="am-empty" style="color:var(--error);">Search error — check connection</div>`;
   }
