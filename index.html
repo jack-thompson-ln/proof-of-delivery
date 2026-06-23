@@ -3567,7 +3567,7 @@ function setUploadStep(n) {
 // ── SUPABASE ──────────────────────────────────────────────
 async function sbRequest(path, options = {}) {
   // 15-second timeout so weak-signal hangs fail fast and fall back to cache
-  // Photo uploads are exempt (they pass signal via options and manage their own timeout)
+  // Photo uploads pass their own signal (45s) via options and override this
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
@@ -3581,11 +3581,28 @@ async function sbRequest(path, options = {}) {
   }
 }
 async function uploadPhoto(filename, file) {
-  const res = await sbRequest(`/storage/v1/object/${encodeURIComponent(config.bucket)}/${encodeURIComponent(filename)}`, {
-    method: 'POST', headers: { 'Content-Type': file.type || 'image/jpeg', 'x-upsert': 'true' }, body: file
+  // Photo uploads get 45s — a 4MB photo on weak signal needs the headroom
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 45000);
+  try {
+    const res = await sbRequest(`/storage/v1/object/${encodeURIComponent(config.bucket)}/${encodeURIComponent(filename)}`, {
+      method: 'POST', headers: { 'Content-Type': file.type || 'image/jpeg', 'x-upsert': 'true' }, body: file,
+      signal: controller.signal
+    });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `Photo upload failed (${res.status})`); }
+    return `${config.url}/storage/v1/object/public/${config.bucket}/${encodeURIComponent(filename)}`;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+// ── Helper: convert a File/Blob to base64 string ──────────
+function _photoToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = e => resolve(e.target.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
-  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `Photo upload failed (${res.status})`); }
-  return `${config.url}/storage/v1/object/public/${config.bucket}/${encodeURIComponent(filename)}`;
 }
 async function insertRecord(record) {
   const res = await sbRequest(`/rest/v1/${config.table}`, {
@@ -3882,12 +3899,7 @@ async function submitDelivery() {
       // ── OFFLINE: store to IndexedDB ──
       setUploadStep(2);
       // Convert photo to base64 for storage
-      const photoBase64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload  = e => resolve(e.target.result.split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(photoFile);
-      });
+      const photoBase64 = await _photoToBase64(photoFile);
       await queueRecord({ photoBase64, photoMime: photoFile.type || 'image/jpeg', photoFilename: filename, record });
       await updateSyncBar();
       setUploadStep(4);
@@ -3901,7 +3913,26 @@ async function submitDelivery() {
     } else {
       // ── ONLINE: upload immediately ──
       setUploadStep(2);
-      const photoUrl = await uploadPhoto(filename, photoFile);
+      let photoUrl;
+      try {
+        photoUrl = await uploadPhoto(filename, photoFile);
+      } catch(uploadErr) {
+        // Upload failed (timeout or network drop mid-transfer).
+        // navigator.onLine was true but signal couldn't sustain the upload.
+        // Queue locally and show the offline success screen — driver is unblocked.
+        diagLog('submit_offline', `Upload failed (weak signal), queuing: ${uploadErr.message} | ${filename}`);
+        const photoBase64 = await _photoToBase64(photoFile);
+        await queueRecord({ photoBase64, photoMime: photoFile.type || 'image/jpeg', photoFilename: filename, record });
+        await updateSyncBar();
+        setUploadStep(4);
+        await new Promise(r => setTimeout(r, 350));
+        document.getElementById('statusLoading').classList.remove('show');
+        document.getElementById('formSection').style.display = 'none';
+        const ss = document.getElementById('successScreen');
+        ss.classList.add('show');
+        document.getElementById('successRef').textContent = `📶 Poor signal — saved locally, will sync automatically`;
+        return;
+      }
       record.photo_url = photoUrl;
       setUploadStep(3);
       _lastInsertedId = await insertRecord(record);
