@@ -1115,7 +1115,43 @@ self.addEventListener('fetch', e => {
     .route-editor-save:hover     { background: rgba(255,255,255,0.32); }
     .route-editor-optimise:hover { background: rgba(255,255,255,0.9); }
     .route-map-pill:hover:not(.disabled) { background: rgba(255,255,255,0.28); }
+    .docnum-btn-add:hover    { filter: brightness(1.08); }
+    .docnum-btn-skip:hover   { border-color: var(--brand); color: var(--brand); }
+    .docnum-btn-cancel:hover { color: var(--error); }
   }
+  /* ══ DOC NUMBER MODAL ══ */
+  #docNumberOverlay {
+    display: none; position: fixed; inset: 0; z-index: 630;
+    background: rgba(0,20,50,0.65); backdrop-filter: blur(6px);
+    align-items: flex-end; justify-content: center; padding: 0;
+  }
+  #docNumberOverlay.open { display: flex; }
+  .docnum-sheet {
+    background: white; border-radius: 20px 20px 0 0; width: 100%; max-width: 560px;
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.25);
+    animation: slideUp 0.25s ease;
+    padding: 0 0 32px;
+  }
+  .docnum-bar { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 16px; }
+  .docnum-header { padding: 0 20px 14px; border-bottom: 1.5px solid var(--border); }
+  .docnum-eyebrow { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; }
+  .docnum-customer { font-family: 'Barlow Condensed', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--brand); line-height: 1.2; }
+  .docnum-code { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+  .docnum-addr-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 600; color: var(--success); background: rgba(0,184,107,0.08); border: 1px solid rgba(0,184,107,0.25); border-radius: 6px; padding: 4px 9px; margin: 14px 20px 0; }
+  .docnum-body { padding: 18px 20px 0; }
+  .docnum-field-label { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; display: block; }
+  .docnum-input { width: 100%; box-sizing: border-box; font-family: 'Barlow', sans-serif; font-size: 1rem; font-weight: 500; padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--off-white); color: var(--text); outline: none; transition: border-color 0.2s; }
+  .docnum-input:focus { border-color: var(--brand); background: white; }
+  .docnum-hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 7px; }
+  .docnum-actions { padding: 18px 20px 0; display: flex; flex-direction: column; gap: 10px; }
+  .docnum-btn-add { width: 100%; padding: 13px; border-radius: 10px; border: none; background: var(--brand); color: white; font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 800; letter-spacing: 0.03em; cursor: pointer; transition: filter 0.15s; }
+  .docnum-btn-add:active { filter: brightness(0.92); }
+  .docnum-btn-row { display: flex; gap: 10px; }
+  .docnum-btn-skip { flex: 1; padding: 11px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--off-white); color: var(--text); font-family: 'Barlow', sans-serif; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: border-color 0.15s; }
+  .docnum-btn-skip:active { border-color: var(--brand); }
+  .docnum-btn-cancel { flex: 1; padding: 11px; border-radius: 10px; border: 1.5px solid transparent; background: transparent; color: var(--text-muted); font-family: 'Barlow', sans-serif; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+  .docnum-btn-cancel:active { color: var(--error); }
+
   /* ══ ADDRESS PICKER OVERLAY ══ */
   #addressPickerOverlay {
     display: none; position: fixed; inset: 0; z-index: 410;
@@ -2244,6 +2280,37 @@ self.addEventListener('fetch', e => {
           </button>
         </div>
         <div class="am-addr-list" id="amAddrList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOC NUMBER MODAL -->
+  <div id="docNumberOverlay" onclick="handleDocNumOverlayClick(event)">
+    <div class="docnum-sheet">
+      <div class="docnum-bar"></div>
+      <div class="docnum-header">
+        <div class="docnum-eyebrow">Adding stop</div>
+        <div class="docnum-customer" id="docNumCustomerName"></div>
+        <div class="docnum-code" id="docNumCustomerCode"></div>
+      </div>
+      <div class="docnum-addr-badge" id="docNumAddrBadge" style="display:none;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span id="docNumAddrText"></span>
+      </div>
+      <div class="docnum-body">
+        <label class="docnum-field-label" for="docNumInput">Document number</label>
+        <input class="docnum-input" id="docNumInput" type="text" inputmode="text"
+          placeholder="e.g. INV-001234 or 00123456"
+          autocomplete="off" autocorrect="off" spellcheck="false"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();confirmDocNumber();}">
+        <div class="docnum-hint">Leave blank if not required</div>
+      </div>
+      <div class="docnum-actions">
+        <button class="docnum-btn-add" onclick="confirmDocNumber()">Add to route</button>
+        <div class="docnum-btn-row">
+          <button class="docnum-btn-skip" onclick="skipDocNumber()">Skip doc no.</button>
+          <button class="docnum-btn-cancel" onclick="cancelDocNumber()">Cancel</button>
+        </div>
       </div>
     </div>
   </div>
@@ -5817,6 +5884,76 @@ function closeRcOutside(e) {
   else document.addEventListener('click', closeRcOutside, { once: true });
 }
 
+// ── Doc Number Modal state ───────────────────────────────────────────────────
+let _docNumPendingStop = null;   // { customer, addr } — waiting for doc number input
+
+function openDocNumberModal(customerName, addr) {
+  // Build display name (strip code prefix if present)
+  const parts = customerName.includes(' - ') ? customerName.split(' - ') : null;
+  const displayName = parts ? parts.slice(1).join(' - ').trim() : customerName;
+  const code        = parts ? parts[0].trim() : null;
+
+  document.getElementById('docNumCustomerName').textContent = displayName;
+  document.getElementById('docNumCustomerCode').textContent = code || '';
+  document.getElementById('docNumCustomerCode').style.display = code ? '' : 'none';
+
+  // Address badge — show if an address was selected
+  const badge    = document.getElementById('docNumAddrBadge');
+  const badgeTxt = document.getElementById('docNumAddrText');
+  if (addr && (addr.label || addr.postcode)) {
+    badgeTxt.textContent = [addr.label, addr.postcode].filter(Boolean).join(', ');
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+
+  // Clear previous input
+  document.getElementById('docNumInput').value = '';
+
+  _docNumPendingStop = { customer: customerName, addr };
+  document.getElementById('docNumberOverlay').classList.add('open');
+  // Focus the input after animation
+  setTimeout(() => document.getElementById('docNumInput').focus(), 280);
+}
+
+function closeDocNumberModal() {
+  document.getElementById('docNumberOverlay').classList.remove('open');
+  _docNumPendingStop = null;
+}
+
+function handleDocNumOverlayClick(e) {
+  if (e.target === document.getElementById('docNumberOverlay')) cancelDocNumber();
+}
+
+function _commitStop(docNumber) {
+  if (!_docNumPendingStop) return;
+  const { customer, addr } = _docNumPendingStop;
+  const stop = { customer };
+  if (addr) {
+    stop.address_id    = addr.id    || null;
+    stop.lat           = addr.lat   || null;
+    stop.lng           = addr.lng   || null;
+    stop.address_label = addr.label || addr.postcode || null;
+  }
+  if (docNumber) stop.doc_number = docNumber;
+  editorStops.push(stop);
+  closeDocNumberModal();
+  renderEditorStops();
+}
+
+function confirmDocNumber() {
+  const val = document.getElementById('docNumInput').value.trim();
+  _commitStop(val || null);
+}
+
+function skipDocNumber() {
+  _commitStop(null);
+}
+
+function cancelDocNumber() {
+  closeDocNumberModal();
+}
+
 async function addStop(name) {
   document.getElementById('rcSearch').value = '';
   document.getElementById('rcDropdown').classList.remove('open');
@@ -5824,17 +5961,8 @@ async function addStop(name) {
   // Fetch addresses for this customer from customer_addresses table
   const addresses = await getAddressesForCustomer(name);
 
-  const doAdd = (addr) => {
-    const stop = { customer: name };
-    if (addr) {
-      stop.address_id    = addr.id    || null;
-      stop.lat           = addr.lat   || null;
-      stop.lng           = addr.lng   || null;
-      stop.address_label = addr.label || addr.postcode || null;
-    }
-    editorStops.push(stop);
-    renderEditorStops();
-  };
+  // doAdd now opens the doc number modal instead of pushing directly
+  const doAdd = (addr) => openDocNumberModal(name, addr);
 
   // Filter out addresses already used for this customer on this route
   const usedIds = new Set(
@@ -5844,17 +5972,16 @@ async function addStop(name) {
   const availableAddresses = addresses.filter(a => !usedIds.has(a.id || null));
 
   if (addresses.length === 0) {
-    // No addresses on file — add without coords
+    // No addresses on file — go straight to doc number modal
     doAdd(null);
   } else if (availableAddresses.length === 0) {
     // All stored addresses already on the route — nothing new to offer
-    // (fullyBlocked case in dropdown should prevent reaching here, but guard anyway)
     showOptimiseToast('All stored addresses for this customer are already on the route');
   } else if (availableAddresses.length === 1 && addresses.length === 1) {
-    // Exactly one address and it hasn't been used — auto-select silently
+    // Exactly one address — auto-select silently, then doc number modal
     doAdd(availableAddresses[0]);
   } else {
-    // Multiple available addresses (or re-adding with some already used) — show picker
+    // Multiple available addresses — address picker first, then doc number modal
     showAddressPicker(name, availableAddresses, doAdd);
   }
 }
