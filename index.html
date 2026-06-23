@@ -3149,6 +3149,7 @@ function clearCustomer() {
 
 // ── PHOTO ─────────────────────────────────────────────────
 let photoFile = null;
+let _submitting = false; // true while submitDelivery() is in flight — blocks concurrent loadActiveRoute()
 let _photoObjectURL = null; // track preview object URL so we can revoke it
 
 function triggerPhoto() { document.getElementById('photoInput').click(); }
@@ -3870,6 +3871,7 @@ async function submitDelivery() {
   document.getElementById('statusLoading').classList.add('show');
   document.getElementById('submitBtn').disabled = true;
   setUploadStep(1);
+  _submitting = true;
 
   try {
     // Step 1: GPS
@@ -3951,6 +3953,8 @@ async function submitDelivery() {
     document.getElementById('statusErrorText').innerHTML = `<strong>Error saving record</strong>${err.message}`;
     document.getElementById('statusError').classList.add('show');
     document.getElementById('submitBtn').disabled = false;
+  } finally {
+    _submitting = false;
   }
 }
 
@@ -4951,6 +4955,7 @@ let lastFetchedDeliveries = [];       // cache of last fetchTodayDeliveries() re
 async function loadActiveRoute() {
   const container = document.getElementById('routeCardsContainer');
   if (!loggedInDriver || !container) return;
+  if (_submitting) return; // do not re-render while a delivery submit is in flight
 
   const ROUTE_CACHE_KEY = `fmf_route_${loggedInDriver}`;
 
