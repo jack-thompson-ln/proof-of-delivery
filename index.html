@@ -1091,7 +1091,7 @@ self.addEventListener('fetch', e => {
   .stop-drag-remove svg { width: 15px; height: 15px; }
   .stop-doc-row { display: flex; align-items: center; gap: 6px; width: 100%; }
   .stop-doc-label { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; white-space: nowrap; flex-shrink: 0; }
-  .stop-doc-input { flex: 1; font-family: 'Barlow', sans-serif; font-size: 0.82rem; font-weight: 500; color: var(--text); border: 1.5px solid var(--border); border-radius: 7px; padding: 5px 9px; background: var(--off-white); outline: none; transition: border-color 0.2s; min-width: 0; }
+  .stop-doc-input { flex: 1; font-family: 'Barlow', sans-serif; font-size: 0.82rem; font-weight: 500; color: var(--text); border: 1.5px solid var(--border); border-radius: 7px; padding: 5px 9px; background: var(--off-white); outline: none; transition: border-color 0.2s; min-width: 0; text-transform: uppercase; }
   .stop-doc-input:focus { border-color: var(--brand); background: white; }
   .stop-doc-input::placeholder { color: var(--text-muted); font-weight: 400; }
   .route-stop-doc-badge { font-size: 0.68rem; color: var(--text-muted); font-style: italic; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1140,7 +1140,7 @@ self.addEventListener('fetch', e => {
   .docnum-addr-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 600; color: var(--success); background: rgba(0,184,107,0.08); border: 1px solid rgba(0,184,107,0.25); border-radius: 6px; padding: 4px 9px; margin: 14px 20px 0; }
   .docnum-body { padding: 18px 20px 0; }
   .docnum-field-label { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; display: block; }
-  .docnum-input { width: 100%; box-sizing: border-box; font-family: 'Barlow', sans-serif; font-size: 1rem; font-weight: 500; padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--off-white); color: var(--text); outline: none; transition: border-color 0.2s; }
+  .docnum-input { width: 100%; box-sizing: border-box; font-family: 'Barlow', sans-serif; font-size: 1rem; font-weight: 500; padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--off-white); color: var(--text); outline: none; transition: border-color 0.2s; text-transform: uppercase; }
   .docnum-input:focus { border-color: var(--brand); background: white; }
   .docnum-hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 7px; }
   .docnum-actions { padding: 18px 20px 0; display: flex; flex-direction: column; gap: 10px; }
@@ -5828,7 +5828,7 @@ function renderEditorStops() {
 function removeStop(i) { editorStops.splice(i, 1); renderEditorStops(); }
 
 function updateStopDocNumber(i, val) {
-  if (editorStops[i]) editorStops[i].doc_number = val.trim() || null;
+  if (editorStops[i]) editorStops[i].doc_number = val.trim().toUpperCase() || null;
 }
 
 // ── Customer search in editor ─────────────────────────────────────────────────
@@ -5942,7 +5942,7 @@ function _commitStop(docNumber) {
 }
 
 function confirmDocNumber() {
-  const val = document.getElementById('docNumInput').value.trim();
+  const val = document.getElementById('docNumInput').value.trim().toUpperCase();
   _commitStop(val || null);
 }
 
