@@ -1561,13 +1561,11 @@ self.addEventListener('fetch', e => {
     display: flex;
     flex-direction: column;
     animation: slideUp 0.3s ease;
-    width: 100vw;
-    position: relative;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-top: -20px;
-    min-height: 100dvh;
+    position: fixed;
+    inset: 0;
+    z-index: 510;
     background: #0f1923;
+    overflow: hidden;
   }
 
   /* ── Wallboard fixed header ── */
@@ -1589,15 +1587,15 @@ self.addEventListener('fetch', e => {
     color: rgba(255,255,255,0.35); letter-spacing: 0.1em; text-transform: uppercase;
   }
   .ov-header-clock {
-    font-family: 'Barlow Condensed', sans-serif; font-size: 1.6rem; font-weight: 800;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 2.2rem; font-weight: 800;
     color: white; letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
   }
   .ov-header-date {
-    font-size: 0.72rem; color: rgba(255,255,255,0.4); font-weight: 500;
+    font-size: 0.88rem; color: rgba(255,255,255,0.4); font-weight: 500;
   }
   .ov-header-spacer { flex: 1; }
   .ov-header-refresh-text {
-    font-size: 0.7rem; color: rgba(255,255,255,0.35); font-weight: 500; text-align: right; line-height: 1.5;
+    font-size: 0.82rem; color: rgba(255,255,255,0.35); font-weight: 500; text-align: right; line-height: 1.5;
   }
   .ov-header-refresh-btn {
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
@@ -1633,14 +1631,14 @@ self.addEventListener('fetch', e => {
   }
   .ov-stat-cell:last-child { border-right: none; }
   .ov-stat-val {
-    font-family: 'Barlow Condensed', sans-serif; font-size: 1.6rem; font-weight: 800;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 800;
     color: white; line-height: 1;
   }
   .ov-stat-val.green { color: #00b86b; }
   .ov-stat-val.amber { color: #f0a500; }
   .ov-stat-val.muted { color: rgba(255,255,255,0.4); }
-  .ov-stat-lbl { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.35); }
-  .ov-stat-sub { font-size: 0.62rem; color: rgba(255,255,255,0.25); }
+  .ov-stat-lbl { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.35); }
+  .ov-stat-sub { font-size: 0.75rem; color: rgba(255,255,255,0.25); }
 
   /* ── Driver grid ── */
   .ov-grid-wrap {
@@ -1657,24 +1655,24 @@ self.addEventListener('fetch', e => {
     display: flex; flex-direction: column;
   }
   .ov-driver-card-header {
-    padding: 10px 12px 8px; display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px 10px; display: flex; align-items: center; gap: 12px;
     border-bottom: 1px solid rgba(255,255,255,0.07);
   }
   .ov-driver-avatar {
-    width: 32px; height: 32px; border-radius: 50%;
+    width: 42px; height: 42px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; font-weight: 800;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 1.3rem; font-weight: 800;
     color: white; flex-shrink: 0;
   }
   .ov-driver-info { flex: 1; min-width: 0; }
   .ov-driver-name {
-    font-family: 'Barlow Condensed', sans-serif; font-size: 0.95rem; font-weight: 800;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; font-weight: 800;
     color: white; line-height: 1.1;
   }
-  .ov-driver-route { font-size: 0.68rem; color: rgba(255,255,255,0.4); font-weight: 500; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ov-driver-route { font-size: 0.85rem; color: rgba(255,255,255,0.4); font-weight: 500; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ov-status-badge {
-    font-family: 'Barlow Condensed', sans-serif; font-size: 0.58rem; font-weight: 800;
-    letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 7px; border-radius: 5px; flex-shrink: 0;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.75rem; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 10px; border-radius: 5px; flex-shrink: 0;
   }
   .ov-status-badge.active    { background: rgba(0,184,107,0.15); color: #00d47e; border: 1px solid rgba(0,184,107,0.3); }
   .ov-status-badge.completed { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.1); }
@@ -1682,31 +1680,31 @@ self.addEventListener('fetch', e => {
   .ov-status-badge.no-route  { background: rgba(240,165,0,0.1); color: #f0a500; border: 1px solid rgba(240,165,0,0.2); }
 
   /* ── Progress bar ── */
-  .ov-card-progress { padding: 8px 12px 6px; }
+  .ov-card-progress { padding: 12px 16px 8px; }
   .ov-progress-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-  .ov-progress-meta-left { font-size: 0.68rem; font-weight: 600; color: rgba(255,255,255,0.35); }
-  .ov-progress-meta-right { font-family: 'Barlow Condensed', sans-serif; font-size: 0.88rem; font-weight: 800; }
-  .ov-progress-track { height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+  .ov-progress-meta-left { font-size: 0.88rem; font-weight: 600; color: rgba(255,255,255,0.35); }
+  .ov-progress-meta-right { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 800; }
+  .ov-progress-track { height: 7px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
   .ov-progress-fill { height: 100%; border-radius: 3px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
 
   /* ── Stop rows ── */
   .ov-card-stops { border-top: 1px solid rgba(255,255,255,0.06); }
   .ov-card-stop-row {
     display: flex; align-items: center; gap: 8px;
-    padding: 5px 12px; font-size: 0.72rem;
+    padding: 7px 16px; font-size: 0.9rem;
     border-bottom: 1px solid rgba(255,255,255,0.04);
   }
   .ov-card-stop-row:last-child { border-bottom: none; }
   .ov-card-stop-row.done { color: rgba(255,255,255,0.3); }
   .ov-card-stop-row.next { color: white; background: rgba(0,75,142,0.25); }
-  .ov-card-stop-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .ov-card-stop-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
   .ov-card-stop-dot.done { background: #00b86b; }
   .ov-card-stop-dot.next { background: #0099ff; }
   .ov-card-stop-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ov-card-stop-time { font-size: 0.65rem; font-weight: 700; color: rgba(255,255,255,0.3); flex-shrink: 0; margin-left: auto; padding-left: 6px; }
+  .ov-card-stop-time { font-size: 0.82rem; font-weight: 700; color: rgba(255,255,255,0.3); flex-shrink: 0; margin-left: auto; padding-left: 6px; }
   .ov-card-stop-row.next .ov-card-stop-time { color: rgba(255,255,255,0.5); }
   .ov-card-next-label {
-    font-family: 'Barlow Condensed', sans-serif; font-size: 0.6rem; font-weight: 800;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.78rem; font-weight: 800;
     letter-spacing: 0.08em; text-transform: uppercase;
     color: #0099ff; flex-shrink: 0;
   }
