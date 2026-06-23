@@ -1646,12 +1646,9 @@ self.addEventListener('fetch', e => {
   .ov-grid-wrap {
     flex: 1; padding: 14px 16px 16px;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    grid-auto-rows: 1fr;
     gap: 10px;
-    align-content: stretch;
   }
-  .ov-driver-card { height: 100%; }
+  .ov-driver-card { min-height: 0; }
 
   /* ── Driver card ── */
   .ov-driver-card {
@@ -6885,11 +6882,12 @@ function ovRenderAll() {
 }
 
 function ovRenderStatStrip() {
-  const allStops = ovAllDriverData.flatMap(d => d.routes.flatMap(r => r.stops));
+  const visible        = ovAllDriverData.filter(ovShouldShowDriver);
+  const allStops       = visible.flatMap(d => d.routes.flatMap(r => r.stops));
   const totalDelivered = allStops.filter(st => st.done).length;
   const totalRemaining = allStops.filter(st => !st.done).length;
-  const activeCount    = ovAllDriverData.filter(d => d.status === 'active').length;
-  const completedCount = ovAllDriverData.filter(d => d.status === 'completed').length;
+  const activeCount    = visible.filter(d => d.status === 'active').length;
+  const completedCount = visible.filter(d => d.status === 'completed').length;
   const totalStops     = totalDelivered + totalRemaining;
   const pct            = totalStops > 0 ? Math.round((totalDelivered / totalStops) * 100) : 0;
   const strip = document.getElementById('ovStatStrip');
@@ -6917,11 +6915,41 @@ function ovRenderStatStrip() {
     </div>`;
 }
 
+function ovShouldShowDriver(driver) {
+  if (driver.routes.length === 0) return false;
+  const activeRoute    = driver.routes.find(r => r.status === 'active');
+  const completedRoute = driver.routes.find(r => r.status === 'completed');
+  if (activeRoute) return true;
+  if (completedRoute) {
+    const completedAt = completedRoute.rawRoute && completedRoute.rawRoute.completed_at;
+    if (!completedAt) return false;
+    const minsAgo = (Date.now() - new Date(completedAt).getTime()) / 60000;
+    return minsAgo <= 30;
+  }
+  return false;
+}
+
 function ovRenderGrid() {
   const grid = document.getElementById('ovDriverGrid');
   if (!grid) return;
   grid.innerHTML = '';
-  ovAllDriverData.forEach((driver, idx) => {
+
+  const visible = ovAllDriverData.filter(ovShouldShowDriver);
+  const n       = visible.length;
+
+  if (n === 0) {
+    grid.style.gridTemplateColumns = '1fr';
+    grid.style.gridTemplateRows   = '1fr';
+    grid.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.25);font-size:0.9rem;font-style:italic;">No active routes</div>';
+    return;
+  }
+
+  const rows = n > 1 ? 2 : 1;
+  const cols = Math.ceil(n / rows);
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  grid.style.gridTemplateRows    = `repeat(${rows}, 1fr)`;
+
+  visible.forEach((driver, idx) => {
     const card = ovBuildCard(driver);
     card.style.animation = `slideUp 0.3s ease ${idx * 0.04}s both`;
     grid.appendChild(card);
