@@ -3618,7 +3618,17 @@ async function fetchRecords() {
   const driverFilter = historyMode === 'driver' && loggedInDriver
     ? `&driver_name=eq.${encodeURIComponent(loggedInDriver)}`
     : '';
-  const res = await sbRequest(`/rest/v1/${config.table}?order=delivery_datetime.desc&limit=500${driverFilter}`, {
+
+  // Push date range into the server query so we never hit the 500-record limit
+  // for the wrong date. new Date('YYYY-MM-DDT00:00:00') (no Z) is parsed as
+  // local time, so toISOString() correctly offsets for BST/GMT automatically.
+  const fromVal = document.getElementById('filterDateFrom').value;
+  const toVal   = document.getElementById('filterDateTo').value;
+  let dateFilter = '';
+  if (fromVal) dateFilter += `&delivery_datetime=gte.${new Date(fromVal + 'T00:00:00').toISOString()}`;
+  if (toVal)   dateFilter += `&delivery_datetime=lte.${new Date(toVal   + 'T23:59:59').toISOString()}`;
+
+  const res = await sbRequest(`/rest/v1/${config.table}?order=delivery_datetime.desc&limit=500${driverFilter}${dateFilter}`, {
     headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': '0-499' }
   });
   if (!res.ok) {
@@ -4056,7 +4066,8 @@ function applyFilters() {
       (r.customer_name||'').toLowerCase().includes(search) ||
       // In driver mode all records already belong to this driver — skip driver name search
       (historyMode === 'admin' && (r.driver_name||'').toLowerCase().includes(search));
-    const recDate    = r.delivery_datetime ? r.delivery_datetime.slice(0,10) : '';
+    // Use local date (en-CA gives YYYY-MM-DD) so BST records aren't shifted to wrong day
+    const recDate    = r.delivery_datetime ? new Date(r.delivery_datetime).toLocaleDateString('en-CA') : '';
     const matchFrom  = !dateFrom || recDate >= dateFrom;
     const matchTo    = !dateTo   || recDate <= dateTo;
     const matchDriver = !activeDriverFilter || (r.driver_name||'') === activeDriverFilter;
@@ -4117,7 +4128,9 @@ function setHistoryPreset(key) {
 function onHistoryDateChange() {
   // Deselect all presets when manual date picked
   setActiveHistoryPreset(null);
-  applyFilters();
+  // Must re-fetch from server (not just re-filter) because date range is now
+  // pushed into the Supabase query to avoid the 500-record truncation issue
+  loadHistory();
 }
 
 // ── MAP VIEW ─────────────────────────────────────────────
