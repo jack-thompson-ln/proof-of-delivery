@@ -2921,7 +2921,7 @@ async function initDriverLogin() {
       allDrivers = await fetchDrivers();
     } catch(e) {
       console.warn('Could not load drivers from network:', e.message);
-      diagLog('drivers_error', `Network load failed: ${e.message}`, 'warn');
+      diagLog('drivers_error', `Network load failed: ${classifyFetchError(e)}`, 'warn');
     }
   }
 
@@ -2996,6 +2996,7 @@ function checkLoginPin() {
 }
 
 function showAppAsDriver(name) {
+  window._currentScreen = 'delivery_form';
   document.getElementById('driverLoginScreen').classList.add('hidden');
   document.getElementById('driverWelcomeName').textContent = name;
   // Header driver chip (shown on tablet/desktop)
@@ -3065,7 +3066,7 @@ async function initCustomers() {
       allCustomers = await fetchCustomers();
       diagLog('customers_fetch', `Refreshed ${allCustomers.length} customers from network`);
     } catch(e) {
-      diagLog('customers_error', `Network refresh failed: ${e.message} — using cache`, 'warn');
+      diagLog('customers_error', `Network refresh failed: ${classifyFetchError(e)} — using cache`, 'warn');
       console.warn('Could not refresh customers from network:', e.message);
     }
   }
@@ -3316,6 +3317,11 @@ function retakePhoto(e) {
 // Local log is always available even offline. Supabase log shows all drivers.
 // Never throws — logging must never break the app.
 
+// One short random ID generated fresh on every script execution (page load/reload).
+// Lets admin see in the log whether entries came from the same continuous session
+// or whether the page silently reloaded (e.g. Android backgrounding a low-RAM tab).
+const _sessionId = Math.random().toString(36).slice(2, 8);
+
 const DIAG_QUEUE_KEY = 'fmf_diag_queue'; // entries waiting to upload to Supabase
 const DIAG_LOCAL_KEY = 'fmf_diag_local'; // local readable log (always available)
 const DIAG_MAX_QUEUE = 200;
@@ -3329,6 +3335,7 @@ function diagLog(type, detail, severity = 'info') {
       driver_name: loggedInDriver || '(no driver)',
       type:        String(type),
       severity:    String(severity), // info | warn | error — lets admin filter signal from noise
+      session_id:  _sessionId,       // groups entries from the same page load — repeats across loads expose silent reloads
       detail:      String(detail).slice(0, 500),
       screen:      (window._currentScreen || 'unknown'),
       online:      navigator.onLine,
@@ -3436,6 +3443,7 @@ async function renderDiagLog() {
   severity    text,
   screen      text,
   online      boolean,
+  session_id  text,
   detail      text,
   user_agent  text
 );
@@ -3446,7 +3454,8 @@ CREATE POLICY "anon select" ON app_logs FOR SELECT TO anon USING (true);
 -- If app_logs already exists, run this instead to add the new columns:
 -- ALTER TABLE app_logs ADD COLUMN IF NOT EXISTS severity text;
 -- ALTER TABLE app_logs ADD COLUMN IF NOT EXISTS screen text;
--- ALTER TABLE app_logs ADD COLUMN IF NOT EXISTS online boolean;</code></div>`;
+-- ALTER TABLE app_logs ADD COLUMN IF NOT EXISTS online boolean;
+-- ALTER TABLE app_logs ADD COLUMN IF NOT EXISTS session_id text;</code></div>`;
       return;
     }
 
@@ -3523,12 +3532,13 @@ function _renderDiagRows(el, logs, pendingCount, isLocal, prepend = '') {
     const isError = severity === 'error' || (e.type && (e.type.includes('error') || e.type.includes('Error') || e.type.includes('failed')));
     const screenTag = e.screen ? `<span style="color:var(--text-muted);font-size:0.65rem;font-weight:600;">${escHtml(e.screen)}</span>` : '';
     const offlineTag = (e.online === false) ? `<span style="color:#f0a500;font-size:0.65rem;font-weight:700;">OFFLINE</span>` : '';
+    const sessionTag = e.session_id ? `<span title="Page-load session — same value means same continuous session, different values mean the page reloaded" style="color:#b8c4d4;font-size:0.65rem;font-family:monospace;">#${escHtml(e.session_id)}</span>` : '';
     return `<div style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:0.75rem;line-height:1.5;${isError ? 'background:rgba(224,60,60,0.03);' : ''}">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap;">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0;"></span>
         <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;color:${colour};letter-spacing:0.04em;text-transform:uppercase;font-size:0.7rem;">${escHtml(e.type||'')}</span>
         <span style="color:var(--text-muted);font-weight:600;font-size:0.7rem;">${escHtml(e.driver_name||'')}</span>
-        ${screenTag} ${offlineTag}
+        ${screenTag} ${offlineTag} ${sessionTag}
         <span style="color:var(--text-muted);margin-left:auto;white-space:nowrap;font-size:0.68rem;">${time}</span>
       </div>
       <div style="color:var(--text);padding-left:14px;word-break:break-word;">${escHtml(e.detail||'')}</div>
@@ -3613,6 +3623,23 @@ function setUploadStep(n) {
 }
 
 // ── SUPABASE ──────────────────────────────────────────────
+// ── Classify a network error into something an admin can act on ──
+// Raw fetch() rejections are all just "TypeError: Failed to fetch" or
+// "AbortError" — neither tells you WHY. This adds the missing context.
+function classifyFetchError(e) {
+  const online = navigator.onLine;
+  if (e && e.name === 'AbortError') {
+    return `Request timed out (no response within the timeout window)${online ? '' : ' — device was offline'}`;
+  }
+  if (!online) {
+    return `Device offline at time of request (${e && e.message ? e.message : 'no connection'})`;
+  }
+  if (e && e.name === 'TypeError' && /fetch/i.test(e.message || '')) {
+    return `Connection dropped mid-request — signal present but request could not complete (${e.message})`;
+  }
+  return (e && e.message) ? e.message : 'Unknown network error';
+}
+
 async function sbRequest(path, options = {}) {
   // 15-second timeout so weak-signal hangs fail fast and fall back to cache
   // Photo uploads pass their own signal (45s) via options and override this
@@ -3864,7 +3891,7 @@ async function syncQueue() {
       synced++;
       diagLog('sync_item_ok', `Synced: ${record.customer_name} / ${photoFilename}`);
     } catch(e) {
-      diagLog('sync_item_error', `Failed item ${item.id}: ${e.message}`, 'error');
+      diagLog('sync_item_error', `Failed item ${item.id}: ${classifyFetchError(e)}`, 'error');
       console.warn('Sync failed for item', item.id, e.message);
       break; // Stop on first failure — avoid hammering a flaky connection
     }
@@ -4098,7 +4125,7 @@ async function loadHistory() {
     buildDriverChips();
     applyFilters();
   } catch(err) {
-    diagLog('history_load_failed', err.message, 'error');
+    diagLog('history_load_failed', classifyFetchError(err), 'error');
     list.innerHTML = `<div class="history-empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <p>Error loading records:<br><span style="font-size:0.8rem">${err.message}</span></p></div>`;
@@ -4517,7 +4544,7 @@ async function regeocodeDetail(recordId, lat, lng) {
     btn.textContent = 'Re-geocode';
     btn.disabled = false;
   } catch (e) {
-    diagLog('regeocode_failed', `record ${recordId}: ${e.message}`, 'error');
+    diagLog('regeocode_failed', `record ${recordId}: ${classifyFetchError(e)}`, 'error');
     status.textContent = '✗ Failed — ' + e.message;
     status.style.color = 'var(--error)';
     status.style.display = 'block';
@@ -4624,7 +4651,7 @@ async function loadAnalytics() {
     renderCustomerPieChart(records);
     renderLineChart(records);
   } catch(err) {
-    diagLog('analytics_load_failed', err.message, 'error');
+    diagLog('analytics_load_failed', classifyFetchError(err), 'error');
     document.getElementById('pieChartWrap').innerHTML = `<div class="chart-empty">Error loading data: ${err.message}</div>`;
   }
 }
@@ -5066,7 +5093,7 @@ async function loadActiveRoute() {
     renderAllRouteCards(lastFetchedDeliveries);
     updateRoutePillBadge();
   } catch(e) {
-    diagLog('route_load_error', e.message);
+    diagLog('route_load_error', classifyFetchError(e), 'warn');
     console.warn('loadActiveRoute network error:', e.message);
 
     // Offline fallback — restore from cache
@@ -5317,7 +5344,7 @@ async function startRoute(id) {
     renderAllRouteCards(lastFetchedDeliveries);
     updateRoutePillBadge();
   } catch(e) {
-    diagLog('route_start_failed', `route ${id}: ${e.message}`, 'error');
+    diagLog('route_start_failed', `route ${id}: ${classifyFetchError(e)}`, 'error');
     alert('Could not start route: ' + e.message);
   }
 }
@@ -5335,7 +5362,7 @@ async function finishRoute(id, allDone) {
     renderAllRouteCards(lastFetchedDeliveries);
     updateRoutePillBadge();
   } catch(e) {
-    diagLog('route_finish_failed', `route ${id}: ${e.message}`, 'error');
+    diagLog('route_finish_failed', `route ${id}: ${classifyFetchError(e)}`, 'error');
     alert('Could not finish route: ' + e.message);
   }
 }
@@ -5353,7 +5380,7 @@ async function loadRouteList() {
     allRoutes = await fetchRoutes();
     renderRouteList();
   } catch(e) {
-    diagLog('route_list_load_failed', e.message, 'error');
+    diagLog('route_list_load_failed', classifyFetchError(e), 'error');
     c.innerHTML = `<div class="route-list-empty"><p>Could not load routes.<br><span style="font-size:0.8rem">${escHtml(e.message)}</span></p></div>`;
   }
 }
@@ -5371,7 +5398,7 @@ async function deleteRoute(id) {
     allRoutes = allRoutes.filter(r => r.id !== id);
     renderRouteList();
   } catch(e) {
-    diagLog('route_delete_failed', `route ${id}: ${e.message}`, 'error');
+    diagLog('route_delete_failed', `route ${id}: ${classifyFetchError(e)}`, 'error');
     if (row) row.style.opacity = '1';
     alert('Could not delete route: ' + e.message);
   }
@@ -5914,7 +5941,7 @@ async function _persistRoute(doOptimise) {
           const routeIdx = allRoutes.findIndex(r => r.id === saved.id);
           if (routeIdx >= 0) allRoutes[routeIdx] = patched;
         } catch(e) {
-          diagLog('route_optimise_save_failed', `route ${saved.id}: ${e.message}`, 'warn');
+          diagLog('route_optimise_save_failed', `route ${saved.id}: ${classifyFetchError(e)}`, 'warn');
           console.warn('Could not save optimised route order:', e.message);
         }
       }
@@ -5935,7 +5962,7 @@ async function _persistRoute(doOptimise) {
     await loadActiveRoute();
 
   } catch(e) {
-    diagLog('route_save_failed', e.message, 'error');
+    diagLog('route_save_failed', classifyFetchError(e), 'error');
     alert('Could not save route: ' + e.message);
   } finally {
     activeBtn.innerHTML = origHTML;
@@ -6295,7 +6322,7 @@ async function sendPOD() {
 
   } catch(e) {
     if (e.name !== 'AbortError') {
-      diagLog('pod_generate_failed', `record ${r.id || '?'}: ${e.message}`, 'error');
+      diagLog('pod_generate_failed', `record ${r.id || '?'}: ${classifyFetchError(e)}`, 'error');
       console.error('POD error:', e);
       alert('Could not generate POD: ' + e.message);
     }
@@ -6994,7 +7021,7 @@ async function ovLoad() {
     }, 60000);
 
   } catch(e) {
-    diagLog('overview_load_failed', e.message, 'error');
+    diagLog('overview_load_failed', classifyFetchError(e), 'error');
     console.error('Overview load error:', e);
     document.getElementById('ovRefreshText').textContent = `Error: ${e.message || 'check connection'}. Tap Refresh.`;
   } finally {
@@ -7517,7 +7544,7 @@ async function amSaveAddress() {
     await amLoadAddresses(); // Refresh the list
 
   } catch(e) {
-    diagLog('address_save_failed', `customer ${code}: ${e.message}`, 'error');
+    diagLog('address_save_failed', `customer ${code}: ${classifyFetchError(e)}`, 'error');
     amShowFormErr('Save failed — ' + (e.message || 'check your connection'));
     btn.disabled = false;
     btn.textContent = 'Save Address';
@@ -7540,7 +7567,7 @@ async function amDeleteAddress(id, label) {
     if (!res.ok) throw new Error('Delete failed');
     await amLoadAddresses();
   } catch(e) {
-    diagLog('address_delete_failed', `address ${id}: ${e.message}`, 'error');
+    diagLog('address_delete_failed', `address ${id}: ${classifyFetchError(e)}`, 'error');
     if (card) { card.style.opacity = ''; card.style.pointerEvents = ''; }
     alert('Delete failed — check your connection');
   }
@@ -7753,7 +7780,7 @@ async function rcAddAddrSave() {
     renderEditorStops();
 
   } catch(e) {
-    diagLog('quickadd_address_save_failed', `customer ${code}: ${e.message}`, 'error');
+    diagLog('quickadd_address_save_failed', `customer ${code}: ${classifyFetchError(e)}`, 'error');
     rcaaShowErr('Save failed — ' + (e.message || 'check your connection'));
     btn.disabled    = false;
     btn.textContent = 'Save & Apply to Stop';
