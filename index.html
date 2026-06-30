@@ -3050,7 +3050,11 @@ async function fetchCustomers() {
   return names;
 }
 
+let _loadingCustomers = false; // same concurrency guard as loadActiveRoute
+
 async function initCustomers() {
+  if (_loadingCustomers) return;
+  _loadingCustomers = true;
   // Always try to serve from cache immediately (works offline)
   try {
     const cached = localStorage.getItem(CUSTOMER_CACHE_KEY);
@@ -3070,6 +3074,7 @@ async function initCustomers() {
       console.warn('Could not refresh customers from network:', e.message);
     }
   }
+  _loadingCustomers = false;
 }
 
 function onCustomerSearch() {
@@ -5063,10 +5068,14 @@ let todayRoutes        = [];       // all routes fetched for today
 let collapsedRoutes    = new Set(); // IDs of collapsed cards
 let lastFetchedDeliveries = [];       // cache of last fetchTodayDeliveries() result (full objects)
 
+let _loadingRoute = false; // in-flight guard — prevents online + visibilitychange firing concurrently
+
 async function loadActiveRoute() {
   const container = document.getElementById('routeCardsContainer');
   if (!loggedInDriver || !container) return;
   if (_submitting) return; // do not re-render while a delivery submit is in flight
+  if (_loadingRoute) return; // a load is already in flight from another trigger — don't double the request
+  _loadingRoute = true;
 
   const ROUTE_CACHE_KEY = `fmf_route_${loggedInDriver}`;
 
@@ -5119,6 +5128,8 @@ async function loadActiveRoute() {
     } catch(_) {}
     // Nothing cached — show nothing (don't show error, just empty)
     document.getElementById('routeCardsContainer').innerHTML = '';
+  } finally {
+    _loadingRoute = false;
   }
 }
 
