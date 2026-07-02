@@ -1803,6 +1803,7 @@ self.addEventListener('fetch', e => {
       </button>
     </div>
   </div>
+  <div id="loginQueueBanner" style="display:none;max-width:340px;width:100%;margin:0 0 14px;padding:10px 14px;border-radius:10px;font-size:0.78rem;line-height:1.5;text-align:left;"></div>
   <div class="login-box">
     <div id="loginStep1">
       <div class="login-step-label">Select your name</div>
@@ -2007,6 +2008,10 @@ self.addEventListener('fetch', e => {
           <option value="pod_generate_failed">POD generation failed</option>
           <option value="overview_load_failed">Overview load failed</option>
           <option value="regeocode_failed">Re-geocode failed</option>
+          <option value="route_load_error_suppressed">Stale route fetch suppressed</option>
+          <option value="session_restore_error">Session restore error</option>
+          <option value="submit_recorded">Delivery recorded locally</option>
+          <option value="sync_quick_deferred">Quick sync deferred</option>
         </select>
       </div>
       <div id="diagLogBody" style="border:1.5px solid var(--border);border-radius:10px;max-height:340px;overflow-y:auto;background:var(--off-white);">
@@ -2897,8 +2902,14 @@ async function fetchDrivers() {
 }
 
 async function initDriverLogin() {
-  // Check localStorage for remembered driver session
-  const saved = localStorage.getItem('fmf_driver');
+  // Check localStorage for remembered driver session.
+  // Wrapped defensively — some browsers' private/locked-down storage modes
+  // throw on access instead of just returning null; treat that the same as
+  // "no saved session" rather than letting it break the rest of init.
+  let saved = null;
+  try { saved = localStorage.getItem('fmf_driver'); } catch(e) {
+    diagLog('session_restore_error', `localStorage read failed: ${e.message}`, 'warn');
+  }
   if (saved) {
     loggedInDriver = saved;
     // Restore driver list from cache so PIN check works offline
@@ -3645,11 +3656,12 @@ function classifyFetchError(e) {
   return (e && e.message) ? e.message : 'Unknown network error';
 }
 
-async function sbRequest(path, options = {}) {
-  // 15-second timeout so weak-signal hangs fail fast and fall back to cache
-  // Photo uploads pass their own signal (45s) via options and override this
+async function sbRequest(path, options = {}, timeoutMs = 15000) {
+  // Configurable timeout so weak-signal hangs fail fast and fall back to cache.
+  // Default (15s) preserved for all existing call sites; quick-sync paths pass a shorter value.
+  // Photo uploads pass their own signal (see uploadPhoto) via options and override this
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(`${config.url}${path}`, {
       ...options,
@@ -3660,10 +3672,12 @@ async function sbRequest(path, options = {}) {
     clearTimeout(timer);
   }
 }
-async function uploadPhoto(filename, file) {
-  // Photo uploads get 45s — a 4MB photo on weak signal needs the headroom
+async function uploadPhoto(filename, file, timeoutMs = 45000) {
+  // Default 45s preserved for the catch-up sync loop (large photo, don't give up too eagerly).
+  // The opportunistic quick-sync attempt right after submission passes a much shorter value
+  // so a dead connection fails fast instead of making the driver's screen sit mid-upload.
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 45000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await sbRequest(`/storage/v1/object/${encodeURIComponent(config.bucket)}/${encodeURIComponent(filename)}`, {
       method: 'POST', headers: { 'Content-Type': file.type || 'image/jpeg', 'x-upsert': 'true' }, body: file,
@@ -3684,10 +3698,10 @@ function _photoToBase64(file) {
     reader.readAsDataURL(file);
   });
 }
-async function insertRecord(record) {
+async function insertRecord(record, timeoutMs) {
   const res = await sbRequest(`/rest/v1/${config.table}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' }, body: JSON.stringify(record)
-  });
+  }, timeoutMs || 15000);
   if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || `Database insert failed (${res.status})`); }
   const rows = await res.json().catch(() => []);
   return rows[0]?.id || null;
@@ -3744,9 +3758,6 @@ function prewarmGPS() {
 }
 function resetPrewarm() { _prewarmPos = null; _prewarmErr = null; _prewarmDone = false; }
 
-// Track last inserted record id so background geocode can patch it
-let _lastInsertedId = null;
-
 function getLocation() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) { resolve({ lat: null, lng: null, address: 'Geolocation not supported' }); return; }
@@ -3754,23 +3765,21 @@ function getLocation() {
     function resolveFromPos(pos) {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      // Resolve immediately with raw coords — geocode runs in background
-      resolve({ lat, lng, address: `${lat.toFixed(5)}, ${lng.toFixed(5)}` });
-      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+      // Reverse geocode is a single in-flight request — resolveFromPos hands
+      // back the promise so the caller can decide how long to wait for it
+      // (submitDelivery races it against a short timeout) while this still
+      // updates the on-screen address whenever it eventually resolves.
+      const geocodePromise = fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
         .then(r => r.json())
         .then(d => {
           if (d && d.display_name) {
             document.getElementById('locationText').textContent = d.display_name;
-            if (_lastInsertedId) {
-              sbRequest(`/rest/v1/${config.table}?id=eq.${_lastInsertedId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-                body: JSON.stringify({ address: d.display_name })
-              }).catch(() => {});
-              _lastInsertedId = null;
-            }
+            return d.display_name;
           }
-        }).catch(() => {});
+          return null;
+        }).catch(() => null);
+      // Resolve immediately with raw coords — geocode continues in background
+      resolve({ lat, lng, address: `${lat.toFixed(5)}, ${lng.toFixed(5)}`, geocodePromise });
     }
 
     // Use pre-warmed position if available (happy path — zero wait)
@@ -3831,6 +3840,16 @@ async function getQueuedRecords() {
   });
 }
 
+async function getQueuedRecord(id) {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx  = database.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
 async function deleteQueuedRecord(id) {
   const database = await openDB();
   return new Promise((resolve, reject) => {
@@ -3841,11 +3860,55 @@ async function deleteQueuedRecord(id) {
   });
 }
 
+// ── LOGIN-SCREEN REASSURANCE BANNER ─────────────────────────
+// Shown on the login screen (visible before/without a driver being logged in)
+// so that if a driver ever lands back here unexpectedly — e.g. after a tab
+// reload interrupted their session — they immediately see whether their
+// last delivery is safe, rather than being left to wonder.
+const SUBMIT_INPROGRESS_KEY = 'fmf_submit_inprogress';
+
+function renderLoginQueueBanner(queued) {
+  const el = document.getElementById('loginQueueBanner');
+  if (!el) return;
+
+  // Check for a delivery that was mid-submission when the app last closed —
+  // set right before the local save, cleared right after it succeeds. If it's
+  // still here, the app didn't get the chance to finish saving last time.
+  let crash = null;
+  try { crash = JSON.parse(localStorage.getItem(SUBMIT_INPROGRESS_KEY) || 'null'); } catch(_) {}
+
+  if (crash) {
+    el.style.display = 'block';
+    el.style.background = 'rgba(224,60,60,0.08)';
+    el.style.border = '1.5px solid rgba(224,60,60,0.3)';
+    el.style.color = '#a02020';
+    el.innerHTML = `⚠️ <strong>${escHtml(crash.driver || 'A delivery')}</strong> for <strong>${escHtml(crash.customer || 'a customer')}</strong> was being submitted when the app last closed unexpectedly. `
+      + (queued.length > 0
+          ? `It looks like it made it into the local queue below — check the count matches what's expected before re-taking it.`
+          : `It does not appear to have been saved locally — please check with the driver and re-submit if needed.`);
+    return;
+  }
+
+  if (queued.length === 0) {
+    el.style.display = 'none';
+    return;
+  }
+
+  const drivers = [...new Set(queued.map(q => q.record && q.record.driver_name).filter(Boolean))];
+  el.style.display = 'block';
+  el.style.background = 'rgba(0,153,255,0.08)';
+  el.style.border = '1.5px solid rgba(0,153,255,0.25)';
+  el.style.color = '#004b8e';
+  el.innerHTML = `📤 ${queued.length} deliver${queued.length === 1 ? 'y is' : 'ies are'} saved on this device and syncing automatically`
+    + (drivers.length ? ` (${escHtml(drivers.join(', '))})` : '') + `. Nothing is lost — this will upload as soon as there's a connection.`;
+}
+
 async function updateSyncBar() {
   const queued = await getQueuedRecords();
   const bar    = document.getElementById('syncBar');
   const count  = document.getElementById('syncBarCount');
   const text   = document.getElementById('syncBarText');
+  renderLoginQueueBanner(queued);
   if (queued.length === 0) {
     bar.classList.remove('show','syncing','success');
     return;
@@ -3926,6 +3989,39 @@ function base64ToBlob(base64, mime) {
   return new Blob([arr], { type: mime });
 }
 
+// ── QUICK SYNC (opportunistic, non-blocking) ───────────────
+// Called right after a delivery is written locally. Tries to push that ONE
+// item to Supabase with short, fail-fast timeouts. The driver never waits on
+// this — they already have their success screen. If it fails or times out,
+// the record simply stays in the queue: the 'online' event, the periodic
+// retry timer below, or the next app load will pick it up via syncQueue().
+// Shares the _syncing guard with syncQueue() so the two never race and
+// double-upload the same item.
+async function attemptQuickSync(dbId) {
+  if (_syncing) return; // a full catch-up sync is already running — it'll cover this item too
+  if (!navigator.onLine) return;
+  _syncing = true;
+  try {
+    const item = await getQueuedRecord(dbId);
+    if (!item) return; // already synced / removed
+    const { id, photoBase64, photoMime, photoFilename, record, photoAlreadyUploaded } = item;
+    if (!photoAlreadyUploaded) {
+      const blob = base64ToBlob(photoBase64, photoMime);
+      record.photo_url = await uploadPhoto(photoFilename, blob, 12000); // fail fast, not 45s
+    }
+    await insertRecord(record, 8000); // fail fast, not 15s
+    await deleteQueuedRecord(id);
+    await updateSyncBar();
+    diagLog('sync_item_ok', `Synced (quick): ${record.customer_name} / ${photoFilename}`);
+  } catch (e) {
+    // Leave it queued on purpose — no retry storm here, just defer to the next trigger
+    diagLog('sync_quick_deferred', `Quick sync deferred, staying queued: ${classifyFetchError(e)}`, 'warn');
+    await updateSyncBar();
+  } finally {
+    _syncing = false;
+  }
+}
+
 function updateOnlineStatus() {
   const offline = !navigator.onLine;
   document.getElementById('offlineNotice').classList.toggle('show', offline);
@@ -3940,6 +4036,13 @@ function updateOnlineStatus() {
 
 window.addEventListener('online',  updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
+
+// Belt-and-braces: on flaky mobile signal, navigator.onLine frequently stays
+// "true" without the browser ever firing a genuine online/offline transition
+// (the radio never fully disconnects, requests just keep failing). Without
+// this, a queued delivery could sit untouched until the driver reloads the
+// app. Poll periodically as a backstop — cheap no-op when the queue is empty.
+setInterval(() => { if (navigator.onLine) syncQueue(); }, 25000);
 
 // Refresh route and customers when the driver returns to the tab/app
 // (e.g. after switching to camera, maps, or locking/unlocking their phone)
@@ -3965,8 +4068,18 @@ async function submitDelivery() {
   setUploadStep(1);
   _submitting = true;
 
+  // Mark that a submission is in progress, before doing anything else. If the
+  // app closes/reloads before this gets cleared (right after the local save
+  // below succeeds), the login screen will surface a warning about it next time.
   try {
-    // Step 1: GPS
+    localStorage.setItem(SUBMIT_INPROGRESS_KEY, JSON.stringify({
+      driver: loggedInDriver, customer: customerName, ts: now.toISOString()
+    }));
+  } catch(_) {}
+
+  try {
+    // Step 1: GPS — resolves instantly with raw coords; geocode is awaited
+    // for a short bounded window below, never long enough to stall submission
     const loc = await getLocation();
     document.getElementById('locationText').textContent   = loc.address;
     document.getElementById('locationCoords').textContent = loc.lat ? `${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}` : '';
@@ -3974,6 +4087,16 @@ async function submitDelivery() {
       ? '<div class="ts-live-dot"></div>Got it'
       : '<div style="width:6px;height:6px;border-radius:50%;background:#f0a500"></div>Approx';
 
+    // Give the reverse-geocode up to 1.5s to land a friendly address before
+    // we write the record — usually plenty, and if it's slower than that the
+    // raw coordinates go in instead (fixable later via the admin Re-geocode tool)
+    let friendlyAddress = loc.address;
+    if (loc.geocodePromise) {
+      const name = await Promise.race([loc.geocodePromise, new Promise(res => setTimeout(() => res(null), 1500))]);
+      if (name) friendlyAddress = name;
+    }
+
+    setUploadStep(2);
     const filename = buildFilename(customerName);
     const record = {
       customer_name:     customerName,
@@ -3985,77 +4108,42 @@ async function submitDelivery() {
       doc_number:        docNumber || null,
       latitude:          loc.lat,
       longitude:         loc.lng,
-      address:           loc.address,
+      address:           friendlyAddress,
       route_id:          (activeRouteData && activeRouteData.status === 'active') ? activeRouteData.id : null
     };
 
-    if (!navigator.onLine) {
-      // ── OFFLINE: store to IndexedDB ──
-      setUploadStep(2);
-      // Convert photo to base64 for storage
-      const photoBase64 = await _photoToBase64(photoFile);
-      await queueRecord({ photoBase64, photoMime: photoFile.type || 'image/jpeg', photoFilename: filename, record });
-      await updateSyncBar();
-      setUploadStep(4);
-      await new Promise(r => setTimeout(r, 350));
-      document.getElementById('statusLoading').classList.remove('show');
-      document.getElementById('formSection').style.display = 'none';
-      const ss = document.getElementById('successScreen');
-      ss.classList.add('show');
-      document.getElementById('successRef').textContent = `📴 Saved offline — will sync when online`;
-      diagLog('submit_offline', `Queued offline: ${customerName} / ${filename}`, 'warn');
-    } else {
-      // ── ONLINE: upload immediately ──
-      setUploadStep(2);
-      let photoUrl;
-      try {
-        photoUrl = await uploadPhoto(filename, photoFile);
-      } catch(uploadErr) {
-        // Upload failed (timeout or network drop mid-transfer).
-        // navigator.onLine was true but signal couldn't sustain the upload.
-        // Queue locally and show the offline success screen — driver is unblocked.
-        diagLog('submit_offline', `Upload failed (weak signal), queuing: ${uploadErr.message} | ${filename}`, 'warn');
-        const photoBase64 = await _photoToBase64(photoFile);
-        await queueRecord({ photoBase64, photoMime: photoFile.type || 'image/jpeg', photoFilename: filename, record });
-        await updateSyncBar();
-        setUploadStep(4);
-        await new Promise(r => setTimeout(r, 350));
-        document.getElementById('statusLoading').classList.remove('show');
-        document.getElementById('formSection').style.display = 'none';
-        const ss = document.getElementById('successScreen');
-        ss.classList.add('show');
-        document.getElementById('successRef').textContent = `📶 Poor signal — saved locally, will sync automatically`;
-        return;
+    // ── LOCAL-FIRST: always write to the device before touching the network.
+    // The driver's acknowledgement depends only on this local write —
+    // never on whether Supabase is reachable right now.
+    const photoBase64 = await _photoToBase64(photoFile);
+    const dbId = await queueRecord({ photoBase64, photoMime: photoFile.type || 'image/jpeg', photoFilename: filename, record });
+    try { localStorage.removeItem(SUBMIT_INPROGRESS_KEY); } catch(_) {}
+    await updateSyncBar();
+    setUploadStep(4);
+    await new Promise(r => setTimeout(r, 350));
+
+    document.getElementById('statusLoading').classList.remove('show');
+    document.getElementById('formSection').style.display = 'none';
+    const ss = document.getElementById('successScreen');
+    ss.classList.add('show');
+    document.getElementById('successRef').textContent = navigator.onLine
+      ? `⏳ Recorded — uploading now…`
+      : `📴 Recorded — will upload when back online`;
+    diagLog('submit_recorded', `Delivery recorded locally: ${customerName} / ${filename}`);
+
+    // Try to sync immediately in the background — short timeout, never blocks
+    // the UI. On failure it simply stays queued for the periodic retry.
+    attemptQuickSync(dbId).then(async () => {
+      // Only touch the screen if the driver hasn't already moved on to the next delivery
+      const refEl = document.getElementById('successRef');
+      if (ss.classList.contains('show') && refEl.textContent.startsWith('⏳')) {
+        const stillQueued = await getQueuedRecord(dbId);
+        refEl.textContent = stillQueued
+          ? `📶 Weak signal — saved on device, will retry automatically`
+          : `✅ Uploaded`;
       }
-      record.photo_url = photoUrl;
-      setUploadStep(3);
-      try {
-        _lastInsertedId = await insertRecord(record);
-      } catch(insertErr) {
-        // Photo already uploaded successfully — do NOT re-upload or lose it.
-        // Queue a DB-only record (photo_url already set) so syncQueue() can
-        // skip the upload step and just insert once connectivity returns.
-        diagLog('submit_db_insert_failed_after_upload',
-          `Photo uploaded OK but DB insert failed (weak signal): ${insertErr.message} | ${filename}`, 'error');
-        await queueRecord({ photoBase64: null, photoMime: null, photoFilename: filename, record, photoAlreadyUploaded: true });
-        await updateSyncBar();
-        setUploadStep(4);
-        await new Promise(r => setTimeout(r, 350));
-        document.getElementById('statusLoading').classList.remove('show');
-        document.getElementById('formSection').style.display = 'none';
-        const ss2 = document.getElementById('successScreen');
-        ss2.classList.add('show');
-        document.getElementById('successRef').textContent = `📶 Poor signal — record saved locally, will sync automatically`;
-        return;
-      }
-      setUploadStep(4);
-      await new Promise(r => setTimeout(r, 350));
-      document.getElementById('statusLoading').classList.remove('show');
-      document.getElementById('formSection').style.display = 'none';
-      document.getElementById('successScreen').classList.add('show');
-      document.getElementById('successRef').textContent = `📁 ${filename}`;
-      diagLog('submit_ok', `Saved online: ${customerName} / ${filename}`);
-    }
+    });
+
   } catch(err) {
     console.error(err);
     diagLog('submit_error', `${err.message} | customer: ${customerName}`);
@@ -5069,6 +5157,14 @@ let collapsedRoutes    = new Set(); // IDs of collapsed cards
 let lastFetchedDeliveries = [];       // cache of last fetchTodayDeliveries() result (full objects)
 
 let _loadingRoute = false; // in-flight guard — prevents online + visibilitychange firing concurrently
+let _routeActionInFlight = false; // true while startRoute()/finishRoute() has a PATCH in progress —
+                                   // stops a slow, already-running loadActiveRoute() from overwriting
+                                   // a just-completed action with a stale cached snapshot
+
+function cacheRoutes() {
+  if (!loggedInDriver) return;
+  try { localStorage.setItem(`fmf_route_${loggedInDriver}`, JSON.stringify({ date: todayStr(), routes: todayRoutes })); } catch(_) {}
+}
 
 async function loadActiveRoute() {
   const container = document.getElementById('routeCardsContainer');
@@ -5076,8 +5172,6 @@ async function loadActiveRoute() {
   if (_submitting) return; // do not re-render while a delivery submit is in flight
   if (_loadingRoute) return; // a load is already in flight from another trigger — don't double the request
   _loadingRoute = true;
-
-  const ROUTE_CACHE_KEY = `fmf_route_${loggedInDriver}`;
 
   try {
     const today = todayStr();
@@ -5088,7 +5182,7 @@ async function loadActiveRoute() {
     todayRoutes = res.ok ? await res.json() : [];
 
     // Cache routes for offline
-    try { localStorage.setItem(ROUTE_CACHE_KEY, JSON.stringify({ date: today, routes: todayRoutes })); } catch(_) {}
+    cacheRoutes();
 
     activeRouteData = todayRoutes.find(r => r.status === 'active') || null;
 
@@ -5104,6 +5198,14 @@ async function loadActiveRoute() {
   } catch(e) {
     diagLog('route_load_error', classifyFetchError(e), 'warn');
     console.warn('loadActiveRoute network error:', e.message);
+
+    if (_routeActionInFlight) {
+      // A startRoute()/finishRoute() PATCH is in progress (or just landed) — that
+      // result is more current than anything this stale request could show.
+      // Leave the screen as-is rather than repainting over it with old cache data.
+      diagLog('route_load_error_suppressed', 'Stale route fetch discarded — a start/finish action was in progress', 'warn');
+      return;
+    }
 
     // Offline fallback — restore from cache
     try {
@@ -5345,18 +5447,23 @@ function prefillFromRoute(customerName, docNumber) {
 }
 
 async function startRoute(id) {
+  _routeActionInFlight = true;
   try {
     const saved = await patchRoute(id, { status: 'active', started_at: new Date().toISOString() });
     // Update in todayRoutes array
     const idx = todayRoutes.findIndex(r => r.id === id);
     if (idx >= 0) todayRoutes[idx] = saved;
     activeRouteData = saved;
+    cacheRoutes(); // write-through: keep the cache current so any stale in-flight fetch that
+                    // times out afterwards falls back to THIS result, not a pre-tap snapshot
     lastFetchedDeliveries = await fetchTodayDeliveries();
     renderAllRouteCards(lastFetchedDeliveries);
     updateRoutePillBadge();
   } catch(e) {
     diagLog('route_start_failed', `route ${id}: ${classifyFetchError(e)}`, 'error');
     alert('Could not start route: ' + e.message);
+  } finally {
+    _routeActionInFlight = false;
   }
 }
 
@@ -5364,17 +5471,21 @@ async function finishRoute(id, allDone) {
   if (!allDone) {
     if (!confirm('Not all stops have been delivered. Finish the route early anyway?')) return;
   }
+  _routeActionInFlight = true;
   try {
     await patchRoute(id, { status: 'completed', completed_at: new Date().toISOString() });
     // Remove from todayRoutes so the card disappears
     todayRoutes = todayRoutes.filter(r => r.id !== id);
     activeRouteData = todayRoutes.find(r => r.status === 'active') || null;
+    cacheRoutes(); // write-through: same reasoning as startRoute()
     lastFetchedDeliveries = activeRouteData ? await fetchTodayDeliveries() : [];
     renderAllRouteCards(lastFetchedDeliveries);
     updateRoutePillBadge();
   } catch(e) {
     diagLog('route_finish_failed', `route ${id}: ${classifyFetchError(e)}`, 'error');
     alert('Could not finish route: ' + e.message);
+  } finally {
+    _routeActionInFlight = false;
   }
 }
 
