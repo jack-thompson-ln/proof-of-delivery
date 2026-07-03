@@ -179,6 +179,8 @@ self.addEventListener('fetch', e => {
   .photo-placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px; }
   .photo-icon { width: 52px; height: 52px; background: rgba(0,75,142,0.08); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
   .photo-icon svg { width: 26px; height: 26px; color: var(--brand); }
+  .photo-spinner { width: 32px; height: 32px; border: 3px solid rgba(0,75,142,0.15); border-top-color: var(--brand); border-radius: 50%; animation: photo-spin 0.7s linear infinite; }
+  @keyframes photo-spin { to { transform: rotate(360deg); } }
   .photo-placeholder p { font-weight: 600; font-size: 0.95rem; color: var(--brand); }
   .photo-placeholder span { font-size: 0.78rem; color: var(--text-muted); }
   .photo-retake { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.55); color: white; border: none; border-radius: 8px; padding: 6px 12px; font-family: 'Barlow', sans-serif; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
@@ -1973,17 +1975,8 @@ self.addEventListener('fetch', e => {
           <option value="warn">Warnings only</option>
           <option value="info">Info only</option>
         </select>
-        <select onchange="diagSetDriverFilter(this.value)" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Barlow',sans-serif;font-size:0.78rem;background:var(--off-white);color:var(--text);outline:none;">
+        <select id="diagDriverFilter" onchange="diagSetDriverFilter(this.value)" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Barlow',sans-serif;font-size:0.78rem;background:var(--off-white);color:var(--text);outline:none;">
           <option value="">All drivers</option>
-          <option value="Paddy">Paddy</option>
-          <option value="Becky">Becky</option>
-          <option value="Ben">Ben</option>
-          <option value="Ian">Ian</option>
-          <option value="Ken">Ken</option>
-          <option value="Nick">Nick</option>
-          <option value="Sam">Sam</option>
-          <option value="James">James</option>
-          <option value="Paul">Paul</option>
         </select>
         <select onchange="diagSetTypeFilter(this.value)" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Barlow',sans-serif;font-size:0.78rem;background:var(--off-white);color:var(--text);outline:none;">
           <option value="">All types</option>
@@ -2102,6 +2095,10 @@ self.addEventListener('fetch', e => {
           <div class="photo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
           <p>Tap to add photo</p>
           <span>Use camera or choose from gallery</span>
+        </div>
+        <div class="photo-placeholder" id="photoProcessing" style="display:none;">
+          <div class="photo-spinner"></div>
+          <p>Processing photo…</p>
         </div>
         <img id="photoPreview" style="display:none;" alt="Delivery photo">
         <button class="photo-retake" id="retakeBtn" style="display:none;" onclick="retakePhoto(event)">Retake</button>
@@ -2668,9 +2665,23 @@ function saveConfig() {
   document.getElementById('configPanel').classList.remove('open');
   alert('Configuration is hardcoded in this build. Edit the HTML file to change settings.');
 }
+function populateDiagDriverFilter() {
+  const sel = document.getElementById('diagDriverFilter');
+  if (!sel) return;
+  const current = sel.value;
+  const names = allDrivers.map(d => d.name).sort((a, b) => a.localeCompare(b));
+  sel.innerHTML = '<option value="">All drivers</option>'
+    + names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+  // Keep whatever was selected if it still exists in the refreshed list
+  if (names.includes(current)) sel.value = current;
+}
+
 function toggleConfig() {
   document.getElementById('configPanel').classList.toggle('open');
-  if (document.getElementById('configPanel').classList.contains('open')) renderDiagLog();
+  if (document.getElementById('configPanel').classList.contains('open')) {
+    populateDiagDriverFilter(); // rebuild from the live driver list — never hand-maintained
+    renderDiagLog();
+  }
 }
 function handleConfigOverlayClick(e) { if (e.target === document.getElementById('configPanel')) toggleConfig(); }
 
@@ -3195,7 +3206,11 @@ let photoFile = null;
 let _submitting = false; // true while submitDelivery() is in flight — blocks concurrent loadActiveRoute()
 let _photoObjectURL = null; // track preview object URL so we can revoke it
 
-function triggerPhoto() { document.getElementById('photoInput').click(); }
+function triggerPhoto() {
+  const processing = document.getElementById('photoProcessing');
+  if (processing && processing.style.display !== 'none') return; // already working on one
+  document.getElementById('photoInput').click();
+}
 
 function _revokePhotoPreview() {
   // Release any previous preview object URL from memory immediately
@@ -3208,11 +3223,31 @@ function _revokePhotoPreview() {
   if (prev) { prev.src = ''; }
 }
 
+function showPhotoProcessing() {
+  document.getElementById('photoPlaceholder').style.display = 'none';
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('retakeBtn').style.display = 'none';
+  document.getElementById('photoProcessing').style.display = 'flex';
+}
+function hidePhotoProcessing() {
+  document.getElementById('photoProcessing').style.display = 'none';
+}
+function photoProcessingFailed() {
+  // Error before a photo was successfully produced — go back to the
+  // original "Tap to add photo" state rather than leaving the zone blank
+  hidePhotoProcessing();
+  document.getElementById('photoPlaceholder').style.display = 'flex';
+}
+
 function handlePhoto(e) {
   const file = e.target.files[0];
   if (!file) return;
 
   diagLog('photo_start', `File: ${file.name}, size: ${(file.size/1024).toFixed(0)}KB, type: ${file.type}`);
+  // Immediate visible feedback — compression can take a couple of seconds on
+  // slower devices, and with nothing shown here the zone looks identical to
+  // its untouched state, which reads as "the photo didn't take."
+  showPhotoProcessing();
 
   // Release previous photo memory before processing a new one
   _revokePhotoPreview();
@@ -3240,6 +3275,7 @@ function handlePhoto(e) {
 
         if (!blob) {
           diagLog('photo_error', 'canvas.toBlob returned null');
+          photoProcessingFailed();
           alert('Could not process photo — please try again.');
           return;
         }
@@ -3250,6 +3286,7 @@ function handlePhoto(e) {
         _photoObjectURL = URL.createObjectURL(blob);
         const prev = document.getElementById('photoPreview');
         prev.src = _photoObjectURL;
+        hidePhotoProcessing();
         prev.style.display = 'block';
         document.getElementById('photoPlaceholder').style.display = 'none';
         document.getElementById('retakeBtn').style.display = 'block';
@@ -3259,7 +3296,8 @@ function handlePhoto(e) {
       }, 'image/jpeg', 0.82);
     }).catch(err => {
       diagLog('photo_error', `createImageBitmap failed: ${err.message}`);
-      // Fall back to FileReader path
+      // Fall back to FileReader path — leave the processing state showing,
+      // the fallback is still actively working on the same photo
       _handlePhotoFallback(file);
     });
   } else {
@@ -3290,6 +3328,7 @@ function _handlePhotoFallback(file) {
         canvas.width = 0; canvas.height = 0;
         if (!blob) {
           diagLog('photo_error', 'Fallback: canvas.toBlob returned null');
+          photoProcessingFailed();
           alert('Could not process photo — please try again.');
           return;
         }
@@ -3298,6 +3337,7 @@ function _handlePhotoFallback(file) {
         _photoObjectURL = URL.createObjectURL(blob);
         const prev = document.getElementById('photoPreview');
         prev.src = _photoObjectURL;
+        hidePhotoProcessing();
         prev.style.display = 'block';
         document.getElementById('photoPlaceholder').style.display = 'none';
         document.getElementById('retakeBtn').style.display = 'block';
@@ -3308,13 +3348,18 @@ function _handlePhotoFallback(file) {
     };
     img.onerror = () => {
       diagLog('photo_error', 'Fallback: Image decode failed');
+      photoProcessingFailed();
       alert('Could not decode photo — please try again.');
     };
     img.src = dataUrl;
   };
-  reader.onerror = () => diagLog('photo_error', 'FileReader failed');
+  reader.onerror = () => {
+    diagLog('photo_error', 'FileReader failed');
+    photoProcessingFailed();
+  };
   reader.readAsDataURL(file);
 }
+
 
 function retakePhoto(e) {
   e.stopPropagation();
@@ -4170,6 +4215,7 @@ function resetForm() {
   document.getElementById('photoInput').value = '';
   document.getElementById('photoPreview').style.display = 'none';
   document.getElementById('retakeBtn').style.display = 'none';
+  document.getElementById('photoProcessing').style.display = 'none';
   document.getElementById('photoPlaceholder').style.display = 'flex';
   document.getElementById('photoZone').classList.remove('has-photo');
   document.getElementById('statusError').classList.remove('show');
