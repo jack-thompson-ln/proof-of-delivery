@@ -3256,7 +3256,13 @@ function handlePhoto(e) {
   // Use createImageBitmap where available — much more memory-efficient than
   // FileReader → Image, avoids holding a full base64 DataURL in memory
   if (typeof createImageBitmap !== 'undefined') {
-    createImageBitmap(file).then(bitmap => {
+    // Passing a resize hint lets the browser decode at a reduced resolution
+    // directly (Chrome uses libjpeg's scaled DCT decode under the hood) rather
+    // than allocating the full native-resolution bitmap and shrinking it after.
+    // On a high-megapixel camera photo, that full allocation is exactly what
+    // trips Android's "low memory" bitmap failure on modest devices. 1600 gives
+    // a little headroom over the final 1200px target for the precise resize below.
+    createImageBitmap(file, { resizeWidth: 1600, resizeQuality: 'medium' }).then(bitmap => {
       const MAX = 1200;
       let w = bitmap.width, h = bitmap.height;
       if (w > MAX || h > MAX) {
@@ -3296,6 +3302,17 @@ function handlePhoto(e) {
       }, 'image/jpeg', 0.82);
     }).catch(err => {
       diagLog('photo_error', `createImageBitmap failed: ${err.message}`);
+      const memRelated = /memory/i.test(err.message) || err.name === 'OutOfMemoryError';
+      if (memRelated) {
+        // The FileReader/<img> fallback decodes via a base64 dataURL — more
+        // memory-hungry than what just failed, not less. Retrying with a
+        // worse-for-memory method on a device that's already out of memory
+        // is very likely to fail again, or freeze the tab. Don't compound it.
+        diagLog('photo_error', 'Skipping fallback — device is low on memory', 'warn');
+        photoProcessingFailed();
+        alert('This device is low on memory and could not process the photo. Closing other apps and trying again usually helps.');
+        return;
+      }
       // Fall back to FileReader path — leave the processing state showing,
       // the fallback is still actively working on the same photo
       _handlePhotoFallback(file);
