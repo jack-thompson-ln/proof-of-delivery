@@ -4337,7 +4337,7 @@ function clearFilters() {
   setActiveHistoryPreset('today');
   activeDriverFilter = null;
   buildDriverChips();
-  applyFilters();
+  loadHistory(); // must re-fetch — date range is pushed into the Supabase query
 }
 
 // ── HISTORY DATE PRESETS ──────────────────────────────────
@@ -4374,7 +4374,7 @@ function setHistoryPreset(key) {
   document.getElementById('filterDateFrom').value = dateToStr(from);
   document.getElementById('filterDateTo').value   = dateToStr(to);
   setActiveHistoryPreset(key);
-  applyFilters();
+  loadHistory(); // must re-fetch — date range is pushed into the Supabase query
 }
 
 function onHistoryDateChange() {
