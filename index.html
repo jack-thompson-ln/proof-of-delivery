@@ -2112,7 +2112,7 @@ self.addEventListener('fetch', e => {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Document Number <span style="font-weight:400;opacity:0.6;margin-left:4px;">(optional)</span>
       </div>
-      <input type="text" id="deliveryDocNumber" placeholder="Invoice, suspended order or pick note number..." autocomplete="off" maxlength="80">
+      <input type="text" id="deliveryDocNumber" placeholder="Invoice, suspended order or pick note number..." autocomplete="off" maxlength="80" oninput="saveFormDraft()">
       <p class="field-note" style="margin-top:8px;">Enter invoice no., suspended order no., or pick note no.</p>
 
       <div style="height:1px;background:var(--border);margin:18px 0;"></div>
@@ -2121,7 +2121,7 @@ self.addEventListener('fetch', e => {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Notes <span style="font-weight:400;opacity:0.6;margin-left:4px;">(optional)</span>
       </div>
-      <textarea id="deliveryNotes" rows="3" placeholder="Any additional delivery notes..." style="resize:vertical;"></textarea>
+      <textarea id="deliveryNotes" rows="3" placeholder="Any additional delivery notes..." style="resize:vertical;" oninput="saveFormDraft()"></textarea>
     </div>
 
     <div class="status-bar loading" id="statusLoading">
@@ -3029,10 +3029,12 @@ function showAppAsDriver(name) {
   document.getElementById('driverHistoryPill').style.display = 'flex';
   updateSteps();
   loadActiveRoute();
+  restoreFormDraft();
 }
 
 function logoutDriver() {
   if (!confirm(`Log out as ${loggedInDriver}?`)) return;
+  clearFormDraft();
   localStorage.removeItem('fmf_driver');
   loggedInDriver    = '';
   loginSelectedName = '';
@@ -3188,6 +3190,7 @@ function selectCustomer(name) {
   document.getElementById('customerClear').classList.add('show');
   closeCustomerDropdown();
   updateSteps();
+  saveFormDraft();
 }
 
 function clearCustomer() {
@@ -3199,6 +3202,7 @@ function clearCustomer() {
   document.getElementById('customerClear').classList.remove('show');
   closeCustomerDropdown();
   updateSteps();
+  saveFormDraft();
 }
 
 // ── PHOTO ─────────────────────────────────────────────────
@@ -3299,6 +3303,7 @@ function handlePhoto(e) {
         document.getElementById('photoZone').classList.add('has-photo');
         updateSteps();
         prewarmGPS();
+        saveFormDraft();
       }, 'image/jpeg', 0.82);
     }).catch(err => {
       diagLog('photo_error', `createImageBitmap failed: ${err.message}`);
@@ -3361,6 +3366,7 @@ function _handlePhotoFallback(file) {
         document.getElementById('photoZone').classList.add('has-photo');
         updateSteps();
         prewarmGPS();
+        saveFormDraft();
       }, 'image/jpeg', 0.82);
     };
     img.onerror = () => {
@@ -3388,6 +3394,7 @@ function retakePhoto(e) {
   document.getElementById('photoPlaceholder').style.display = 'flex';
   document.getElementById('photoZone').classList.remove('has-photo');
   updateSteps();
+  saveFormDraft();
 }
 
 // ── DIAGNOSTIC LOGGER ─────────────────────────────────────
@@ -3929,6 +3936,115 @@ async function deleteQueuedRecord(id) {
 // last delivery is safe, rather than being left to wonder.
 const SUBMIT_INPROGRESS_KEY = 'fmf_submit_inprogress';
 
+// ── IN-PROGRESS FORM DRAFT ──────────────────────────────────
+// The local-first submit flow (above) only protects a delivery from the
+// moment Submit is tapped onward. Diagnostic log analysis (Session 20)
+// showed the app being reloaded by the OS mid-session far more often than
+// assumed — and every reload before Submit was tapped silently discarded
+// whatever the driver had already entered: selected customer, notes, doc
+// number, and — worst of all — the photo they'd just taken. This persists
+// that in-progress state as it's entered so a reload doesn't cost the
+// driver the delivery they were mid-way through.
+const FORM_DRAFT_KEY = 'fmf_form_draft';
+let _draftSaveTimer = null;
+
+function saveFormDraft() {
+  // Debounce so rapid typing (notes field) doesn't hammer localStorage/base64
+  // conversion on every keystroke.
+  clearTimeout(_draftSaveTimer);
+  _draftSaveTimer = setTimeout(async () => {
+    if (!loggedInDriver) return;
+    try {
+      const draft = {
+        driver:         loggedInDriver,
+        customerName:   document.getElementById('customerName').value,
+        customerSearch: document.getElementById('customerSearch').value,
+        notes:          document.getElementById('deliveryNotes').value,
+        docNumber:      document.getElementById('deliveryDocNumber').value,
+        ts:             new Date().toISOString()
+      };
+      if (photoFile) {
+        draft.photoBase64 = await _photoToBase64(photoFile);
+        draft.photoMime   = photoFile.type || 'image/jpeg';
+      }
+      // Nothing worth protecting yet — don't create an empty draft entry
+      if (!draft.customerName && !draft.notes && !draft.docNumber && !draft.photoBase64) {
+        localStorage.removeItem(FORM_DRAFT_KEY);
+        return;
+      }
+      localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(draft));
+    } catch(e) {
+      diagLog('form_draft_save_error', e.message, 'warn');
+    }
+  }, 400);
+}
+
+function clearFormDraft() {
+  clearTimeout(_draftSaveTimer);
+  try { localStorage.removeItem(FORM_DRAFT_KEY); } catch(_) {}
+}
+
+function _showDraftRestoredBanner(text) {
+  // Small self-contained banner injected above the form — avoids depending
+  // on the (red-styled) statusError element, which would misleadingly
+  // present a "your work was saved" message as an error.
+  const host = document.getElementById('formSection');
+  if (!host) return;
+  let el = document.getElementById('draftRestoredBanner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'draftRestoredBanner';
+    el.style.cssText = 'margin:0 0 14px;padding:10px 14px;border-radius:10px;background:rgba(0,153,255,0.08);border:1.5px solid rgba(0,153,255,0.25);color:#004b8e;font-size:0.82rem;line-height:1.5;';
+    host.insertBefore(el, host.firstChild);
+  }
+  el.textContent = text;
+  el.style.display = 'block';
+}
+
+async function restoreFormDraft() {
+  let draft = null;
+  try { draft = JSON.parse(localStorage.getItem(FORM_DRAFT_KEY) || 'null'); } catch(_) {}
+  if (!draft || draft.driver !== loggedInDriver) return;
+
+  // Don't resurrect a very old draft — stale data left over from a prior
+  // shift is more confusing than helpful to a driver starting fresh.
+  const ageMs = draft.ts ? (Date.now() - new Date(draft.ts).getTime()) : Infinity;
+  if (!(ageMs >= 0) || ageMs > 8 * 60 * 60 * 1000) { clearFormDraft(); return; }
+
+  try {
+    if (draft.customerName) {
+      document.getElementById('customerName').value = draft.customerName;
+      document.getElementById('customerSearch').value = draft.customerSearch || draft.customerName;
+      customerSelected = true;
+      document.getElementById('customerSearch').classList.add('selected-state');
+      document.getElementById('customerSelectedName').textContent = draft.customerName;
+      document.getElementById('customerSelectedBadge').classList.add('show');
+      document.getElementById('customerClear').classList.add('show');
+    }
+    document.getElementById('deliveryNotes').value = draft.notes || '';
+    document.getElementById('deliveryDocNumber').value = draft.docNumber || '';
+
+    if (draft.photoBase64) {
+      const blob = base64ToBlob(draft.photoBase64, draft.photoMime || 'image/jpeg');
+      photoFile = blob;
+      _revokePhotoPreview();
+      _photoObjectURL = URL.createObjectURL(blob);
+      const prev = document.getElementById('photoPreview');
+      prev.src = _photoObjectURL;
+      prev.style.display = 'block';
+      document.getElementById('photoPlaceholder').style.display = 'none';
+      document.getElementById('retakeBtn').style.display = 'block';
+      document.getElementById('photoZone').classList.add('has-photo');
+    }
+
+    updateSteps();
+    diagLog('form_draft_restored', `Restored in-progress delivery for ${draft.customerName || '(no customer)'} after reload`);
+    _showDraftRestoredBanner('Your in-progress delivery was restored after a reload — please check it over before submitting.');
+  } catch(e) {
+    diagLog('form_draft_restore_error', e.message, 'warn');
+  }
+}
+
 function renderLoginQueueBanner(queued) {
   const el = document.getElementById('loginQueueBanner');
   if (!el) return;
@@ -4104,15 +4220,66 @@ window.addEventListener('offline', updateOnlineStatus);
 // (the radio never fully disconnects, requests just keep failing). Without
 // this, a queued delivery could sit untouched until the driver reloads the
 // app. Poll periodically as a backstop — cheap no-op when the queue is empty.
-setInterval(() => { if (navigator.onLine) syncQueue(); }, 25000);
+//
+// _lastNetworkBurst tracks the last time ANY of these background refreshes
+// ran, so the periodic timer and the visibility-resume handler below never
+// both fire within a few seconds of each other. Concentrating two fetches
+// right at the moment the WebView is resuming from being backgrounded (e.g.
+// returning from the camera) is a plausible trigger for iOS/Android to kill
+// and reload a memory-constrained tab mid-delivery — see Session 20 notes.
+let _lastNetworkBurst = 0;
+const NETWORK_BURST_GAP_MS = 8000;
+
+function _networkBurstAllowed() {
+  const now = Date.now();
+  if (now - _lastNetworkBurst < NETWORK_BURST_GAP_MS) return false;
+  _lastNetworkBurst = now;
+  return true;
+}
+
+setInterval(() => {
+  if (navigator.onLine && _networkBurstAllowed()) syncQueue();
+}, 25000);
 
 // Refresh route and customers when the driver returns to the tab/app
-// (e.g. after switching to camera, maps, or locking/unlocking their phone)
+// (e.g. after switching to camera, maps, or locking/unlocking their phone).
+// This used to fire immediately on every visibilitychange — including the
+// instant a driver returns from taking a delivery photo, which is exactly
+// when a multi-MB image was just captured and the WebView is still waking
+// up from OS suspension. Firing a network burst at that precise moment is
+// a plausible trigger for the tab being killed and reloaded mid-delivery
+// (see diagnostic log correlation between "Load failed" fetch errors and
+// immediate new session_ids, Session 20 investigation).
+//
+// Now: wait for the tab to have been hidden for a meaningful stretch (not
+// a flicker), delay the actual refresh by ~2.5s to let the WebView settle,
+// skip it entirely if the driver already has an unsubmitted photo sitting
+// in the form (mid-delivery — the route card can wait), and share the
+// burst gate with the sync timer above.
+let _hiddenAt = 0;
+let _resumeTimer = null;
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && navigator.onLine && loggedInDriver) {
+  if (document.visibilityState === 'hidden') {
+    _hiddenAt = Date.now();
+    clearTimeout(_resumeTimer);
+    return;
+  }
+  if (document.visibilityState !== 'visible' || !navigator.onLine || !loggedInDriver) return;
+  const hiddenForMs = _hiddenAt ? (Date.now() - _hiddenAt) : 0;
+  clearTimeout(_resumeTimer);
+  _resumeTimer = setTimeout(() => {
+    // Driver is mid-delivery with a photo already taken — don't add a
+    // network burst on top of the resume the WebView is already doing.
+    // loadActiveRoute() will still run naturally next time the form
+    // resets or the periodic backstop ticks.
+    if (photoFile && !_submitting) {
+      diagLog('resume_refresh_skipped', `Skipped post-resume refresh — photo pending (hidden ${hiddenForMs}ms)`);
+      return;
+    }
+    if (!_networkBurstAllowed()) return;
     loadActiveRoute();
     if (allCustomers.length === 0) initCustomers();
-  }
+  }, 2500);
 });
 
 // ── SUBMIT ────────────────────────────────────────────────
@@ -4180,6 +4347,7 @@ async function submitDelivery() {
     const photoBase64 = await _photoToBase64(photoFile);
     const dbId = await queueRecord({ photoBase64, photoMime: photoFile.type || 'image/jpeg', photoFilename: filename, record });
     try { localStorage.removeItem(SUBMIT_INPROGRESS_KEY); } catch(_) {}
+    clearFormDraft();
     await updateSyncBar();
     setUploadStep(4);
     await new Promise(r => setTimeout(r, 350));
@@ -4220,6 +4388,9 @@ async function submitDelivery() {
 
 // ── RESET ─────────────────────────────────────────────────
 function resetForm() {
+  clearFormDraft();
+  const draftBanner = document.getElementById('draftRestoredBanner');
+  if (draftBanner) draftBanner.style.display = 'none';
   photoFile = null;
   document.getElementById('customerName').value = '';
   document.getElementById('customerSearch').value = '';
