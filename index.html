@@ -319,7 +319,7 @@ self.addEventListener('fetch', e => {
 
   /* Driver filter chips */
   .driver-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .driver-chip { background: var(--off-white); border: 2px solid var(--border); border-radius: 20px; padding: 5px 12px; font-family: 'Barlow', sans-serif; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .driver-chip { flex: 1 1 auto; min-width: 64px; text-align: center; background: var(--off-white); border: 2px solid var(--border); border-radius: 20px; padding: 5px 12px; font-family: 'Barlow', sans-serif; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
   .driver-chip.active { background: var(--brand); border-color: var(--brand); color: white; }
   .driver-chip:active { transform: scale(0.96); }
 
@@ -446,8 +446,28 @@ self.addEventListener('fetch', e => {
   .chart-card-title svg { width: 14px; height: 14px; }
   .chart-total { margin-left: auto; font-weight: 700; color: var(--text-muted); letter-spacing: normal; text-transform: none; font-size: 0.72rem; }
   .chart-wrap { position: relative; width: 100%; max-width: 320px; margin: 0 auto; }
-  .chart-wrap-wide { max-width: 100%; height: 240px; }
-  .chart-wrap-bar { max-width: 100%; height: 280px; }
+  .chart-wrap.chart-wrap-wide { max-width: 100%; height: 240px; }
+  .chart-wrap.chart-wrap-bar { max-width: 100%; height: 280px; }
+  .chart-card-title { position: relative; }
+  .hour-detail-toggle {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+    background: var(--off-white); border: 1.5px solid var(--border); border-radius: 20px;
+    padding: 4px 10px 4px 4px; cursor: pointer; font-family: 'Barlow', sans-serif;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: normal; text-transform: none; color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .hour-detail-toggle.active { background: var(--brand); border-color: var(--brand); color: white; }
+  .hour-detail-toggle-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+  .hour-detail-toggle.active .hour-detail-toggle-dot { background: white; }
+  .customer-drop-table { width: 100%; border-collapse: collapse; font-family: 'Barlow', sans-serif; }
+  .customer-table-wrap { width: 100%; }
+  .customer-drop-table th { text-align: left; font-family: 'Barlow Condensed', sans-serif; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); padding: 0 8px 8px; border-bottom: 1.5px solid var(--border); }
+  .customer-drop-table th:last-child, .customer-drop-table td:last-child { text-align: right; }
+  .customer-drop-table td { padding: 9px 8px; border-bottom: 1px solid var(--border); font-size: 0.88rem; color: var(--text); }
+  .customer-drop-table tr:last-child td { border-bottom: none; }
+  .customer-drop-table .rank-cell { color: var(--text-muted); font-weight: 700; width: 24px; }
+  .customer-drop-table .count-cell { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; color: var(--brand); font-size: 1rem; }
+  .customer-table-more { font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: 10px; }
   .chart-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 0.9rem; }
   .pie-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
   .stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
@@ -762,8 +782,8 @@ self.addEventListener('fetch', e => {
        narrow single-column cards with large empty margins either side. */
     .analytics-charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .chart-card-wide { grid-column: 1 / -1; }
-    .chart-wrap-wide { max-width: 100%; }
-    .chart-wrap-bar  { max-width: 100%; height: 320px; }
+    .chart-wrap.chart-wrap-wide { max-width: 100%; height: 300px; }
+    .chart-wrap.chart-wrap-bar  { max-width: 100%; height: 320px; }
 
     /* Record cards — a touch more padding */
     .record-card { padding: 16px 20px; }
@@ -2595,6 +2615,10 @@ self.addEventListener('fetch', e => {
         <div class="chart-card-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           Deliveries by Hour of Day
+          <button class="hour-detail-toggle" id="hourDetailToggle" onclick="toggleHourChartDetail()">
+            <span class="hour-detail-toggle-dot"></span>
+            <span class="toggle-label">Show Detail</span>
+          </button>
         </div>
         <div class="chart-wrap chart-wrap-wide">
           <canvas id="lineChart"></canvas>
@@ -2618,9 +2642,7 @@ self.addEventListener('fetch', e => {
           Top 10 Customers by Number of Drops
           <span class="chart-total" id="customerChartTotal"></span>
         </div>
-        <div id="customerPieWrap" class="chart-wrap chart-wrap-bar">
-          <canvas id="customerPieChart"></canvas>
-        </div>
+        <div id="customerPieWrap" class="customer-table-wrap"></div>
       </div>
     </div>
   </div>
@@ -4908,6 +4930,8 @@ function closeLightbox() {
 let pieChartInstance         = null;
 let customerPieChartInstance = null;
 let lineChartInstance        = null;
+let lastAnalyticsRecords     = [];
+let hourChartDetailMode      = false;
 const PIE_BLUES = [
   '#004b8e','#0062b8','#0077d4','#0099ff','#33aaff',
   '#66bbff','#003a6e','#005299','#1a6fa8','#2980b9'
@@ -4984,27 +5008,36 @@ async function loadAnalytics() {
   if (dateFrom) query += `&delivery_datetime=gte.${new Date(dateFrom + 'T00:00:00').toISOString()}`;
   if (dateTo)   query += `&delivery_datetime=lte.${new Date(dateTo   + 'T23:59:59').toISOString()}`;
   try {
-    // Page through in batches of 1000 (PostgREST's per-request cap) rather
-    // than trusting a single request — a fixed limit here previously
-    // silently truncated any date range with more than 1000 deliveries.
+    // Page through in batches of 1000 (PostgREST's per-request cap). We stop
+    // using the Content-Range response header's total count, not just
+    // page.length — relying on page.length alone meant that whenever the
+    // total was an exact multiple of 1000, we'd request one page past the
+    // end (offset === total), which PostgREST rejects with 416 Range Not
+    // Satisfiable. This was the "This Month" / "Last Month" 416 bug.
     let allRecords = [];
     let from = 0;
     const pageSize = 1000;
+    let total = null;
     while (true) {
       const to = from + pageSize - 1;
       const res = await sbRequest(`${query}&limit=${pageSize}`, {
-        headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': `${from}-${to}` }
+        headers: { 'Accept': 'application/json', 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': `${from}-${to}` }
       });
       if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
       const page = await res.json();
       allRecords = allRecords.concat(page);
-      if (page.length < pageSize) break;
+      const contentRange = res.headers.get('content-range'); // e.g. "0-999/1819"
+      const parsedTotal = contentRange && parseInt(contentRange.split('/')[1], 10);
+      if (!isNaN(parsedTotal)) total = parsedTotal;
+      const haveAll = total !== null ? allRecords.length >= total : page.length < pageSize;
+      if (haveAll) break;
       from += pageSize;
     }
     renderAnalyticsDriverChips(allRecords);
     const records = activeAnalyticsDriver
       ? allRecords.filter(r => r.driver_name === activeAnalyticsDriver)
       : allRecords;
+    lastAnalyticsRecords = records;
     renderPieChart(records);
     renderCustomerPieChart(records);
     renderLineChart(records);
@@ -5187,9 +5220,9 @@ function renderPieChart(records) {
 }
 
 function renderCustomerPieChart(records) {
-  // Tally by customer short code, keep only the top 10 — with hundreds of
-  // customers getting 1-2 drops a month, a full pie/legend of all of them
-  // was too condensed to read. Top 10 answers "who actually matters here".
+  // Tally by customer short code, keep only the top 10. A chart here (pie
+  // or bar) didn't add much over a plain ranked list — the underlying
+  // numbers are what matters, not their relative visual size.
   const tally = {};
   records.forEach(r => {
     const full  = r.customer_name || 'Unknown';
@@ -5198,87 +5231,92 @@ function renderCustomerPieChart(records) {
   });
   const sortedAll = Object.entries(tally).sort((a,b) => b[1]-a[1]);
   const allTotal  = sortedAll.reduce((a,[,v]) => a+v, 0);
-  const sorted    = sortedAll.slice(0, 10);
-  const labels    = sorted.map(([name]) => name);
-  const values    = sorted.map(([,count]) => count);
-  const colours   = labels.map((_, i) => PIE_BLUES[i % PIE_BLUES.length]);
-  const top10Total = values.reduce((a,b) => a+b, 0);
-  const remaining   = sortedAll.length - sorted.length;
+  const top10     = sortedAll.slice(0, 10);
+  const remaining = sortedAll.length - top10.length;
 
   document.getElementById('customerChartTotal').textContent =
     remaining > 0 ? `${allTotal} total · +${remaining} more customers` : `${allTotal} total`;
 
   const wrap = document.getElementById('customerPieWrap');
-  if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="customerPieChart"></canvas>';
-  const ctx = document.getElementById('customerPieChart').getContext('2d');
-  if (customerPieChartInstance) customerPieChartInstance.destroy();
+  if (top10.length === 0) {
+    wrap.innerHTML = '<div class="chart-empty">No deliveries in this date range.</div>';
+    return;
+  }
 
-  customerPieChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        data: values,
-        backgroundColor: colours,
-        borderColor: '#ffffff',
-        borderWidth: 1,
-        borderRadius: 6,
-        borderSkipped: false
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: ctx => ` ${ctx.parsed.x} drops (${Math.round(ctx.parsed.x/top10Total*100)}% of top 10)`
-          }
-        }
-      },
-      scales: {
-        x: {
-          beginAtZero: true,
-          ticks: { stepSize: 1, font: { family: "'Barlow', sans-serif", size: 11 }, color: '#5a7a9a' },
-          grid: { color: 'rgba(0,75,142,0.06)' }
-        },
-        y: {
-          grid: { display: false },
-          ticks: { font: { family: "'Barlow', sans-serif", size: 12, weight: '600' }, color: '#004b8e' }
-        }
-      }
-    }
-  });
+  const rows = top10.map(([name, count], i) => `
+    <tr>
+      <td class="rank-cell">${i + 1}</td>
+      <td>${escHtml(name)}</td>
+      <td class="count-cell">${count}</td>
+    </tr>`).join('');
+
+  wrap.innerHTML = `
+    <table class="customer-drop-table">
+      <thead><tr><th>#</th><th>Customer</th><th>Drops</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${remaining > 0 ? `<div class="customer-table-more">+${remaining} more customers with fewer drops</div>` : ''}`;
+}
+
+function toggleHourChartDetail() {
+  hourChartDetailMode = !hourChartDetailMode;
+  const btn = document.getElementById('hourDetailToggle');
+  if (btn) {
+    btn.classList.toggle('active', hourChartDetailMode);
+    btn.querySelector('.toggle-label').textContent = hourChartDetailMode ? 'Detail: 30 min (6am–6pm)' : 'Show Detail';
+  }
+  renderLineChart(lastAnalyticsRecords);
 }
 
 function renderLineChart(records) {
-  // Build hourly buckets 0–23
-  const hourCounts = Array(24).fill(0);
-  records.forEach(r => {
-    if (r.delivery_datetime) {
-      const h = new Date(r.delivery_datetime).getHours();
-      hourCounts[h]++;
-    }
-  });
-
-  // Only show hours that have any deliveries or span the working range (6-22)
-  const minHour = Math.min(6,  hourCounts.findIndex(v => v > 0) >= 0 ? hourCounts.findIndex(v => v > 0) : 6);
-  const maxHour = Math.max(20, [...hourCounts].reverse().findIndex(v => v > 0) >= 0 ? 23 - [...hourCounts].reverse().findIndex(v => v > 0) : 20);
-  const hourLabels = [];
-  const hourValues = [];
-  for (let h = minHour; h <= maxHour; h++) {
-    hourLabels.push(`${String(h).padStart(2,'0')}:00`);
-    hourValues.push(hourCounts[h]);
-  }
-
   const canvas = document.getElementById('lineChart');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   if (lineChartInstance) lineChartInstance.destroy();
 
-  const peakCount = Math.max(...hourValues);
+  let hourLabels, hourValues, tooltipTitle;
+
+  if (hourChartDetailMode) {
+    // 30-minute buckets, fixed 06:00–18:00 window (24 buckets).
+    const buckets = Array(24).fill(0); // index 0 = 06:00-06:29, ... index 23 = 17:30-17:59
+    records.forEach(r => {
+      if (!r.delivery_datetime) return;
+      const d = new Date(r.delivery_datetime);
+      const h = d.getHours(), m = d.getMinutes();
+      if (h < 6 || h >= 18) return; // outside the 6am–6pm detail window
+      const idx = (h - 6) * 2 + (m >= 30 ? 1 : 0);
+      buckets[idx]++;
+    });
+    hourLabels = buckets.map((_, i) => {
+      const h = 6 + Math.floor(i / 2);
+      const m = i % 2 === 0 ? '00' : '30';
+      return `${String(h).padStart(2,'0')}:${m}`;
+    });
+    hourValues = buckets;
+    tooltipTitle = items => {
+      const idx = items[0].dataIndex;
+      const startH = 6 + Math.floor(idx / 2), startM = idx % 2 === 0 ? 0 : 30;
+      const endTotalMin = (startH * 60 + startM) + 30;
+      const endH = Math.floor(endTotalMin / 60), endM = endTotalMin % 60;
+      return `${items[0].label}–${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;
+    };
+  } else {
+    // Hourly buckets, full day — only show hours with deliveries or the working range (6-22).
+    const hourCounts = Array(24).fill(0);
+    records.forEach(r => {
+      if (r.delivery_datetime) hourCounts[new Date(r.delivery_datetime).getHours()]++;
+    });
+    const minHour = Math.min(6,  hourCounts.findIndex(v => v > 0) >= 0 ? hourCounts.findIndex(v => v > 0) : 6);
+    const maxHour = Math.max(20, [...hourCounts].reverse().findIndex(v => v > 0) >= 0 ? 23 - [...hourCounts].reverse().findIndex(v => v > 0) : 20);
+    hourLabels = []; hourValues = [];
+    for (let h = minHour; h <= maxHour; h++) {
+      hourLabels.push(`${String(h).padStart(2,'0')}:00`);
+      hourValues.push(hourCounts[h]);
+    }
+    tooltipTitle = items => `${items[0].label}–${String(parseInt(items[0].label)+1).padStart(2,'0')}:00`;
+  }
+
+  const peakCount = Math.max(...hourValues, 0);
 
   lineChartInstance = new Chart(ctx, {
     type: 'bar',
@@ -5296,11 +5334,12 @@ function renderLineChart(records) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            title: items => `${items[0].label}–${String(parseInt(items[0].label)+1).padStart(2,'0')}:00`,
+            title: tooltipTitle,
             label: ctx  => ` ${ctx.parsed.y} deliver${ctx.parsed.y !== 1 ? 'ies' : 'y'}`
           }
         }
@@ -5311,7 +5350,9 @@ function renderLineChart(records) {
           ticks: {
             font: { family: "'Barlow', sans-serif", size: 11 },
             color: '#5a7a9a',
-            maxRotation: 45
+            maxRotation: 45,
+            autoSkip: !hourChartDetailMode,
+            maxTicksLimit: hourChartDetailMode ? 24 : undefined
           }
         },
         y: {
