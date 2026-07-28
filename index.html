@@ -5020,7 +5020,7 @@ async function loadAnalytics() {
     let total = null;
     while (true) {
       const to = from + pageSize - 1;
-      const res = await sbRequest(`${query}&limit=${pageSize}`, {
+      const res = await sbRequest(query, {
         headers: { 'Accept': 'application/json', 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': `${from}-${to}` }
       });
       if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
