@@ -442,9 +442,9 @@ self.addEventListener('fetch', e => {
   .analytics-charts-grid { display: flex; flex-direction: column; gap: 14px; }
   .chart-card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
   .analytics-charts-grid .chart-card { margin-bottom: 0; }
-  .chart-card-title { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+  .chart-card-title { font-family: 'Barlow Condensed', sans-serif; font-size: 0.92rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--brand); margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
   .chart-card-title svg { width: 14px; height: 14px; }
-  .chart-total { margin-left: auto; font-weight: 700; color: var(--text-muted); letter-spacing: normal; text-transform: none; font-size: 0.72rem; }
+  .chart-total { margin-left: auto; font-weight: 700; color: var(--text-muted); letter-spacing: normal; text-transform: none; font-size: 0.85rem; }
   .chart-wrap { position: relative; width: 100%; max-width: 320px; margin: 0 auto; }
   .chart-wrap.chart-wrap-wide { max-width: 100%; height: 240px; }
   .chart-wrap.chart-wrap-bar { max-width: 100%; height: 280px; }
@@ -459,14 +459,28 @@ self.addEventListener('fetch', e => {
   .hour-detail-toggle.active { background: var(--brand); border-color: var(--brand); color: white; }
   .hour-detail-toggle-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
   .hour-detail-toggle.active .hour-detail-toggle-dot { background: white; }
+  .total-deliveries-card {
+    background: linear-gradient(135deg, var(--brand), #0062b8);
+    border-radius: var(--radius); padding: 28px 20px; margin-bottom: 14px;
+    box-shadow: var(--shadow); text-align: center; color: white;
+  }
+  .total-deliveries-value { font-family: 'Barlow Condensed', sans-serif; font-size: 3.4rem; font-weight: 800; line-height: 1; }
+  .total-deliveries-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.85); margin-top: 6px; }
+  .total-deliveries-sub { font-size: 0.78rem; color: rgba(255,255,255,0.65); margin-top: 4px; }
+  .cust-cell { display: flex; flex-direction: column; gap: 1px; }
+  .cust-code { font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: var(--text-muted); }
+  .cust-name { font-weight: 600; }
+  .prev-cell { color: var(--text-muted); font-weight: 700; }
+  .prev-range-note { display: block; font-size: 0.6rem; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--text-muted); opacity: 0.75; margin-top: 2px; }
   .customer-drop-table { width: 100%; border-collapse: collapse; font-family: 'Barlow', sans-serif; }
   .customer-table-wrap { width: 100%; }
-  .customer-drop-table th { text-align: left; font-family: 'Barlow Condensed', sans-serif; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); padding: 0 8px 8px; border-bottom: 1.5px solid var(--border); }
-  .customer-drop-table th:last-child, .customer-drop-table td:last-child { text-align: right; }
+  .customer-drop-table th { text-align: left; font-family: 'Barlow Condensed', sans-serif; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); padding: 0 8px 10px; border-bottom: 1.5px solid var(--border); }
+  .customer-drop-table th:nth-child(3), .customer-drop-table td:nth-child(3),
+  .customer-drop-table th:nth-child(4), .customer-drop-table td:nth-child(4) { text-align: right; }
   .customer-drop-table td { padding: 9px 8px; border-bottom: 1px solid var(--border); font-size: 0.88rem; color: var(--text); }
   .customer-drop-table tr:last-child td { border-bottom: none; }
   .customer-drop-table .rank-cell { color: var(--text-muted); font-weight: 700; width: 24px; }
-  .customer-drop-table .count-cell { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; color: var(--brand); font-size: 1rem; }
+  .customer-drop-table .count-cell { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; color: var(--brand); font-size: 1.25rem; }
   .customer-table-more { font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: 10px; }
   .chart-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 0.9rem; }
   .pie-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
@@ -474,8 +488,8 @@ self.addEventListener('fetch', e => {
   .stat-card { background: white; border-radius: var(--radius); padding: 16px 12px; box-shadow: var(--shadow); border: 1.5px solid var(--border); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .stat-card-icon { width: 32px; height: 32px; background: rgba(0,75,142,0.08); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
   .stat-card-icon svg { width: 15px; height: 15px; color: var(--brand); }
-  .stat-card-value { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--brand); line-height: 1; }
-  .stat-card-label { font-size: 0.62rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.3; text-align: center; }
+  .stat-card-value { font-family: 'Barlow Condensed', sans-serif; font-size: 1.75rem; font-weight: 800; color: var(--brand); line-height: 1; }
+  .stat-card-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.3; text-align: center; }
   .stat-card-sub { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); text-align: center; margin-top: -2px; }
   .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
   .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
@@ -2587,6 +2601,12 @@ self.addEventListener('fetch', e => {
         <input type="date" id="analyticsDateTo" onchange="onAnalyticsDateChange()">
       </div>
       <div class="driver-chips" id="analyticsDriverChips" style="margin-top:6px;"></div>
+    </div>
+
+    <div class="total-deliveries-card">
+      <div class="total-deliveries-value" id="totalDeliveriesValue">—</div>
+      <div class="total-deliveries-label">Total Deliveries</div>
+      <div class="total-deliveries-sub" id="totalDeliveriesSub"></div>
     </div>
 
     <div class="stat-cards">
@@ -4948,6 +4968,8 @@ function dateToStr(d) {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
 
+let activeAnalyticsPreset = null;
+
 function setAnalyticsPreset(preset) {
   const now   = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -4976,11 +4998,13 @@ function setAnalyticsPreset(preset) {
 
   document.getElementById('analyticsDateFrom').value = dateToStr(from);
   document.getElementById('analyticsDateTo').value   = dateToStr(to);
+  activeAnalyticsPreset = preset;
   updatePresetChips(preset);
   loadAnalytics();
 }
 
 function onAnalyticsDateChange() {
+  activeAnalyticsPreset = null;
   updatePresetChips(null);
   loadAnalytics();
 }
@@ -4992,6 +5016,73 @@ function updatePresetChips(active) {
   });
 }
 
+// Comparable previous-period range. Calendar-aware for named presets (e.g.
+// "this month" 1st–28th compares against "last month" 1st–28th, not the
+// whole of last month, so partial periods stay like-for-like). Falls back
+// to an equal-length immediately-preceding window for custom date ranges,
+// which have no natural calendar equivalent.
+function getPreviousPeriodRange(preset, dateFrom, dateTo) {
+  const from = new Date(dateFrom + 'T00:00:00');
+  const to   = new Date(dateTo   + 'T00:00:00');
+
+  if (preset === 'today' || preset === 'yesterday') {
+    const pf = new Date(from); pf.setDate(pf.getDate() - 1);
+    return { from: dateToStr(pf), to: dateToStr(pf) };
+  }
+  if (preset === 'this_week' || preset === 'last_week') {
+    const pf = new Date(from); pf.setDate(pf.getDate() - 7);
+    const pt = new Date(to);   pt.setDate(pt.getDate() - 7);
+    return { from: dateToStr(pf), to: dateToStr(pt) };
+  }
+  if (preset === 'this_month' || preset === 'last_month') {
+    const pf = new Date(from.getFullYear(), from.getMonth() - 1, from.getDate());
+    const pt = new Date(to.getFullYear(),   to.getMonth() - 1,   to.getDate());
+    return { from: dateToStr(pf), to: dateToStr(pt) };
+  }
+  const durationDays = Math.round((to - from) / 86400000) + 1;
+  const pt = new Date(from); pt.setDate(pt.getDate() - 1);
+  const pf = new Date(pt);   pf.setDate(pf.getDate() - durationDays + 1);
+  return { from: dateToStr(pf), to: dateToStr(pt) };
+}
+
+function formatDateRangeDisplay(fromStr, toStr) {
+  const opts = { day: 'numeric', month: 'short' };
+  const f = new Date(fromStr + 'T00:00:00').toLocaleDateString('en-GB', opts);
+  const t = new Date(toStr   + 'T00:00:00').toLocaleDateString('en-GB', opts);
+  return fromStr === toStr ? f : `${f} – ${t}`;
+}
+
+// Paginated fetch of deliveries in a date range (local calendar dates,
+// converted to UTC boundaries — see Session 18/20 BST fix notes). Pages
+// through in batches of 1000 using the Range header only (no `limit` query
+// param — combining both previously caused PostgREST to 416).
+async function fetchDeliveriesInRange(dateFrom, dateTo) {
+  let query = `/rest/v1/${config.table}?order=delivery_datetime.asc`;
+  if (dateFrom) query += `&delivery_datetime=gte.${new Date(dateFrom + 'T00:00:00').toISOString()}`;
+  if (dateTo)   query += `&delivery_datetime=lte.${new Date(dateTo   + 'T23:59:59').toISOString()}`;
+
+  let allRecords = [];
+  let from = 0;
+  const pageSize = 1000;
+  let total = null;
+  while (true) {
+    const to = from + pageSize - 1;
+    const res = await sbRequest(query, {
+      headers: { 'Accept': 'application/json', 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': `${from}-${to}` }
+    });
+    if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
+    const page = await res.json();
+    allRecords = allRecords.concat(page);
+    const contentRange = res.headers.get('content-range'); // e.g. "0-999/1819"
+    const parsedTotal = contentRange && parseInt(contentRange.split('/')[1], 10);
+    if (!isNaN(parsedTotal)) total = parsedTotal;
+    const haveAll = total !== null ? allRecords.length >= total : page.length < pageSize;
+    if (haveAll) break;
+    from += pageSize;
+  }
+  return allRecords;
+}
+
 async function loadAnalytics() {
   const today = todayStrA();
   const fromEl = document.getElementById('analyticsDateFrom');
@@ -5001,50 +5092,45 @@ async function loadAnalytics() {
 
   const dateFrom = fromEl.value;
   const dateTo   = toEl.value;
-  // Date boundaries converted from local (BST/GMT) to UTC before querying —
-  // same pattern as fetchRecords() (Session 18 fix). Sending a bare
-  // "YYYY-MM-DDT00:00:00" with no offset caused this screen's own BST bug.
-  let query = `/rest/v1/${config.table}?order=delivery_datetime.asc`;
-  if (dateFrom) query += `&delivery_datetime=gte.${new Date(dateFrom + 'T00:00:00').toISOString()}`;
-  if (dateTo)   query += `&delivery_datetime=lte.${new Date(dateTo   + 'T23:59:59').toISOString()}`;
+
   try {
-    // Page through in batches of 1000 (PostgREST's per-request cap). We stop
-    // using the Content-Range response header's total count, not just
-    // page.length — relying on page.length alone meant that whenever the
-    // total was an exact multiple of 1000, we'd request one page past the
-    // end (offset === total), which PostgREST rejects with 416 Range Not
-    // Satisfiable. This was the "This Month" / "Last Month" 416 bug.
-    let allRecords = [];
-    let from = 0;
-    const pageSize = 1000;
-    let total = null;
-    while (true) {
-      const to = from + pageSize - 1;
-      const res = await sbRequest(query, {
-        headers: { 'Accept': 'application/json', 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': `${from}-${to}` }
-      });
-      if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
-      const page = await res.json();
-      allRecords = allRecords.concat(page);
-      const contentRange = res.headers.get('content-range'); // e.g. "0-999/1819"
-      const parsedTotal = contentRange && parseInt(contentRange.split('/')[1], 10);
-      if (!isNaN(parsedTotal)) total = parsedTotal;
-      const haveAll = total !== null ? allRecords.length >= total : page.length < pageSize;
-      if (haveAll) break;
-      from += pageSize;
-    }
+    const allRecords = await fetchDeliveriesInRange(dateFrom, dateTo);
     renderAnalyticsDriverChips(allRecords);
     const records = activeAnalyticsDriver
       ? allRecords.filter(r => r.driver_name === activeAnalyticsDriver)
       : allRecords;
     lastAnalyticsRecords = records;
+
+    // Comparable previous period — used by the customer table's "Previous"
+    // column. Fetched separately so a failure here doesn't take down the
+    // whole screen; it just means comparisons show as N/A.
+    const prevRange = getPreviousPeriodRange(activeAnalyticsPreset, dateFrom, dateTo);
+    let prevRecords = null;
+    try {
+      const prevAll = await fetchDeliveriesInRange(prevRange.from, prevRange.to);
+      prevRecords = activeAnalyticsDriver
+        ? prevAll.filter(r => r.driver_name === activeAnalyticsDriver)
+        : prevAll;
+    } catch (e) {
+      prevRecords = null;
+    }
+
+    renderTotalDeliveriesCard(records, dateFrom, dateTo);
     renderPieChart(records);
-    renderCustomerPieChart(records);
+    renderCustomerPieChart(records, prevRecords, prevRange);
     renderLineChart(records);
   } catch(err) {
     diagLog('analytics_load_failed', classifyFetchError(err), 'error');
     document.getElementById('pieChartWrap').innerHTML = `<div class="chart-empty">Error loading data: ${err.message}</div>`;
   }
+}
+
+function renderTotalDeliveriesCard(records, dateFrom, dateTo) {
+  const el = document.getElementById('totalDeliveriesValue');
+  if (!el) return;
+  el.textContent = records.length.toLocaleString();
+  const sub = document.getElementById('totalDeliveriesSub');
+  if (sub) sub.textContent = formatDateRangeDisplay(dateFrom, dateTo) + (activeAnalyticsDriver ? ` · ${activeAnalyticsDriver}` : '');
 }
 
 function renderAnalyticsDriverChips(records) {
@@ -5111,6 +5197,8 @@ function renderPieChart(records) {
     document.getElementById('customerPieWrap').innerHTML  = '<div class="chart-empty">No deliveries in this date range.</div>';
     document.getElementById('pieChartTotal').textContent      = '';
     document.getElementById('customerChartTotal').textContent = '';
+    const totalEl = document.getElementById('totalDeliveriesValue');
+    if (totalEl) totalEl.textContent = '0';
     if (pieChartInstance)         { pieChartInstance.destroy();         pieChartInstance         = null; }
     if (customerPieChartInstance) { customerPieChartInstance.destroy(); customerPieChartInstance = null; }
     return;
@@ -5179,6 +5267,11 @@ function renderPieChart(records) {
   const ctx = document.getElementById('pieChart').getContext('2d');
   if (pieChartInstance) pieChartInstance.destroy();
 
+  // Axis increments of 10 (typical range) or 25 (busier periods) rather
+  // than one tick per delivery, which got cluttered once counts climbed.
+  const maxVal = Math.max(...values, 0);
+  const axisStep = maxVal > 100 ? 25 : 10;
+
   pieChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -5207,7 +5300,7 @@ function renderPieChart(records) {
       scales: {
         x: {
           beginAtZero: true,
-          ticks: { stepSize: 1, font: { family: "'Barlow', sans-serif", size: 11 }, color: '#5a7a9a' },
+          ticks: { stepSize: axisStep, font: { family: "'Barlow', sans-serif", size: 11 }, color: '#5a7a9a' },
           grid: { color: 'rgba(0,75,142,0.06)' }
         },
         y: {
@@ -5219,15 +5312,13 @@ function renderPieChart(records) {
   });
 }
 
-function renderCustomerPieChart(records) {
-  // Tally by customer short code, keep only the top 10. A chart here (pie
-  // or bar) didn't add much over a plain ranked list — the underlying
-  // numbers are what matters, not their relative visual size.
+function renderCustomerPieChart(records, prevRecords, prevRange) {
+  // Tally by full customer_name ("CODE - Full Name") so the code and name
+  // both display, and previous-period lookups match unambiguously.
   const tally = {};
   records.forEach(r => {
-    const full  = r.customer_name || 'Unknown';
-    const short = full.includes(' - ') ? full.split(' - ')[0].trim() : full.split(' ')[0].trim();
-    tally[short] = (tally[short] || 0) + 1;
+    const key = r.customer_name || 'Unknown';
+    tally[key] = (tally[key] || 0) + 1;
   });
   const sortedAll = Object.entries(tally).sort((a,b) => b[1]-a[1]);
   const allTotal  = sortedAll.reduce((a,[,v]) => a+v, 0);
@@ -5243,16 +5334,39 @@ function renderCustomerPieChart(records) {
     return;
   }
 
-  const rows = top10.map(([name, count], i) => `
+  // Previous-period tally, keyed the same way. null means the comparison
+  // period couldn't be fetched at all — every row shows N/A in that case.
+  // A customer simply absent from an otherwise-successful previous period
+  // shows a real 0 (they had comparable data, it was just zero).
+  let prevTally = null;
+  if (prevRecords) {
+    prevTally = {};
+    prevRecords.forEach(r => {
+      const key = r.customer_name || 'Unknown';
+      prevTally[key] = (prevTally[key] || 0) + 1;
+    });
+  }
+
+  const rows = top10.map(([fullName, count], i) => {
+    const parts = fullName.includes(' - ') ? fullName.split(' - ') : null;
+    const custCell = parts
+      ? `<span class="cust-code">${escHtml(parts[0])}</span><span class="cust-name">${escHtml(parts.slice(1).join(' - '))}</span>`
+      : `<span class="cust-name">${escHtml(fullName)}</span>`;
+    const prevDisplay = prevTally ? String(prevTally[fullName] || 0) : 'N/A';
+    return `
     <tr>
       <td class="rank-cell">${i + 1}</td>
-      <td>${escHtml(name)}</td>
+      <td class="cust-cell">${custCell}</td>
       <td class="count-cell">${count}</td>
-    </tr>`).join('');
+      <td class="prev-cell">${prevDisplay}</td>
+    </tr>`;
+  }).join('');
+
+  const prevLabel = prevRange ? formatDateRangeDisplay(prevRange.from, prevRange.to) : '';
 
   wrap.innerHTML = `
     <table class="customer-drop-table">
-      <thead><tr><th>#</th><th>Customer</th><th>Drops</th></tr></thead>
+      <thead><tr><th>#</th><th>Customer</th><th>Drops</th><th>Previous${prevLabel ? `<span class="prev-range-note">${escHtml(prevLabel)}</span>` : ''}</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     ${remaining > 0 ? `<div class="customer-table-more">+${remaining} more customers with fewer drops</div>` : ''}`;
