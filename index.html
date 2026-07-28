@@ -439,10 +439,15 @@ self.addEventListener('fetch', e => {
   .date-preset-chip { background: var(--off-white); border: 2px solid var(--border); border-radius: 20px; padding: 7px 4px; font-family: 'Barlow', sans-serif; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; white-space: nowrap; touch-action: manipulation; text-align: center; width: 100%; }
   .date-preset-chip:active { transform: scale(0.96); }
   .date-preset-chip.active { background: var(--brand); border-color: var(--brand); color: white; }
+  .analytics-charts-grid { display: flex; flex-direction: column; gap: 14px; }
   .chart-card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
+  .analytics-charts-grid .chart-card { margin-bottom: 0; }
   .chart-card-title { font-family: 'Barlow Condensed', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
   .chart-card-title svg { width: 14px; height: 14px; }
+  .chart-total { margin-left: auto; font-weight: 700; color: var(--text-muted); letter-spacing: normal; text-transform: none; font-size: 0.72rem; }
   .chart-wrap { position: relative; width: 100%; max-width: 320px; margin: 0 auto; }
+  .chart-wrap-wide { max-width: 100%; height: 240px; }
+  .chart-wrap-bar { max-width: 100%; height: 280px; }
   .chart-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 0.9rem; }
   .pie-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
   .stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
@@ -752,6 +757,13 @@ self.addEventListener('fetch', e => {
 
     /* Charts wider */
     .chart-wrap { max-width: 480px; }
+
+    /* Analytics: fill the desktop-width main column instead of stacking
+       narrow single-column cards with large empty margins either side. */
+    .analytics-charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .chart-card-wide { grid-column: 1 / -1; }
+    .chart-wrap-wide { max-width: 100%; }
+    .chart-wrap-bar  { max-width: 100%; height: 320px; }
 
     /* Record cards — a touch more padding */
     .record-card { padding: 16px 20px; }
@@ -2578,35 +2590,37 @@ self.addEventListener('fetch', e => {
       </div>
     </div>
 
-    <div class="chart-card">
-      <div class="chart-card-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-        Deliveries by Driver
+    <div class="analytics-charts-grid">
+      <div class="chart-card chart-card-wide">
+        <div class="chart-card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Deliveries by Hour of Day
+        </div>
+        <div class="chart-wrap chart-wrap-wide">
+          <canvas id="lineChart"></canvas>
+        </div>
       </div>
-      <div id="pieChartWrap" class="chart-wrap">
-        <canvas id="pieChart"></canvas>
-      </div>
-      <div class="pie-legend" id="pieLegend"></div>
-    </div>
 
-    <div class="chart-card">
-      <div class="chart-card-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-        Deliveries by Customer
+      <div class="chart-card">
+        <div class="chart-card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+          Deliveries by Driver
+          <span class="chart-total" id="pieChartTotal"></span>
+        </div>
+        <div id="pieChartWrap" class="chart-wrap chart-wrap-bar">
+          <canvas id="pieChart"></canvas>
+        </div>
       </div>
-      <div id="customerPieWrap" class="chart-wrap">
-        <canvas id="customerPieChart"></canvas>
-      </div>
-      <div class="pie-legend" id="customerPieLegend"></div>
-    </div>
 
-    <div class="chart-card">
-      <div class="chart-card-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        Deliveries by Hour of Day
-      </div>
-      <div class="chart-wrap" style="max-width:100%;">
-        <canvas id="lineChart"></canvas>
+      <div class="chart-card">
+        <div class="chart-card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+          Top 10 Customers by Number of Drops
+          <span class="chart-total" id="customerChartTotal"></span>
+        </div>
+        <div id="customerPieWrap" class="chart-wrap chart-wrap-bar">
+          <canvas id="customerPieChart"></canvas>
+        </div>
       </div>
     </div>
   </div>
@@ -4963,13 +4977,30 @@ async function loadAnalytics() {
 
   const dateFrom = fromEl.value;
   const dateTo   = toEl.value;
-  let query = `/rest/v1/${config.table}?order=delivery_datetime.asc&limit=1000`;
-  if (dateFrom) query += `&delivery_datetime=gte.${dateFrom}T00:00:00`;
-  if (dateTo)   query += `&delivery_datetime=lte.${dateTo}T23:59:59`;
+  // Date boundaries converted from local (BST/GMT) to UTC before querying —
+  // same pattern as fetchRecords() (Session 18 fix). Sending a bare
+  // "YYYY-MM-DDT00:00:00" with no offset caused this screen's own BST bug.
+  let query = `/rest/v1/${config.table}?order=delivery_datetime.asc`;
+  if (dateFrom) query += `&delivery_datetime=gte.${new Date(dateFrom + 'T00:00:00').toISOString()}`;
+  if (dateTo)   query += `&delivery_datetime=lte.${new Date(dateTo   + 'T23:59:59').toISOString()}`;
   try {
-    const res = await sbRequest(query, { headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': '0-999' } });
-    if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
-    const allRecords = await res.json();
+    // Page through in batches of 1000 (PostgREST's per-request cap) rather
+    // than trusting a single request — a fixed limit here previously
+    // silently truncated any date range with more than 1000 deliveries.
+    let allRecords = [];
+    let from = 0;
+    const pageSize = 1000;
+    while (true) {
+      const to = from + pageSize - 1;
+      const res = await sbRequest(`${query}&limit=${pageSize}`, {
+        headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': `${from}-${to}` }
+      });
+      if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
+      const page = await res.json();
+      allRecords = allRecords.concat(page);
+      if (page.length < pageSize) break;
+      from += pageSize;
+    }
     renderAnalyticsDriverChips(allRecords);
     const records = activeAnalyticsDriver
       ? allRecords.filter(r => r.driver_name === activeAnalyticsDriver)
@@ -5045,8 +5076,8 @@ function renderPieChart(records) {
     document.getElementById('statAvgTimeSub').textContent = 'select one driver';
     document.getElementById('pieChartWrap').innerHTML    = '<div class="chart-empty">No deliveries in this date range.</div>';
     document.getElementById('customerPieWrap').innerHTML  = '<div class="chart-empty">No deliveries in this date range.</div>';
-    document.getElementById('pieLegend').innerHTML         = '';
-    document.getElementById('customerPieLegend').innerHTML = '';
+    document.getElementById('pieChartTotal').textContent      = '';
+    document.getElementById('customerChartTotal').textContent = '';
     if (pieChartInstance)         { pieChartInstance.destroy();         pieChartInstance         = null; }
     if (customerPieChartInstance) { customerPieChartInstance.destroy(); customerPieChartInstance = null; }
     return;
@@ -5099,7 +5130,7 @@ function renderPieChart(records) {
     document.getElementById('statAvgTimeSub').textContent = 'select one driver';
   }
 
-  // ── Pie chart ──
+  // ── Deliveries by Driver — sorted horizontal bar ──
   const tally   = {};
   records.forEach(r => { const d = r.driver_name || 'Unknown'; tally[d] = (tally[d] || 0) + 1; });
   const sorted   = Object.entries(tally).sort((a,b) => b[1]-a[1]);
@@ -5108,149 +5139,118 @@ function renderPieChart(records) {
   const colours  = labels.map((_, i) => PIE_BLUES[i % PIE_BLUES.length]);
   const pieTotal = values.reduce((a,b) => a+b, 0);
 
+  document.getElementById('pieChartTotal').textContent = `${pieTotal} total`;
+
   const wrap = document.getElementById('pieChartWrap');
   if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="pieChart"></canvas>';
   const ctx = document.getElementById('pieChart').getContext('2d');
   if (pieChartInstance) pieChartInstance.destroy();
 
-  // Centre total text plugin
-  const centerTextPlugin = {
-    id: 'centerText',
-    beforeDraw(chart) {
-      const { width, height, ctx } = chart;
-      ctx.save();
-      const fontSize = Math.min(width, height) * 0.13;
-      ctx.font = `800 ${fontSize}px 'Barlow Condensed', sans-serif`;
-      ctx.fillStyle = '#004b8e';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const cx = chart.chartArea.left + (chart.chartArea.right  - chart.chartArea.left) / 2;
-      const cy = chart.chartArea.top  + (chart.chartArea.bottom - chart.chartArea.top)  / 2;
-      ctx.fillText(pieTotal, cx, cy - fontSize * 0.3);
-      ctx.font = `600 ${fontSize * 0.45}px 'Barlow', sans-serif`;
-      ctx.fillStyle = '#5a7a9a';
-      ctx.fillText('deliveries', cx, cy + fontSize * 0.5);
-      ctx.restore();
-    }
-  };
-
   pieChartInstance = new Chart(ctx, {
-    type: 'doughnut',
+    type: 'bar',
     data: {
       labels,
       datasets: [{
         data: values,
         backgroundColor: colours,
         borderColor: '#ffffff',
-        borderWidth: 3,
-        hoverOffset: 8
+        borderWidth: 1,
+        borderRadius: 6,
+        borderSkipped: false
       }]
     },
     options: {
+      indexAxis: 'y',
       responsive: true,
-      cutout: '60%',
+      maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: ctx => ` ${ctx.label}: ${ctx.parsed} drops (${Math.round(ctx.parsed/pieTotal*100)}%)`
+            label: ctx => ` ${ctx.parsed.x} drops (${Math.round(ctx.parsed.x/pieTotal*100)}%)`
           }
         }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { stepSize: 1, font: { family: "'Barlow', sans-serif", size: 11 }, color: '#5a7a9a' },
+          grid: { color: 'rgba(0,75,142,0.06)' }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { font: { family: "'Barlow', sans-serif", size: 12, weight: '600' }, color: '#004b8e' }
+        }
       }
-    },
-    plugins: [centerTextPlugin]
+    }
   });
-
-  // Custom legend
-  document.getElementById('pieLegend').innerHTML = sorted.map(([name, count], i) => {
-    const pct = Math.round(count / pieTotal * 100);
-    return `<div class="legend-item">
-      <div class="legend-dot" style="background:${colours[i]}"></div>
-      <div class="legend-name">${escHtml(name)}</div>
-      <div class="legend-count">${count}<span class="legend-pct">${pct}%</span></div>
-    </div>`;
-  }).join('');
 }
 
 function renderCustomerPieChart(records) {
-  // Tally by customer short code
+  // Tally by customer short code, keep only the top 10 — with hundreds of
+  // customers getting 1-2 drops a month, a full pie/legend of all of them
+  // was too condensed to read. Top 10 answers "who actually matters here".
   const tally = {};
   records.forEach(r => {
     const full  = r.customer_name || 'Unknown';
     const short = full.includes(' - ') ? full.split(' - ')[0].trim() : full.split(' ')[0].trim();
     tally[short] = (tally[short] || 0) + 1;
   });
-  const sorted   = Object.entries(tally).sort((a,b) => b[1]-a[1]);
-  const labels   = sorted.map(([name]) => name);
-  const values   = sorted.map(([,count]) => count);
-  const colours  = labels.map((_, i) => PIE_BLUES[i % PIE_BLUES.length]);
-  const pieTotal = values.reduce((a,b) => a+b, 0);
+  const sortedAll = Object.entries(tally).sort((a,b) => b[1]-a[1]);
+  const allTotal  = sortedAll.reduce((a,[,v]) => a+v, 0);
+  const sorted    = sortedAll.slice(0, 10);
+  const labels    = sorted.map(([name]) => name);
+  const values    = sorted.map(([,count]) => count);
+  const colours   = labels.map((_, i) => PIE_BLUES[i % PIE_BLUES.length]);
+  const top10Total = values.reduce((a,b) => a+b, 0);
+  const remaining   = sortedAll.length - sorted.length;
+
+  document.getElementById('customerChartTotal').textContent =
+    remaining > 0 ? `${allTotal} total · +${remaining} more customers` : `${allTotal} total`;
 
   const wrap = document.getElementById('customerPieWrap');
   if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="customerPieChart"></canvas>';
   const ctx = document.getElementById('customerPieChart').getContext('2d');
   if (customerPieChartInstance) customerPieChartInstance.destroy();
 
-  const centerTextPlugin = {
-    id: 'centerTextCustomer',
-    beforeDraw(chart) {
-      const { width, height, ctx } = chart;
-      ctx.save();
-      const fontSize = Math.min(width, height) * 0.13;
-      ctx.font = `800 ${fontSize}px 'Barlow Condensed', sans-serif`;
-      ctx.fillStyle = '#004b8e';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const cx = chart.chartArea.left + (chart.chartArea.right  - chart.chartArea.left) / 2;
-      const cy = chart.chartArea.top  + (chart.chartArea.bottom - chart.chartArea.top)  / 2;
-      ctx.fillText(pieTotal, cx, cy - fontSize * 0.3);
-      ctx.font = `600 ${fontSize * 0.45}px 'Barlow', sans-serif`;
-      ctx.fillStyle = '#5a7a9a';
-      ctx.fillText('deliveries', cx, cy + fontSize * 0.5);
-      ctx.restore();
-    }
-  };
-
   customerPieChartInstance = new Chart(ctx, {
-    type: 'doughnut',
+    type: 'bar',
     data: {
       labels,
       datasets: [{
         data: values,
         backgroundColor: colours,
         borderColor: '#ffffff',
-        borderWidth: 3,
-        hoverOffset: 8
+        borderWidth: 1,
+        borderRadius: 6,
+        borderSkipped: false
       }]
     },
     options: {
+      indexAxis: 'y',
       responsive: true,
-      cutout: '60%',
+      maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: ctx => ` ${ctx.label}: ${ctx.parsed} drops (${Math.round(ctx.parsed/pieTotal*100)}%)`
+            label: ctx => ` ${ctx.parsed.x} drops (${Math.round(ctx.parsed.x/top10Total*100)}% of top 10)`
           }
         }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { stepSize: 1, font: { family: "'Barlow', sans-serif", size: 11 }, color: '#5a7a9a' },
+          grid: { color: 'rgba(0,75,142,0.06)' }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { font: { family: "'Barlow', sans-serif", size: 12, weight: '600' }, color: '#004b8e' }
+        }
       }
-    },
-    plugins: [centerTextPlugin]
+    }
   });
-
-  // Custom legend — show top 10 to keep it readable
-  const display = sorted.slice(0, 10);
-  const remaining = sorted.length - display.length;
-  document.getElementById('customerPieLegend').innerHTML =
-    display.map(([name, count], i) => {
-      const pct = Math.round(count / pieTotal * 100);
-      return `<div class="legend-item">
-        <div class="legend-dot" style="background:${colours[i]}"></div>
-        <div class="legend-name">${escHtml(name)}</div>
-        <div class="legend-count">${count}<span class="legend-pct">${pct}%</span></div>
-      </div>`;
-    }).join('') +
-    (remaining > 0 ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;text-align:center;">+${remaining} more customers</div>` : '');
 }
 
 function renderLineChart(records) {
