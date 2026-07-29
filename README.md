@@ -1,6 +1,6 @@
 # FMF POD — Proof of Delivery
 
-A self-contained, single-file web app for recording and managing delivery proof. Built for FMF and hosted on GitHub Pages with Supabase as the backend. Drivers access it from any mobile browser — no app install required.
+A self-contained web app for recording and managing delivery proof — `index.html` plus a small `sw.js` service worker. Built for FMF and hosted on GitHub Pages with Supabase as the backend. Drivers access it from any mobile browser — no app install required.
 
 ---
 
@@ -39,7 +39,7 @@ FMF POD gives drivers a quick way to record proof of delivery from their phone. 
 - Notes (free text, optional)
 - The active route stop the delivery belongs to, if any
 
-Admins can review history, view delivery maps, plan and optimise routes, manage customer delivery addresses, monitor drivers live via the Overview wallboard, and inspect a diagnostic log of app errors — all through PIN-protected screens. Everything runs from a single `index.html` file with no build tools, no frameworks, and no app store.
+Admins can review history, view delivery maps, plan and optimise routes, manage customer delivery addresses, monitor drivers live via the Overview wallboard, and inspect a diagnostic log of app errors — all through PIN-protected screens. The app runs from `index.html` with no build tools and no frameworks, plus a small `sw.js` service worker file that lets the app shell load even on poor or no signal (see [Offline Mode](#offline-mode)). **Both files must be deployed together** — see [Deployment](#deployment).
 
 ---
 
@@ -47,7 +47,8 @@ Admins can review history, view delivery maps, plan and optimise routes, manage 
 
 | Layer | Technology |
 |---|---|
-| Frontend | Single `index.html` — HTML, CSS, vanilla JavaScript |
+| Frontend | `index.html` — HTML, CSS, vanilla JavaScript |
+| Offline App Shell | `sw.js` — a service worker that caches the app shell so the app still *loads* on poor/no signal, separate from the delivery offline queue below. Must be deployed alongside `index.html` at the same folder level (see [Deployment](#deployment)) |
 | Hosting | GitHub Pages |
 | Database | Supabase (PostgreSQL, accessed via REST API — no SDK) |
 | File Storage | Supabase Storage |
@@ -450,17 +451,26 @@ Introduced across Sessions 5–8 (Smart Routes and In-App Navigation), this laye
 
 ## Offline Mode
 
-If a driver submits a delivery without an internet connection, or loses connection partway through submitting:
+Every delivery is written to the device **before** any network call is attempted — this isn't conditional on the connection being down at the time, it happens unconditionally, every submit:
 
-1. The photo is converted to base64 and the full record is saved to the browser's IndexedDB store (`fmf_pod_offline`)
-2. An amber sync bar appears showing the number of queued deliveries
-3. When the connection returns, the queue syncs automatically — photos upload first, then records are inserted into Supabase
+1. The photo is converted to base64 and the full record is saved to the browser's IndexedDB store (`fmf_pod_offline`) the instant Submit is tapped. The driver sees the success screen the moment this local write completes — their confirmation never depends on Supabase being reachable.
+2. A background sync attempt fires immediately afterward with fast-fail timeouts (12s photo upload, 8s database insert) — much shorter than the timeouts used for the slower catch-up sync loop, so a driver on genuinely bad signal isn't stuck watching a spinner for a long time before the app falls back to "saved, will retry."
+3. If that quick attempt succeeds while the driver is still on the success screen, the message upgrades in place to **✅ Uploaded**. If it doesn't, the message reads **📶 Weak signal — saved on device, will retry automatically** (or **📴 Recorded — will upload when back online** if the device is fully offline) — either way, nothing further is required from the driver.
+4. A periodic backstop retries the queue every 25 seconds while the device reports as online, independent of the browser ever firing a genuine online/offline transition (which on patchy signal often never happens cleanly — the connection just keeps failing silently instead).
 
-**Mid-submission failure handling:** if the photo uploads successfully but the database insert then fails (a connection drop between the two network calls — common in patchy signal), the app does **not** re-upload the photo or lose the record. It queues a database-only record referencing the already-uploaded photo, and shows the driver "📶 Poor signal — record saved locally, will sync automatically" instead of an error. This keeps a single delivery from ever producing a duplicate photo upload or an orphaned file with no matching record.
+**Mid-submission failure handling:** if the photo uploads successfully but the database insert then fails (a connection drop between the two network calls — common in patchy signal), the app does **not** re-upload the photo or lose the record. It queues a database-only record referencing the already-uploaded photo, keeping a single delivery from ever producing a duplicate photo upload or an orphaned file with no matching record.
 
-The offline queue survives page refreshes. Drivers can record multiple deliveries while offline and they will all sync when signal returns. The sync bar turns green briefly on completion.
+The offline queue survives page refreshes. Drivers can record multiple deliveries while offline and they will all sync when signal returns. A sync bar shows the queued count while items are pending and turns green briefly on completion.
 
-`loadActiveRoute()` and `initCustomers()` both have an in-flight guard, so if the device comes back online and the tab becomes visible again at roughly the same moment (e.g. waking from being locked), only one network request fires instead of two competing ones — this matters specifically in poor-signal conditions where doubling requests doubles the chance of failure.
+### Protecting work before Submit is tapped
+
+The local-first write above only protects a delivery from the moment Submit is tapped onward. Separately, whatever's already been entered — selected customer, notes, document number, and the photo itself — is saved as a draft to `localStorage` as it's entered, and restored automatically if the app reloads before Submit is tapped (shown to the driver as a small banner: *"We've brought back the delivery you were working on before the app closed"*). This matters because the app reloading itself mid-session — not just a network failure — turned out to be a real, fairly frequent occurrence (see the `resume_refresh_skipped` / `form_draft_restored` diagnostic log types below), commonly triggered by the OS reclaiming a backgrounded tab rather than any fault in the app.
+
+### Route and stop-completion data while offline
+
+Opening the app (or the app reloading itself) with no signal doesn't leave the route section blank while a network request fails — the last successfully-fetched route is shown immediately from cache, with a banner (*"You're offline — showing your last saved route"*), while a fresh fetch is attempted in the background and silently swaps in if it succeeds. Which stops show as already delivered is worked out by merging the last known server-confirmed delivery list with whatever's still sitting in the local, not-yet-synced queue — so a stop a driver just delivered in a dead zone keeps showing as done immediately, rather than reverting to "not delivered" until the queue actually finishes syncing.
+
+`loadActiveRoute()` and `initCustomers()` both have an in-flight guard, so if the device comes back online and the tab becomes visible again at roughly the same moment (e.g. waking from being locked), only one network request fires instead of two competing ones — this matters specifically in poor-signal conditions where doubling requests doubles the chance of failure. The `visibilitychange` handler additionally waits a couple of seconds after the tab becomes visible again before refreshing anything, and skips the refresh entirely if a photo is already sitting unsubmitted in the form — concentrating network activity right at the moment a driver returns from the camera (right when the device is also waking from being backgrounded) was a plausible contributor to the app being reloaded mid-delivery in the first place.
 
 ---
 
@@ -474,18 +484,28 @@ A live admin-facing log, found in the Config panel, backed by the `app_logs` tab
 
 Each entry carries a **severity** (`info` / `warn` / `error`) and a **session_id** — entries sharing a session ID came from the same continuous page load; a change in session ID for the same driver within a short window means the page silently reloaded (commonly Android reclaiming memory from a backgrounded tab, not an app bug).
 
+Log types worth knowing when reading it:
+
+| Type | Meaning |
+|---|---|
+| `form_draft_restored` | The app reloaded before Submit was tapped, and the in-progress customer/notes/photo were successfully restored |
+| `form_draft_save_error` / `form_draft_restore_error` | Draft save/restore hit an error (e.g. `localStorage` quota) — check the `detail` field |
+| `resume_refresh_skipped` | The tab became visible again but the app deliberately skipped its usual refresh because a photo was already sitting unsubmitted in the form |
+| `route_load_error_suppressed` | A stale route fetch was discarded because a Start/Finish Route action was already in progress — not a fault |
+| `sync_quick_deferred` | The fast opportunistic sync attempt after a submit didn't complete in time; the item stays queued for the periodic retry — expected on weak signal, not an error |
+
 Network error messages are classified rather than passed through raw — instead of the unhelpful browser default "Failed to fetch", entries distinguish a request timeout, the device being offline, and a connection dropping mid-request with signal present. Use the severity filter (set to "Errors only") to cut through routine pre-login noise like `app_start` and `customers_fetch`, which fire before any driver is logged in and are expected, not faults.
 
 ---
 
 ## Deployment
 
-The app is a single file deployed via GitHub Pages.
+The app is deployed via GitHub Pages as two static files: `index.html` and `sw.js`.
 
 ### Initial setup
 
 1. Create a GitHub repository (public or private — Pages works with both on paid plans)
-2. Add `index.html` to the root of the repository
+2. Add **both** `index.html` and `sw.js` to the root of the repository, at the same folder level. This isn't optional — `index.html` registers the service worker with a relative path (`navigator.serviceWorker.register('sw.js')`), which resolves to wherever `index.html` itself is served from. If `sw.js` is missing or nested in a subfolder, registration fails and the app silently loses its offline app-shell caching — with no visible error to the person who deployed it (see [Service Worker & App Shell Caching](#service-worker--app-shell-caching) for why this matters more than it sounds like it should)
 3. Go to **Settings → Pages** and set the source to the `main` branch, root folder
 4. GitHub will provide a URL in the format `https://your-org.github.io/your-repo/`
 
@@ -505,7 +525,7 @@ In **Settings → Pages → Custom domain**, enter your domain. Add a `CNAME` fi
 
 ## Making Changes
 
-The entire application lives in `index.html`. There are no build steps, dependencies, or package managers involved.
+The application itself lives in `index.html`. There are no build steps, dependencies, or package managers involved. The only other file the running app depends on is `sw.js` (offline app-shell caching) — you'll only need to touch it if you're changing caching behaviour itself, not for ordinary feature work.
 
 ### Changing the admin PIN
 
@@ -572,9 +592,34 @@ All JavaScript is in a single `<script>` block at the bottom of the file. Views 
 
 ## Architecture Notes
 
-### Why a single file?
+### Why (almost) a single file?
 
 The single-file approach means the app can be deployed to GitHub Pages with no build pipeline. Any developer with a text editor can read, understand, and modify the entire application. Drivers access it via a URL — no app store, no install, no updates to push.
+
+`sw.js` is the one deliberate exception — see [Service Worker & App Shell Caching](#service-worker--app-shell-caching) below for why it has to be a real file rather than folded into `index.html`.
+
+### Service Worker & App Shell Caching
+
+`index.html` registers `sw.js` on load:
+
+```javascript
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js')
+    .then(() => console.log('Service worker registered'))
+    .catch(err => console.error('SW registration failed:', err));
+}
+```
+
+**This used to be built as a `Blob` at runtime instead of a real file, specifically to avoid needing a second file.** That approach never actually worked — `navigator.serviceWorker.register()` does not accept `blob:` URLs as a script source; it's a hard restriction in the spec, not a browser bug, and it fails on every browser that supports service workers at all. Because the registration call was wrapped in a silent `.catch(() => {})`, this failed on every single page load, in production, for the entire life of the project up to this point, with no visible symptom — the app just never had a working offline app shell, despite the code implying it did. If you're ever tempted to fold `sw.js` back into `index.html` to get back to a true single file, don't — it will silently break exactly this way again, and the failure mode gives no error a normal user would ever report; it just looks like "sometimes the app doesn't load on bad signal," which is very easy to misattribute to the network itself.
+
+What `sw.js` actually does:
+
+- **Install:** pre-caches the CDN assets (Chart.js, jsPDF, Leaflet, Google Fonts CSS) into `fmf-pod-v1`.
+- **Fetch — CDN assets:** cache-first, falling back to network.
+- **Fetch — the app shell itself (`index.html`):** network-first, but races the network fetch against a 4-second timer. If the network hasn't responded within 4 seconds, the cached shell is served immediately instead of leaving the driver on a blank tab — poor signal often means a request hangs rather than fails outright, so waiting for it to *fail* before falling back (the old, broken behaviour) could leave a driver staring at nothing for a minute or more. The network fetch keeps running in the background regardless of which one "wins," so the cache still gets refreshed once a real response arrives.
+- **Supabase and Nominatim requests** are explicitly excluded — never cached, always network-only.
+
+The very first time a driver ever loads the app, there's nothing cached yet, so this fallback can't help — that load still depends on the network succeeding. The 4-second race only helps from the second load onward, once the shell has been cached once successfully.
 
 ### Why no Supabase SDK?
 
@@ -645,6 +690,13 @@ Open `index.html` in any text editor and search for `config.pin`. The PIN is sto
 2. Confirm the anon select policy is in place on the `customers` table
 3. Check the Diagnostic Log for `customers_error` entries
 
+### The app shows a blank tab and won't load on poor signal
+
+1. Check whether both `index.html` and `sw.js` are actually deployed — if `sw.js` is missing, was never uploaded, or sits at a different path, the service worker can't register and there's no cached app shell to fall back on, so a poor-signal load has nothing to do but wait on the network. See [Deployment](#deployment) and [Service Worker & App Shell Caching](#service-worker--app-shell-caching)
+2. In Chrome DevTools → Application → Service Workers, confirm a worker is actually registered for the live URL (not just `localhost` during local testing)
+3. Confirm Cache Storage → `fmf-pod-v1` has an entry for the page URL — if it's empty, the driver's device has never successfully loaded the app once yet, and the very first load on bad signal still depends on the network succeeding (see the note at the end of the service worker section)
+4. This is a different failure mode from a submission failing — check the Diagnostic Log for the affected time window; a genuinely blank tab produces **no log entry at all**, since the app's JS never got the chance to run. A gap with nothing logged either side of it, on a device that was working fine before, is the signature of this specific issue rather than anything submission-related
+
 ### An offline delivery didn't sync after reconnecting
 
 1. The sync bar should appear automatically when the connection returns; if not, refresh the page — the queue check runs on load
@@ -667,9 +719,10 @@ Check this README's [Database Schema](#database-schema) section against your act
 
 ```
 ├── index.html                       ← The entire application
+├── sw.js                            ← Service worker — app shell offline caching. Must sit alongside index.html; see Deployment
 ├── README.md                        ← This file
 ├── regeocode.html                   ← Standalone tool to bulk re-geocode customer_addresses via Nominatim
 └── import_customer_addresses.py     ← One-time script used to import address data from Excel into Supabase
 ```
 
-There are no dependencies, no `node_modules`, no `package.json`, no build output folders.
+There are no dependencies, no `node_modules`, no `package.json`, no build output folders. `index.html` and `sw.js` are the only two files required for the app to function correctly — everything else in this list is a standalone admin/one-time tool, not something the running app depends on.
