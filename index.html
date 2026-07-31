@@ -895,6 +895,14 @@ if ('serviceWorker' in navigator) {
   .route-list-empty { text-align: center; padding: 48px 20px; color: var(--text-muted); }
   .route-list-empty svg { width: 48px; height: 48px; margin: 0 auto 14px; display: block; opacity: 0.2; }
   .route-list-empty p { font-size: 0.9rem; line-height: 1.6; }
+  .route-list-retry-btn {
+    margin-top: 14px; padding: 10px 22px;
+    background: var(--brand); color: white; border: none;
+    border-radius: 10px; font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.9rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    cursor: pointer;
+  }
+  .route-list-retry-btn:active { background: var(--brand-dark); transform: scale(0.98); }
 
   /* ── Route filter chips ── */
   .route-filter-bar { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
@@ -3549,8 +3557,23 @@ function diagClear() {
 window.addEventListener('error', function(ev) {
   diagLog('js_error', `${ev.message} @ ${ev.filename ? ev.filename.split('/').pop() : '?'}:${ev.lineno}`, 'error');
 });
+// Browser extensions (ad blockers, password managers, etc.) inject content
+// scripts into every page, including this one. When their own background/
+// content-script messaging fails — commonly when a tab is backgrounded or
+// discarded, which happens constantly on these devices — the failure
+// surfaces as an unhandled promise rejection on THIS page, even though it
+// has nothing to do with the app. These are the well-known signatures of
+// that noise; anything else still gets logged as a real promise_error.
+const EXTENSION_NOISE_PATTERNS = [
+  /runtime\.sendMessage/i,
+  /Tab not found/i,
+  /Extension context invalidated/i,
+  /message port closed before a response/i,
+  /Could not establish connection\. Receiving end does not exist/i
+];
 window.addEventListener('unhandledrejection', function(ev) {
   const msg = ev.reason ? (ev.reason.message || String(ev.reason)) : 'Unknown rejection';
+  if (EXTENSION_NOISE_PATTERNS.some(p => p.test(msg))) return;
   diagLog('promise_error', msg, 'error');
 });
 
@@ -4008,7 +4031,8 @@ let _statusRotateIndex = 0;
 const STATUS_ICONS = {
   queued:     '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
   offline:    '<line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/>',
-  staleRoute: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/>'
+  staleRoute: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/>',
+  routeListStale: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V8"/><line x1="12" y1="14" x2="12" y2="16"/>'
 };
 
 function setStatusMessage(id, text, count) {
@@ -5817,15 +5841,32 @@ function setRouteFilter(f) {
 }
 
 // ── Route list view ───────────────────────────────────────────────────────────
+const ROUTE_LIST_CACHE_PREFIX = 'fmf_routelist_';
+
 async function loadRouteList() {
   const c = document.getElementById('routeListContainer');
   c.innerHTML = '<div class="history-loading"><div class="spinner"></div>Loading routes...</div>';
   try {
     allRoutes = await fetchRoutes();
+    try { localStorage.setItem(ROUTE_LIST_CACHE_PREFIX + loggedInDriver, JSON.stringify(allRoutes)); } catch(_) {}
+    clearStatusMessage('routeListStale');
     renderRouteList();
   } catch(e) {
     diagLog('route_list_load_failed', classifyFetchError(e), 'error');
-    c.innerHTML = `<div class="route-list-empty"><p>Could not load routes.<br><span style="font-size:0.8rem">${escHtml(e.message)}</span></p></div>`;
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(ROUTE_LIST_CACHE_PREFIX + loggedInDriver) || 'null'); } catch(_) {}
+    if (cached && cached.length) {
+      // Show what we've got, flagged as possibly stale, rather than a dead end
+      allRoutes = cached;
+      renderRouteList();
+      setStatusMessage('routeListStale', `Showing your last saved routes — couldn't refresh just now.`);
+    } else {
+      c.innerHTML = `<div class="route-list-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+        <p>Couldn't load your routes — check your connection.</p>
+        <button class="route-list-retry-btn" onclick="loadRouteList()">Try again</button>
+      </div>`;
+    }
   }
 }
 
