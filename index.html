@@ -4140,6 +4140,7 @@ async function syncQueue() {
       }
       // If photoAlreadyUploaded, record.photo_url was already set before queueing.
       await insertRecord(record);
+      appendSyncedDeliveryToCache(record); // close the queue→cache gap immediately, before any deletion/render can race it
       await deleteQueuedRecord(id);
       synced++;
       diagLog('sync_item_ok', `Synced: ${record.customer_name} / ${photoFilename}`);
@@ -4195,6 +4196,7 @@ async function attemptQuickSync(dbId) {
       record.photo_url = await uploadPhoto(photoFilename, blob, 12000); // fail fast, not 45s
     }
     await insertRecord(record, 8000); // fail fast, not 15s
+    appendSyncedDeliveryToCache(record); // close the queue→cache gap immediately, before any deletion/render can race it
     await deleteQueuedRecord(id);
     await updateSyncBar();
     diagLog('sync_item_ok', `Synced (quick): ${record.customer_name} / ${photoFilename}`);
@@ -5436,6 +5438,40 @@ function getCachedTodayDeliveries() {
     const { date, deliveries } = JSON.parse(cached);
     return (date === todayStr() && Array.isArray(deliveries)) ? deliveries : [];
   } catch(_) { return []; }
+}
+
+// Closes the gap between "item just left the sync queue" and "the next live
+// loadActiveRoute() fetch happens to succeed and refreshes the cache." Without
+// this, a delivery that quick-syncs (or catch-up syncs) while signal stays
+// poor is in neither the queue (already synced, deleted) nor the cache (not
+// yet re-fetched) — so a refresh that falls back to cache during that window
+// silently un-ticks a stop that's genuinely, safely on the server. Call this
+// the moment insertRecord() confirms success, using the same record shape
+// fetchTodayDeliveries() would have returned, so we don't need a network
+// round-trip just to know what we already have in hand.
+function appendSyncedDeliveryToCache(record) {
+  if (!loggedInDriver || !record) return;
+  try {
+    const key = DELIV_CACHE_PREFIX + loggedInDriver;
+    const today = todayStr();
+    let deliveries = [];
+    const cached = localStorage.getItem(key);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed.date === today && Array.isArray(parsed.deliveries)) deliveries = parsed.deliveries;
+      // else: cache is from a previous day (or empty) — start fresh rather than
+      // carrying stale entries forward under today's date.
+    }
+    deliveries.push({
+      customer_name:     record.customer_name,
+      delivery_datetime: record.delivery_datetime,
+      route_id:          record.route_id
+    });
+    localStorage.setItem(key, JSON.stringify({ date: today, deliveries }));
+  } catch(_) {
+    // Cache write failing is not worth alarming the driver over — the next
+    // successful live fetch will still overwrite this with server truth.
+  }
 }
 
 async function getQueuedDeliveriesForToday() {
