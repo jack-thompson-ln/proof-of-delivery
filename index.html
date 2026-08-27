@@ -1935,6 +1935,9 @@ if ('serviceWorker' in navigator) {
           <option value="session_restore_error">Session restore error</option>
           <option value="submit_recorded">Delivery recorded locally</option>
           <option value="sync_quick_deferred">Quick sync deferred</option>
+          <option value="sync_skip_offline">Quick sync skipped (offline)</option>
+          <option value="sync_queue_checked">Queue checked at sync run</option>
+          <option value="queue_state_at_load">Queue state at app load</option>
         </select>
       </div>
       <div id="diagLogBody" style="border:1.5px solid var(--border);border-radius:10px;max-height:340px;overflow-y:auto;background:var(--off-white);">
@@ -4094,8 +4097,17 @@ function renderStatusBar() {
   }
 }
 
+let _queueCountLoggedThisSession = false;
 async function updateSyncBar() {
   const queued = await getQueuedRecords();
+  // Runs at every app init regardless of online state, unlike syncQueue()'s
+  // own logging — so an offline app-open still leaves a record of what was
+  // actually in IndexedDB at that moment. Once per session is enough; this
+  // fires on every render call otherwise.
+  if (!_queueCountLoggedThisSession) {
+    _queueCountLoggedThisSession = true;
+    diagLog('queue_state_at_load', `${queued.length} item(s) in IndexedDB queue on app load (online: ${navigator.onLine})`);
+  }
   renderLoginQueueBanner(queued);
   if (queued.length === 0) {
     clearStatusMessage('queued');
@@ -4115,6 +4127,13 @@ async function syncQueue() {
     diagLog('sync_error', `getQueuedRecords failed: ${e.message}`, 'error');
     _syncing = false; return;
   }
+  // Log every run, including empty ones — this is the only way to tell,
+  // after the fact, whether the queue was already empty when this session
+  // started (record vanished before the app ever got a chance to sync it)
+  // versus never having a sync attempt run at all. Previously this returned
+  // silently on an empty queue, which is exactly the gap that made the F27
+  // incident (2026-08-26, Ken) impossible to distinguish from a sync bug.
+  diagLog('sync_queue_checked', `Found ${queued.length} queued item(s) at sync check`);
   if (queued.length === 0) { _syncing = false; return; }
 
   const bar  = document.getElementById('syncBar');
@@ -4183,9 +4202,20 @@ function base64ToBlob(base64, mime) {
 // retry timer below, or the next app load will pick it up via syncQueue().
 // Shares the _syncing guard with syncQueue() so the two never race and
 // double-upload the same item.
-async function attemptQuickSync(dbId) {
+async function attemptQuickSync(dbId, _isRetry) {
   if (_syncing) return; // a full catch-up sync is already running — it'll cover this item too
-  if (!navigator.onLine) return;
+  if (!navigator.onLine) {
+    // Previously silent — meant a delivery submitted the instant signal dropped
+    // had ZERO logged evidence of ever being attempted, and sat exposed to the
+    // full 25s periodic-timer window (or longer, if the tab dies before that
+    // timer fires) before any retry was even scheduled. Log it, and — unless
+    // this IS already the retry — give the connection one more short chance
+    // to come back, since "offline" from navigator.onLine at submit time is
+    // often momentary on real mobile signal, not a genuine outage.
+    diagLog('sync_skip_offline', `Quick sync skipped — offline at submit (item ${dbId})`, 'warn');
+    if (!_isRetry) setTimeout(() => attemptQuickSync(dbId, true), 4000);
+    return;
+  }
   _syncing = true;
   try {
     const item = await getQueuedRecord(dbId);
