@@ -5374,6 +5374,7 @@ function renderLineChart(records) {
 let allRoutes       = [];
 let editingRoute    = null;
 let editorStops     = [];
+let routeEditorSnapshot = null; // dirty-check baseline, captured when the editor opens
 let routeFilter     = 'draft';
 let activeRouteData = null;
 let dragSrcIndex    = null;
@@ -6079,9 +6080,42 @@ function openRouteEditor(routeId) {
   }
 
   document.getElementById('routeEditorOverlay').classList.add('open');
+
+  // Baseline for the unsaved-changes check — captured last, once every field
+  // above has its final value for this open (new route or restored existing one).
+  routeEditorSnapshot = buildRouteEditorSnapshot();
 }
 
-function closeRouteEditor() {
+// Serialises the fields a driver/admin can actually change in the editor,
+// so it can be diffed against the state when the editor was opened.
+function buildRouteEditorSnapshot() {
+  return JSON.stringify({
+    name:  (document.getElementById('routeEditorName').value || '').trim(),
+    date:  document.getElementById('routeEditorDate').value || '',
+    stops: editorStops,
+    dest:  getFinalDest()
+  });
+}
+
+function routeEditorIsDirty() {
+  if (routeEditorSnapshot === null) return false; // not opened via openRouteEditor — don't block
+  return buildRouteEditorSnapshot() !== routeEditorSnapshot;
+}
+
+// `force` = true skips the unsaved-changes prompt (used after a successful save,
+// where the route is already persisted and there's nothing to warn about).
+function closeRouteEditor(force) {
+  if (!force && routeEditorIsDirty()) {
+    const wantsSave = confirm('This route hasn\'t been saved yet.\n\nPress OK to save it now, or Cancel to see discard options.');
+    if (wantsSave) {
+      saveRoute(); // saveRoute() closes the overlay itself once the save succeeds
+      return;
+    }
+    if (!confirm('Discard this route and its stops? This cannot be undone.')) {
+      return; // driver backed out — leave the editor open, nothing lost
+    }
+  }
+  routeEditorSnapshot = null;
   document.getElementById('routeEditorOverlay').classList.remove('open');
   document.getElementById('rcDropdown').classList.remove('open');
 }
@@ -6508,7 +6542,7 @@ async function _persistRoute(doOptimise) {
     }
 
     enableRouteMapPill();
-    closeRouteEditor();
+    closeRouteEditor(true);
     renderRouteList();
     await loadActiveRoute();
 
