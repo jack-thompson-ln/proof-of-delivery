@@ -35,6 +35,7 @@ if ('serviceWorker' in navigator) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 <style>
   :root {
     --brand: #004b8e;
@@ -433,6 +434,8 @@ if ('serviceWorker' in navigator) {
   .chart-card-title svg { width: 14px; height: 14px; }
   .chart-wrap { position: relative; width: 100%; max-width: 320px; margin: 0 auto; }
   .chart-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 0.9rem; }
+  .heatmap-wrap { position: relative; width: 100%; height: 340px; border-radius: 10px; overflow: hidden; }
+  .heatmap-wrap .leaflet-container { background: var(--off-white); }
   .pie-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
   .stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
   .stat-card { background: white; border-radius: var(--radius); padding: 16px 12px; box-shadow: var(--shadow); border: 1.5px solid var(--border); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -2508,6 +2511,16 @@ if ('serviceWorker' in navigator) {
       </div>
       <div class="chart-wrap" style="max-width:100%;">
         <canvas id="lineChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Delivery Density
+      </div>
+      <div id="heatMapWrap" class="heatmap-wrap">
+        <div id="analyticsHeatMap" style="width:100%;height:100%;"></div>
       </div>
     </div>
   </div>
@@ -4935,6 +4948,8 @@ function closeLightbox() {
 let pieChartInstance         = null;
 let customerPieChartInstance = null;
 let lineChartInstance        = null;
+let analyticsHeatMap         = null;
+let analyticsHeatLayer       = null;
 const PIE_BLUES = [
   '#004b8e','#0062b8','#0077d4','#0099ff','#33aaff',
   '#66bbff','#003a6e','#005299','#1a6fa8','#2980b9'
@@ -5005,8 +5020,11 @@ async function loadAnalytics() {
   const dateFrom = fromEl.value;
   const dateTo   = toEl.value;
   let query = `/rest/v1/${config.table}?order=delivery_datetime.asc`;
-  if (dateFrom) query += `&delivery_datetime=gte.${dateFrom}T00:00:00`;
-  if (dateTo)   query += `&delivery_datetime=lte.${dateTo}T23:59:59`;
+  // Local calendar date -> explicit UTC instant, same fix as fetchRecords() (Session 18).
+  // A naive "T00:00:00" with no offset is read by PostgREST as UTC, which silently
+  // clips late-evening BST records and pulls in early-morning ones from the next day.
+  if (dateFrom) query += `&delivery_datetime=gte.${new Date(dateFrom + 'T00:00:00').toISOString()}`;
+  if (dateTo)   query += `&delivery_datetime=lte.${new Date(dateTo   + 'T23:59:59').toISOString()}`;
   try {
     const PAGE_SIZE = 1000;
     let allRecords = [];
@@ -5026,10 +5044,51 @@ async function loadAnalytics() {
     renderPieChart(records);
     renderCustomerPieChart(records);
     renderLineChart(records);
+    renderHeatMap(records);
   } catch(err) {
     diagLog('analytics_load_failed', classifyFetchError(err), 'error');
     document.getElementById('pieChartWrap').innerHTML = `<div class="chart-empty">Error loading data: ${err.message}</div>`;
   }
+}
+
+function renderHeatMap(records) {
+  const wrap = document.getElementById('heatMapWrap');
+  const geoRecords = records.filter(r => typeof r.latitude === 'number' && typeof r.longitude === 'number');
+
+  // Tear down any previous instance before re-rendering (date/driver filter changed)
+  if (analyticsHeatMap) {
+    analyticsHeatMap.remove();
+    analyticsHeatMap = null;
+    analyticsHeatLayer = null;
+  }
+
+  if (geoRecords.length === 0) {
+    const missingNote = records.length > 0
+      ? ` (${records.length} deliver${records.length === 1 ? 'y has' : 'ies have'} no location data)`
+      : '';
+    wrap.innerHTML = `<div class="chart-empty">No deliveries with location data in this range${missingNote}.</div>`;
+    return;
+  }
+
+  // Rebuild the map div — innerHTML may have been replaced with the empty-state message previously
+  wrap.innerHTML = '<div id="analyticsHeatMap" style="width:100%;height:100%;"></div>';
+
+  analyticsHeatMap = L.map('analyticsHeatMap', { zoomControl: true, attributionControl: true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  }).addTo(analyticsHeatMap);
+
+  const points = geoRecords.map(r => [r.latitude, r.longitude, 0.5]);
+  analyticsHeatLayer = L.heatLayer(points, { radius: 22, blur: 18, maxZoom: 17 }).addTo(analyticsHeatMap);
+
+  const bounds = L.latLngBounds(geoRecords.map(r => [r.latitude, r.longitude]));
+  analyticsHeatMap.fitBounds(bounds, { padding: [30, 30] });
+
+  // Leaflet mis-sizes tiles when initialised inside a container that wasn't
+  // visible/laid-out yet (e.g. first load of the Analytics screen) — same
+  // fix used elsewhere in this app after opening a Leaflet map in a fresh view.
+  setTimeout(() => { if (analyticsHeatMap) analyticsHeatMap.invalidateSize(); }, 150);
 }
 
 function renderAnalyticsDriverChips(records) {
