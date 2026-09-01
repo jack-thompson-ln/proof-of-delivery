@@ -5004,13 +5004,21 @@ async function loadAnalytics() {
 
   const dateFrom = fromEl.value;
   const dateTo   = toEl.value;
-  let query = `/rest/v1/${config.table}?order=delivery_datetime.asc&limit=1000`;
+  let query = `/rest/v1/${config.table}?order=delivery_datetime.asc`;
   if (dateFrom) query += `&delivery_datetime=gte.${dateFrom}T00:00:00`;
   if (dateTo)   query += `&delivery_datetime=lte.${dateTo}T23:59:59`;
   try {
-    const res = await sbRequest(query, { headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': '0-999' } });
-    if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
-    const allRecords = await res.json();
+    const PAGE_SIZE = 1000;
+    let allRecords = [];
+    let offset = 0;
+    while (true) {
+      const res = await sbRequest(query, { headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': `${offset}-${offset + PAGE_SIZE - 1}` } });
+      if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
+      const page = await res.json();
+      allRecords = allRecords.concat(page);
+      if (page.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
+    }
     renderAnalyticsDriverChips(allRecords);
     const records = activeAnalyticsDriver
       ? allRecords.filter(r => r.driver_name === activeAnalyticsDriver)
