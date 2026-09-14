@@ -3837,48 +3837,85 @@ function openDB() {
     req.onupgradeneeded = e => {
       e.target.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
     };
-    req.onsuccess = e => { db = e.target.result; resolve(db); };
-    req.onerror   = e => reject(e.target.error);
+    req.onsuccess = e => {
+      db = e.target.result;
+      // Mobile browsers (iOS Safari, Android Chrome under memory pressure) can
+      // silently close an idle IndexedDB connection out from under the page —
+      // no error, no event the app was listening for. If we keep handing out
+      // this cached `db` after that happens, every transaction() call on it
+      // throws "The database connection is closing." These handlers null the
+      // singleton the moment that happens so the next openDB() call is forced
+      // to open a fresh connection instead of reusing a dead one. (Session 21)
+      db.onclose = () => { db = null; };
+      db.onversionchange = () => { db.close(); db = null; };
+      resolve(db);
+    };
+    req.onerror = e => reject(e.target.error);
   });
 }
 
+// Runs an IndexedDB operation and, if it fails because the cached connection
+// had already been closed out from under us (see openDB() above), drops the
+// stale handle and retries exactly once against a freshly-opened connection.
+// This is what makes the local-first write in submitDelivery() actually
+// unconditional — previously a dead connection surfaced as a driver-facing
+// "Error saving record" and the delivery was not saved anywhere. (Session 21)
+async function withDbRetry(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    const stale = err && (err.name === 'InvalidStateError' || /closing/i.test(err.message || ''));
+    if (!stale) throw err;
+    db = null;
+    return await fn();
+  }
+}
+
 async function queueRecord(record) {
-  const database = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx  = database.transaction(STORE_NAME, 'readwrite');
-    const req = tx.objectStore(STORE_NAME).add(record);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror   = () => reject(req.error);
+  return withDbRetry(async () => {
+    const database = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx  = database.transaction(STORE_NAME, 'readwrite');
+      const req = tx.objectStore(STORE_NAME).add(record);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror   = () => reject(req.error);
+    });
   });
 }
 
 async function getQueuedRecords() {
-  const database = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx  = database.transaction(STORE_NAME, 'readonly');
-    const req = tx.objectStore(STORE_NAME).getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror   = () => reject(req.error);
+  return withDbRetry(async () => {
+    const database = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx  = database.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror   = () => reject(req.error);
+    });
   });
 }
 
 async function getQueuedRecord(id) {
-  const database = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx  = database.transaction(STORE_NAME, 'readonly');
-    const req = tx.objectStore(STORE_NAME).get(id);
-    req.onsuccess = () => resolve(req.result || null);
-    req.onerror   = () => reject(req.error);
+  return withDbRetry(async () => {
+    const database = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx  = database.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror   = () => reject(req.error);
+    });
   });
 }
 
 async function deleteQueuedRecord(id) {
-  const database = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx  = database.transaction(STORE_NAME, 'readwrite');
-    const req = tx.objectStore(STORE_NAME).delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror   = () => reject(req.error);
+  return withDbRetry(async () => {
+    const database = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx  = database.transaction(STORE_NAME, 'readwrite');
+      const req = tx.objectStore(STORE_NAME).delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror   = () => reject(req.error);
+    });
   });
 }
 
