@@ -1496,6 +1496,21 @@ if ('serviceWorker' in navigator) {
   .am-form-err { font-size: 0.8rem; color: var(--error); margin-top: 8px; text-align: center; display: none; }
   .am-form-err.show { display: block; }
 
+  /* New customer sheet (Session 22) — reuses the .am-form-* styles above */
+  #amCustFormOverlay {
+    display: none; position: fixed; inset: 0; z-index: 610;
+    background: rgba(0,20,50,0.6); backdrop-filter: blur(4px);
+    align-items: flex-end; justify-content: center;
+  }
+  #amCustFormOverlay.open { display: flex; }
+  .am-cust-input { text-transform: uppercase; }
+  .am-cust-hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 5px; }
+  .am-cust-preview-box { background: rgba(0,75,142,0.07); border-radius: 10px; padding: 11px 14px; margin-top: 2px; }
+  .am-cust-preview-box .am-form-label { margin-bottom: 3px; }
+  .am-cust-preview { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--brand); word-break: break-word; line-height: 1.25; }
+  .am-cust-preview.empty { color: var(--text-muted); font-weight: 500; }
+  .am-empty-cta { margin: 16px auto 0; }
+
   /* ══ OVERVIEW VIEW ══ */
   #overviewView { display: none; }
   #overviewView.show {
@@ -1699,6 +1714,7 @@ if ('serviceWorker' in navigator) {
 
   @media (min-width: 700px) {
     #amFormOverlay { align-items: center; }
+    #amCustFormOverlay { align-items: center; }
     .am-form-sheet { border-radius: 20px; }
   }
 </style>
@@ -1931,6 +1947,8 @@ if ('serviceWorker' in navigator) {
           <option value="address_save_failed">Address save failed</option>
           <option value="address_delete_failed">Address delete failed</option>
           <option value="quickadd_address_save_failed">Quick-add address failed</option>
+          <option value="customer_added">Customer added</option>
+          <option value="customer_add_failed">Customer add failed</option>
           <option value="pod_generate_failed">POD generation failed</option>
           <option value="overview_load_failed">Overview load failed</option>
           <option value="regeocode_failed">Re-geocode failed</option>
@@ -2257,6 +2275,9 @@ if ('serviceWorker' in navigator) {
         <div class="am-header-title">Address Manager</div>
         <div class="am-header-sub">Customer delivery addresses</div>
       </div>
+      <button class="am-back" onclick="openAmCustForm()" title="New customer" aria-label="Add new customer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
     </div>
     <div class="am-body">
       <div class="am-search-wrap">
@@ -2407,6 +2428,36 @@ if ('serviceWorker' in navigator) {
       <div class="am-form-actions" style="margin-top:18px;">
         <button class="am-form-cancel" onclick="closeAmForm()">Cancel</button>
         <button class="am-form-save" id="amFormSave" onclick="amSaveAddress()">Save Address</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEW CUSTOMER SHEET (Address Manager) -->
+  <div id="amCustFormOverlay" onclick="handleAmCustOverlayClick(event)">
+    <div class="am-form-sheet">
+      <div class="am-form-title">New Customer</div>
+      <div class="am-form-sub">Added to the customer list used by drivers and routes</div>
+      <div class="am-form-group">
+        <label class="am-form-label" for="amCustNumber">Account Number</label>
+        <input type="text" class="am-form-input am-cust-input" id="amCustNumber" placeholder="A137" maxlength="30"
+               autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"
+               oninput="amCustUpdatePreview()" onkeydown="amCustKey(event, 'amCustName')">
+        <div class="am-cust-hint">Letters, numbers, . / and - only — no spaces</div>
+      </div>
+      <div class="am-form-group">
+        <label class="am-form-label" for="amCustName">Account Name</label>
+        <input type="text" class="am-form-input am-cust-input" id="amCustName" placeholder="MICHAEL GOMEZ" maxlength="100"
+               autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"
+               oninput="amCustUpdatePreview()" onkeydown="amCustKey(event, null)">
+      </div>
+      <div class="am-cust-preview-box">
+        <div class="am-form-label">Will be saved as</div>
+        <div class="am-cust-preview empty" id="amCustPreview">ACCOUNT NUMBER - ACCOUNT NAME</div>
+      </div>
+      <div class="am-form-err" id="amCustErr"></div>
+      <div class="am-form-actions" style="margin-top:18px;">
+        <button class="am-form-cancel" onclick="closeAmCustForm()">Cancel</button>
+        <button class="am-form-save" id="amCustSave" onclick="amSaveCustomer()">Save Customer</button>
       </div>
     </div>
   </div>
@@ -2984,6 +3035,7 @@ function logoutDriver() {
 let allCustomers = [];
 let customerSelected = false;
 const CUSTOMER_CACHE_KEY = 'fmf_customers_v1';
+const CUSTOMER_TS_KEY    = 'fmf_customers_ts_v1'; // newest created_at seen — marker for refreshCustomersDelta()
 
 async function fetchCustomers() {
   let all = [];
@@ -2991,7 +3043,7 @@ async function fetchCustomers() {
   const pageSize = 1000;
   while (true) {
     const to = from + pageSize - 1;
-    const res = await sbRequest(`/rest/v1/customers?select=name&active=eq.true&order=name.asc`, {
+    const res = await sbRequest(`/rest/v1/customers?select=name,created_at&active=eq.true&order=name.asc`, {
       headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': `${from}-${to}` }
     });
     if (!res.ok) throw new Error(`Failed to load customers (${res.status})`);
@@ -3001,8 +3053,20 @@ async function fetchCustomers() {
     from += pageSize;
   }
   const names = all.map(r => r.name);
+  // Newest created_at across the list (Session 22). Stored beside the cache so
+  // refreshCustomersDelta() can ask the server for "anything newer than this"
+  // instead of re-downloading all ~3.4k names. If no timestamp parses, no
+  // marker is stored and the delta refresh simply stays dormant.
+  let latestTs = null, latestMs = -1;
+  all.forEach(r => {
+    const ms = Date.parse(r.created_at);
+    if (!isNaN(ms) && ms > latestMs) { latestMs = ms; latestTs = r.created_at; }
+  });
   // Persist to localStorage so we have them offline
-  try { localStorage.setItem(CUSTOMER_CACHE_KEY, JSON.stringify(names)); } catch(_) {}
+  try {
+    localStorage.setItem(CUSTOMER_CACHE_KEY, JSON.stringify(names));
+    if (latestTs) localStorage.setItem(CUSTOMER_TS_KEY, latestTs);
+  } catch(_) {}
   return names;
 }
 
@@ -3031,6 +3095,65 @@ async function initCustomers() {
     }
   }
   _loadingCustomers = false;
+}
+
+// Insert a name into an already-ordered list without re-sorting everything
+// (keeps the server's ordering for existing entries). Returns true if added.
+function insertCustomerName(list, name) {
+  if (list.includes(name)) return false;
+  const idx = list.findIndex(n => n.localeCompare(name) > 0);
+  if (idx === -1) list.push(name); else list.splice(idx, 0, name);
+  return true;
+}
+
+// ── CUSTOMER DELTA REFRESH (Session 22) ───────────────────────────────
+// initCustomers() only runs at page load, so a phone left open never saw
+// customers added afterwards. This asks Supabase for active customers newer
+// than the stored marker — one tiny request — and merges them in.
+//   • Called from the existing 25s background timer, NOT the visibility-resume
+//     handler: Session 20 linked network bursts at resume to tab kills.
+//   • Throttled to once per 5 minutes; skipped while hidden, offline, mid
+//     full-load, or with an unsubmitted photo in the form.
+//   • If the result hits the limit (e.g. a bulk import sharing one created_at)
+//     a partial merge can't be trusted, so it falls back to a full refresh.
+//   • Does not detect deactivations/renames — those arrive on next page load.
+const CUSTOMER_DELTA_MIN_GAP_MS = 5 * 60 * 1000;
+const CUSTOMER_DELTA_LIMIT      = 200;
+let _lastCustomerDeltaAt = 0;
+
+async function refreshCustomersDelta() {
+  if (_loadingCustomers || !navigator.onLine) return;
+  if (document.visibilityState !== 'visible') return;
+  if (photoFile && !_submitting) return;
+  if (allCustomers.length === 0) return; // initCustomers() owns the empty case
+  if (Date.now() - _lastCustomerDeltaAt < CUSTOMER_DELTA_MIN_GAP_MS) return;
+  let since = null;
+  try { since = localStorage.getItem(CUSTOMER_TS_KEY); } catch(_) {}
+  if (!since) return; // cache pre-dates the marker — next full load sets one
+  _lastCustomerDeltaAt = Date.now();
+  try {
+    const res = await sbRequest(
+      `/rest/v1/customers?select=name,created_at&active=eq.true&created_at=gt.${encodeURIComponent(since)}&order=created_at.asc&limit=${CUSTOMER_DELTA_LIMIT}`,
+      { headers: { 'Accept': 'application/json' } }, 8000
+    );
+    if (!res.ok) throw new Error(`Delta refresh failed (${res.status})`);
+    const rows = await res.json();
+    if (!rows.length) return;
+    if (rows.length >= CUSTOMER_DELTA_LIMIT) {
+      allCustomers = await fetchCustomers();
+      diagLog('customers_fetch', `Delta hit limit — full refresh, ${allCustomers.length} customers`);
+      return;
+    }
+    let added = 0;
+    rows.forEach(r => { if (insertCustomerName(allCustomers, r.name)) added++; });
+    try {
+      localStorage.setItem(CUSTOMER_CACHE_KEY, JSON.stringify(allCustomers));
+      localStorage.setItem(CUSTOMER_TS_KEY, rows[rows.length - 1].created_at);
+    } catch(_) {}
+    if (added) diagLog('customers_fetch', `Delta: ${added} new customer(s) merged`);
+  } catch(e) {
+    diagLog('customers_error', `Delta refresh failed: ${classifyFetchError(e)}`, 'warn');
+  }
 }
 
 function onCustomerSearch() {
@@ -3512,6 +3635,7 @@ function _renderDiagRows(el, logs, pendingCount, isLocal, prepend = '') {
     sync_item_ok: '#00b86b', sync_item_error: '#e03c3c', sync_paused: '#f0a500',
     sync_error: '#e03c3c', route_load_error: '#e03c3c',
     customers_cache: '#5a7a9a', customers_fetch: '#00b86b', customers_error: '#e03c3c',
+    customer_added: '#00b86b', customer_add_failed: '#e03c3c',
     drivers_error: '#e03c3c',
     js_error: '#e03c3c', promise_error: '#e03c3c', memory_warn: '#f0a500'
   };
@@ -4329,7 +4453,11 @@ function _networkBurstAllowed() {
 }
 
 setInterval(() => {
-  if (navigator.onLine && _networkBurstAllowed()) syncQueue();
+  if (navigator.onLine && _networkBurstAllowed()) {
+    // Customer delta runs AFTER the sync settles so the two never overlap;
+    // it is throttled to once per 5 min internally, so most ticks are a no-op.
+    syncQueue().finally(() => refreshCustomersDelta());
+  }
 }, 25000);
 
 // Refresh route and customers when the driver returns to the tab/app
@@ -7957,7 +8085,7 @@ async function amRunSearch() {
     const customers = await res.json();
 
     if (customers.length === 0) {
-      resultsEl.innerHTML = `<div class="am-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>No customers found for "<strong>${escHtml(query)}</strong>"</div>`;
+      resultsEl.innerHTML = `<div class="am-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>No customers found for "<strong>${escHtml(query)}</strong>"<button class="am-add-btn am-empty-cta" onclick="openAmCustForm(true)">+ Add as new customer</button></div>`;
       return;
     }
 
@@ -8266,6 +8394,181 @@ function amShowFormErr(msg) {
   const el = document.getElementById('amFormErr');
   el.textContent = msg;
   el.classList.add('show');
+}
+
+// ── NEW CUSTOMER (Session 22) ────────────────────────────────────────────────
+// Adds a row to `customers` as "ACCOUNT NUMBER - ACCOUNT NAME".
+// The ACCOUNT NUMBER is the customer's real identity: customer_addresses,
+// address batches (in.(a,b,c)) and Analytics all key on the code portion, so:
+//   • the number is restricted to the character set every existing code uses
+//     (letters, digits, . / -), which also rules out spaces — extractCustomerCode()
+//     splits on ' - ' — and commas/parens that would break the in.(...) filter;
+//   • duplicates are checked on the CODE, case-insensitively, INCLUDING inactive
+//     customers (the DB unique constraint only blocks identical full strings);
+//   • customers_code_uq (unique index on the code) is the final backstop.
+// Online only, admin only (Address Manager sits behind the admin PIN).
+
+const AM_CUST_NUMBER_RE  = /^[A-Z0-9./-]+$/;
+const AM_CUST_NUMBER_MAX = 30;
+const AM_CUST_NAME_MAX   = 100;
+let _amCustSaving = false;
+
+function amCustNormalise() {
+  return {
+    number: document.getElementById('amCustNumber').value.trim().toUpperCase(),
+    name:   document.getElementById('amCustName').value.replace(/\s+/g, ' ').trim().toUpperCase()
+  };
+}
+
+function amCustValidate({ number, name }) {
+  if (!number) return 'Enter an account number';
+  if (number.length > AM_CUST_NUMBER_MAX) return `Account number is too long (max ${AM_CUST_NUMBER_MAX} characters)`;
+  if (!AM_CUST_NUMBER_RE.test(number) || !/[A-Z0-9]/.test(number)) {
+    return 'Account number can only use letters, numbers, . / and - (no spaces or other symbols)';
+  }
+  if (!name) return 'Enter an account name';
+  if (name.length > AM_CUST_NAME_MAX) return `Account name is too long (max ${AM_CUST_NAME_MAX} characters)`;
+  return null;
+}
+
+function amCustShowErr(msg) {
+  const el = document.getElementById('amCustErr');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function amCustUpdatePreview() {
+  const { number, name } = amCustNormalise();
+  const el = document.getElementById('amCustPreview');
+  document.getElementById('amCustErr').classList.remove('show');
+  if (!number && !name) {
+    el.textContent = 'ACCOUNT NUMBER - ACCOUNT NAME';
+    el.classList.add('empty');
+    return;
+  }
+  el.textContent = `${number || '…'} - ${name || '…'}`;
+  el.classList.remove('empty');
+}
+
+function amCustKey(e, nextId) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  if (nextId) document.getElementById(nextId).focus();
+  else amSaveCustomer();
+}
+
+// fromSearch=true (empty-results CTA) pre-fills from what the admin just typed:
+// anything containing a digit is treated as an account number, otherwise a name.
+function openAmCustForm(fromSearch) {
+  const numEl = document.getElementById('amCustNumber');
+  const nameEl = document.getElementById('amCustName');
+  numEl.value = '';
+  nameEl.value = '';
+  if (fromSearch) {
+    const raw = document.getElementById('amSearch').value.trim();
+    if (raw) {
+      if (/^[A-Za-z0-9./-]+$/.test(raw) && /\d/.test(raw)) numEl.value = raw.toUpperCase();
+      else nameEl.value = raw.replace(/\s+/g, ' ').toUpperCase();
+    }
+  }
+  amCustUpdatePreview();
+  document.getElementById('amCustErr').classList.remove('show');
+  const btn = document.getElementById('amCustSave');
+  btn.disabled = false;
+  btn.textContent = 'Save Customer';
+  document.getElementById('amCustFormOverlay').classList.add('open');
+  setTimeout(() => (numEl.value ? nameEl : numEl).focus(), 100);
+}
+
+function closeAmCustForm() {
+  document.getElementById('amCustFormOverlay').classList.remove('open');
+}
+
+function handleAmCustOverlayClick(e) {
+  if (e.target === document.getElementById('amCustFormOverlay')) closeAmCustForm();
+}
+
+// Rows already using this account number (any case, active OR inactive).
+// Pattern is "<CODE> - *": the ' - ' delimiter means it can only match names
+// whose extracted code is exactly this one. _ and % can't appear in a
+// validated code, so they can't act as LIKE wildcards.
+async function amCustFindByCode(code) {
+  const res = await sbRequest(
+    `/rest/v1/customers?select=name,active&name=ilike.${encodeURIComponent(code + ' - *')}&limit=20`,
+    { headers: { 'Accept': 'application/json' } }, 10000
+  );
+  if (!res.ok) throw new Error(`Duplicate check failed (${res.status})`);
+  const rows = await res.json();
+  return rows.filter(r => (extractCustomerCode(r.name) || '').toUpperCase() === code);
+}
+
+async function amSaveCustomer() {
+  if (_amCustSaving) return;
+  document.getElementById('amCustErr').classList.remove('show');
+
+  const norm = amCustNormalise();
+  const problem = amCustValidate(norm);
+  if (problem) { amCustShowErr(problem); return; }
+  if (!navigator.onLine) { amCustShowErr('No connection — customers can only be added while online'); return; }
+
+  const { number, name } = norm;
+  const fullName = `${number} - ${name}`;
+  const btn = document.getElementById('amCustSave');
+  _amCustSaving = true;
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+
+  try {
+    const existing = await amCustFindByCode(number);
+    if (existing.length) {
+      const hit = existing[0];
+      amCustShowErr(hit.active === false
+        ? `Account number ${number} already exists but is inactive ("${hit.name}"). Reactivate it in Supabase instead of creating a duplicate.`
+        : `Account number ${number} already exists ("${hit.name}"). Search for it instead of adding it again.`);
+      return;
+    }
+
+    btn.textContent = 'Saving…';
+    const res = await sbRequest('/rest/v1/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ name: fullName, active: true })
+    });
+    if (res.status === 409) {
+      amCustShowErr(`Account number ${number} already exists (rejected by the database).`);
+      return;
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`Database refused the insert (${res.status}) — check the anon INSERT grant on customers`);
+    }
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      throw new Error(`Save failed (${res.status}) ${t.slice(0, 150)}`.trim());
+    }
+
+    // ── Saved ──
+    diagLog('customer_added', fullName);
+    // Make it available on THIS device immediately (route editor + delivery form).
+    // Only touch the list if it's loaded — writing a 1-item cache over an empty
+    // list would stop initCustomers() from ever refilling it.
+    if (allCustomers.length > 0) {
+      insertCustomerName(allCustomers, fullName);
+      try { localStorage.setItem(CUSTOMER_CACHE_KEY, JSON.stringify(allCustomers)); } catch(_) {}
+    }
+    closeAmCustForm();
+    document.getElementById('amSearch').value = '';
+    // A customer with no address is invisible to route optimisation and
+    // navigation — go straight to their address panel and open Add Address.
+    await amSelectCustomer(fullName);
+    openAmForm(null);
+  } catch(e) {
+    diagLog('customer_add_failed', `${fullName}: ${classifyFetchError(e)}`, 'error');
+    amCustShowErr(`Could not save — ${classifyFetchError(e)}. If unsure, search for ${number} before retrying; it may have saved.`);
+  } finally {
+    _amCustSaving = false;
+    btn.disabled = false;
+    btn.textContent = 'Save Customer';
+  }
 }
 
 // ── ROUTE EDITOR: QUICK-ADD ADDRESS ──────────────────────────────────────────
