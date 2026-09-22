@@ -2100,7 +2100,7 @@ if ('serviceWorker' in navigator) {
       <div class="filter-row">
         <div class="filter-search-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="filterSearch" placeholder="Search customer or driver..." oninput="applyFilters()">
+          <input type="text" id="filterSearch" placeholder="Search customer or driver..." oninput="onHistorySearchInput()">
         </div>
         <button class="filter-clear" onclick="clearFilters()">Clear</button>
       </div>
@@ -3853,6 +3853,14 @@ async function insertRecord(record, timeoutMs) {
   const rows = await res.json().catch(() => []);
   return rows[0]?.id || null;
 }
+// Escape a search term for safe embedding inside a PostgREST ilike filter.
+// Wrapping in double quotes and escaping backslashes/quotes stops commas,
+// parentheses etc. in the term from breaking the filter's own syntax.
+function pgIlikeValue(term) {
+  const escaped = term.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `"*${escaped}*"`;
+}
+
 async function fetchRecords() {
   // In driver mode, lock the query to the logged-in driver server-side
   const driverFilter = historyMode === 'driver' && loggedInDriver
@@ -3868,7 +3876,21 @@ async function fetchRecords() {
   if (fromVal) dateFilter += `&delivery_datetime=gte.${new Date(fromVal + 'T00:00:00').toISOString()}`;
   if (toVal)   dateFilter += `&delivery_datetime=lte.${new Date(toVal   + 'T23:59:59').toISOString()}`;
 
-  const res = await sbRequest(`/rest/v1/${config.table}?order=delivery_datetime.desc&limit=500${driverFilter}${dateFilter}`, {
+  // Push the customer/driver search term into the server query too. Without
+  // this, a wide date range (e.g. a whole month) pulls the 500 most recent
+  // records depot-wide and the search box only ever sees that truncated
+  // subset — a specific customer's earlier records in the range can be
+  // silently dropped before the search box gets a chance to find them.
+  const searchVal = document.getElementById('filterSearch').value.trim();
+  let searchFilter = '';
+  if (searchVal) {
+    const pattern = encodeURIComponent(pgIlikeValue(searchVal));
+    searchFilter = historyMode === 'admin'
+      ? `&or=(customer_name.ilike.${pattern},driver_name.ilike.${pattern})`
+      : `&customer_name=ilike.${pattern}`;
+  }
+
+  const res = await sbRequest(`/rest/v1/${config.table}?order=delivery_datetime.desc&limit=500${driverFilter}${dateFilter}${searchFilter}`, {
     headers: { 'Accept': 'application/json', 'Range-Unit': 'items', 'Range': '0-499' }
   });
   if (!res.ok) {
@@ -4696,6 +4718,17 @@ function filterByDriver(name) {
   activeDriverFilter = name === 'All' ? null : name;
   buildDriverChips();
   applyFilters();
+}
+
+let _historySearchTimer = null;
+function onHistorySearchInput() {
+  // The search term is now part of the server query (see fetchRecords()), so
+  // typing has to trigger a re-fetch, not just a re-filter of records already
+  // pulled down — otherwise this only ever searches within whatever subset
+  // survived the 500-record cap for the current date range. Debounced so we
+  // don't fire a request on every keystroke.
+  clearTimeout(_historySearchTimer);
+  _historySearchTimer = setTimeout(() => { loadHistory(); }, 350);
 }
 
 function applyFilters() {
